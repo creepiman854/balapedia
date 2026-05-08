@@ -12,6 +12,9 @@ def create_app(config_class=DevConfig):
     cors.init_app(app, origins=app.config["CORS_ORIGINS"])
     limiter.init_app(app)
 
+    # Registra los modelos para que Flask-Migrate los descubra
+    from app import models # noqa: F401
+
     # Endpoint de salud (verifica que el server arranca)
     @app.get("/api/health")
     def health():
