@@ -1,0 +1,7 @@
+{{Voucher info
+| title = Overstock
+| image = Overstock.png
+| type = Base
+| effect = {{hl|orange|+1}} card slot available in shop
+| next = Overstock Plus
+}}

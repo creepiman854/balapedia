@@ -1,0 +1,15 @@
+{{Joker info
+| number = 2
+| title = Greedy Joker
+| image = Greedy Joker.png
+| negativeimage = Greedy Joker (Negative).png
+| effect = Played cards with {{Suit|Diamond}} suit give {{Mult|+3}} when scored
+| rarity = Common
+| type = Additive Mult
+| activation = On Scored
+| buyprice = 5
+| compat-copyable = 1
+| compat-perishable = 1
+| compat-eternal = 1
+| tilt = true
+}}

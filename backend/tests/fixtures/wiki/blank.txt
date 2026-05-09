@@ -1,0 +1,7 @@
+{{Voucher info
+| title = Blank
+| image = Blank.png
+| type = Base
+| effect = {{hl|gray|Does nothing?}}
+| next = Antimatter
+}}

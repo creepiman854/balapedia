@@ -1,0 +1,10 @@
+{{Consumable info
+| number = 17
+| title = The Soul
+| image = The Soul.png
+| effect = Creates a [[Legendary Jokers|{{hl|purple|Legendary}}]] Joker <br> {{room}}
+| type = Spectral
+| buyprice = 4 (cannot be found in shop)
+| sellprice = 2
+| unlock = Available from start.
+}}

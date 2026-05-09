@@ -1,0 +1,10 @@
+{{Consumable info
+| number = 7
+| title = The Hierophant
+| image = The Hierophant.png
+| effect = Enhances {{hl|orange|2}} selected cards to [[Card Modifiers|{{hl|orange|Bonus Cards}}]]
+| type = Tarot
+| buyprice = 3
+| sellprice = 1
+| unlock = Available from start.
+}}

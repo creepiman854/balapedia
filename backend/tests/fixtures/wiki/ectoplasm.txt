@@ -1,0 +1,9 @@
+{{Consumable info
+| number = 9
+| title = Ectoplasm
+| image = Ectoplasm.png
+| effect = Add [[Card Modifiers#Editions|{{hl|edition|Negative}}]] to a random {{hl|orange|Joker,}}<!--yes, the `,` is also highlighted in-game--> {{hl|red|-1}} hand size
+| type = Spectral
+| buyprice = 4
+| unlock = Available from start.
+}}
