@@ -48,12 +48,28 @@ from app.models import (
 # un enlace a la página de la wiki para verificación futura. Cuando la wiki se
 # corrija, basta con eliminar la entrada correspondiente.
 _WIKI_DATA_OVERRIDES = {
-    # The Hierophant tiene number=7 en la wiki, lo cual colisiona con The Lovers
-    # (también number=7). Según el orden estándar del Major Arcana y la posición
-    # en el juego, The Hierophant es la 6ª carta. Aplicamos override hasta que
-    # el editor de la wiki corrija el campo.
+    # Tarot: The Hierophant tiene number=7 en la wiki, lo cual colisiona
+    # con The Lovers (también number=7). Según el orden estándar del Major
+    # Arcana, debe ser 6.
     # Wiki: https://balatrowiki.org/wiki/The_Hierophant
     ("tarot", "The Hierophant"): {"item_number": 6},
+    # Voucher: Planet Merchant tiene la cadena Base→Upgraded invertida en
+    # la wiki (usa `previous = Planet Tycoon` en lugar de `next`).
+    # Forzamos el enlace correcto para que pass 2 lo resuelva.
+    # Wiki: https://balatrowiki.org/wiki/Planet_Merchant
+    ("voucher", "Planet Merchant"): {
+        "voucher_tier": "Base",
+        "next_voucher_name": "Planet Tycoon",
+    },
+    # Voucher: complemento defensivo del override anterior. Si la página de
+    # Planet Tycoon también tiene la inversión simétrica (`next = Planet
+    # Merchant`), lo limpiamos: Tycoon es Upgraded y no debe tener `next`,
+    # ya que está al final de su cadena.
+    # Wiki: https://balatrowiki.org/wiki/Planet_Tycoon
+    ("voucher", "Planet Tycoon"): {
+        "voucher_tier": "Upgraded",
+        "next_voucher_name": None,
+    },
 }
 
 
