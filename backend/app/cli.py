@@ -26,9 +26,10 @@ from sqlalchemy import func, text
 
 from app.extensions import db
 from app.models import Joker, JokerRarity, Unlockable, UnlockableType
-from app.scrapers import wiki
+from app.scrapers import steam, wiki
 
 from app.models import (
+    Achievement,
     Consumable,
     Deck,
     Joker,
@@ -106,7 +107,9 @@ def register_commands(app) -> None:
 @click.option(
     "--type",
     "item_type",
-    type=click.Choice(["jokers", "consumables", "decks", "vouchers", "all"]),
+    type=click.Choice(
+        ["jokers", "consumables", "decks", "vouchers", "achievements", "all"]
+    ),
     default="all",
     help="Tipo de items a sembrar. 'all' = todos los disponibles.",
 )
@@ -149,7 +152,7 @@ def seed_db(item_type: str, dry_run: bool, limit: int | None) -> None:
         "consumables": seed_consumables,
         "decks": seed_decks,
         "vouchers": seed_vouchers,
-        # achievements: en commit futuro
+        "achievements": seed_achievements,
     }
 
     types_to_seed = list(seeders.keys()) if item_type == "all" else [item_type]
@@ -788,3 +791,103 @@ def _upsert_voucher(data: dict, title: str) -> None:
         click.echo(
             f"  + Created: [{voucher_tier.value:>8}] " f"#{next_num:>3} {data['name']}"
         )
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Seeder: achievements (vía Steam Web API, no la wiki)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def seed_achievements(dry_run: bool, limit: int | None) -> int:
+    """Pobla la tabla de Achievements desde la Steam Web API.
+
+    A diferencia de los otros seeders (que usan la wiki de Balatro), este
+    obtiene los datos canónicos directamente de Steam. La fuente es más
+    estable: los nombres internos (``BAL_01``, ``BAL_02``...) no cambian
+    aunque el desarrollador renombre o reescriba la descripción visible
+    de un logro.
+
+    Returns:
+        Número de achievements procesados (creados o actualizados).
+    """
+    click.echo("  Fetching achievement schema from Steam Web API...")
+
+    try:
+        achievements = steam.fetch_game_achievements_schema()
+    except steam.SteamAPIKeyMissing as e:
+        click.secho(f"  ✗ {e}", fg="red")
+        raise click.Abort()
+    except steam.SteamAPIError as e:
+        click.secho(f"  ✗ Steam API error: {e}", fg="red")
+        raise click.Abort()
+
+    if not achievements:
+        click.secho("  ⚠ Steam returned 0 achievements", fg="yellow")
+        return 0
+
+    click.echo(f"  Got {len(achievements)} achievements from Steam")
+
+    if limit is not None:
+        achievements = achievements[:limit]
+
+    count = 0
+    for ach in achievements:
+        try:
+            _upsert_achievement(ach)
+
+            if not dry_run:
+                db.session.commit()
+
+            count += 1
+        except Exception as e:
+            db.session.rollback()
+            click.secho(
+                f"  ✗ Error processing {ach.get('name', '?')!r}: {e}",
+                fg="red",
+            )
+            logger.exception("Failed processing %s", ach.get("name"))
+            continue
+
+    if dry_run:
+        db.session.rollback()
+        click.secho("  (dry-run: changes rolled back)", fg="yellow")
+
+    return count
+
+
+def _upsert_achievement(ach: dict) -> None:
+    """Inserta o actualiza un Achievement en la BD.
+
+    Usa el campo interno ``name`` de Steam (p.ej. ``"BAL_01"``) como clave
+    estable de upsert: este identificador no cambia aunque Steam renombre
+    el achievement visible. ``displayName`` se almacena como nombre humano.
+
+    Solo se persiste el icono coloreado (``icon``); el gris (``icongray``)
+    se omite. El frontend aplicará ``filter: grayscale(100%)`` mediante CSS
+    para representar el estado bloqueado, evitando una columna extra en BD.
+    """
+    steam_name = ach["name"]
+    display_name = ach.get("displayName", steam_name)
+    description = ach.get("description") or ""
+    icon_url = ach.get("icon")
+    hidden = bool(ach.get("hidden", 0))
+
+    existing = Achievement.query.filter_by(steam_api_name=steam_name).first()
+
+    if existing is not None:
+        existing.name = display_name
+        existing.description = description
+        existing.icon_url = icon_url
+        existing.hidden = hidden
+        click.echo(f"  ↻ Updated: {steam_name:<8} {display_name}")
+    else:
+        db.session.add(
+            Achievement(
+                steam_api_name=steam_name,
+                name=display_name,
+                description=description,
+                icon_url=icon_url,
+                hidden=hidden,
+            )
+        )
+        click.echo(f"  + Created: {steam_name:<8} {display_name}")
