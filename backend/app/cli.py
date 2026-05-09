@@ -15,6 +15,7 @@ Convenciones de salida:
   - Los símbolos ``+`` (created), ``↻`` (updated), ``⚠`` (warning), ``✓``
     (success) y ``✗`` (error) facilitan el seguimiento visual del progreso.
 """
+
 from __future__ import annotations
 
 import logging
@@ -26,6 +27,16 @@ from sqlalchemy import text
 from app.extensions import db
 from app.models import Joker, JokerRarity, Unlockable, UnlockableType
 from app.scrapers import wiki
+
+from app.models import (
+    Consumable,
+    Deck,
+    Joker,
+    JokerRarity,
+    Unlockable,
+    UnlockableType,
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +59,7 @@ def register_commands(app) -> None:
 @click.option(
     "--type",
     "item_type",
-    type=click.Choice(["jokers", "all"]),
+    type=click.Choice(["jokers", "consumables", "decks", "all"]),
     default="all",
     help="Tipo de items a sembrar. 'all' = todos los disponibles.",
 )
@@ -88,7 +99,9 @@ def seed_db(item_type: str, dry_run: bool, limit: int | None) -> None:
 
     seeders = {
         "jokers": seed_jokers,
-        # consumables, decks, vouchers, achievements: se añadirán en commits futuros
+        "consumables": seed_consumables,
+        "decks": seed_decks,
+        # vouchers, achievements: en commits futuros
     }
 
     types_to_seed = list(seeders.keys()) if item_type == "all" else [item_type]
@@ -106,6 +119,31 @@ def seed_db(item_type: str, dry_run: bool, limit: int | None) -> None:
 
 
 # ──────────────────────────────────────────────────────────────────────
+#  Helpers compartidos por los seeders
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _filter_category_index_pages(titles: list[str], category: str) -> list[str]:
+    """Filtra páginas índice de una categoría de MediaWiki.
+
+    En MediaWiki, la página titulada igual que su categoría (y sus variantes
+    "List of X" / "X (List)") suele estar categorizada en sí misma como
+    página overview del tema. Estas páginas no son items individuales y
+    carecen de la plantilla que esperamos parsear, así que las descartamos
+    antes de procesar.
+
+    Args:
+        titles: Lista de títulos devuelta por ``wiki.list_pages_in_category``.
+        category: Nombre de la categoría sin prefijo ``Category:``.
+
+    Returns:
+        La lista de títulos sin las páginas índice.
+    """
+    index_names = {category, f"List of {category}", f"{category} (List)"}
+    return [t for t in titles if t not in index_names]
+
+
+# ──────────────────────────────────────────────────────────────────────
 #  Seeder: jokers
 # ──────────────────────────────────────────────────────────────────────
 
@@ -117,12 +155,7 @@ def seed_jokers(dry_run: bool, limit: int | None) -> int:
         Número de jokers procesados (insertados o actualizados).
     """
     titles = wiki.list_pages_in_category("Jokers")
-
-    # Filtra la página índice de la categoría: en MediaWiki, la página titulada
-    # igual que la categoría suele estar categorizada en sí misma como overview
-    # del tema. No es un Joker individual y no tiene la plantilla 'Joker info'.
-    INDEX_PAGES = {"Jokers", "List of Jokers", "Jokers (List)"}
-    titles = [t for t in titles if t not in INDEX_PAGES]
+    titles = _filter_category_index_pages(titles, "Jokers")
 
     if limit is not None:
         titles = titles[:limit]
@@ -139,28 +172,38 @@ def seed_jokers(dry_run: bool, limit: int | None) -> int:
 
             data = wiki.parse_joker(wikitext)
             if not data:
-                # Página categorizada bajo Jokers pero sin plantilla Joker info
-                # (puede ser una página de lista, disambig, etc.). Se ignora.
                 click.secho(
-                    f"  ⚠ Page lacks 'Joker info' template: {title!r}", fg="yellow"
+                    f"  ⚠ Page lacks 'Joker info' template: {title!r}",
+                    fg="yellow",
                 )
                 continue
 
+            # Defensa: items sin item_number no pueden satisfacer NOT NULL.
+            # Suelen ser páginas meta o de overview categorizadas erróneamente.
+            if data.get("item_number") is None:
+                click.secho(f"  ⚠ Skipped (no item_number): {title!r}", fg="yellow")
+                continue
+
             _upsert_joker(data, title)
+
+            # Commit por item: cada uno es una transacción independiente.
+            # Esto evita que un fallo posterior pierda el trabajo anterior y
+            # permite que el bucle continúe tras errores aislados.
+            if not dry_run:
+                db.session.commit()
+
             count += 1
         except Exception as e:
-            # Capturamos por item para que un fallo no aborte todo el seed.
-            # El traceback completo va al logger; al usuario, mensaje breve.
+            # Limpia la sesión envenenada antes de seguir con el siguiente item.
+            # Sin esto, todas las queries posteriores fallan en cascada.
+            db.session.rollback()
             click.secho(f"  ✗ Error processing {title!r}: {e}", fg="red")
             logger.exception("Failed processing %s", title)
             continue
 
-    # Persistencia o rollback según modo
     if dry_run:
         db.session.rollback()
         click.secho("  (dry-run: changes rolled back)", fg="yellow")
-    else:
-        db.session.commit()
 
     return count
 
@@ -240,5 +283,256 @@ def _upsert_joker(data: dict, title: str) -> None:
             is_perishable=data["is_perishable"],
             is_eternal=data["is_eternal"],
         )
+        db.session.add(unlockable)
+        click.echo(f"  + Created: #{data['item_number']:>3} {data['name']}")
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Seeder: consumables (Tarots, Planets, Spectrals)
+# ──────────────────────────────────────────────────────────────────────
+
+
+# Categorías de la wiki que mapean a la tabla `consumables`. Las tres
+# comparten la plantilla `Consumable info`, lo que permite usar un único
+# parser y una única tabla; el campo `type` del padre Unlockable
+# discrimina cuál es cuál.
+_CONSUMABLE_CATEGORIES = [
+    ("Tarot Cards", "tarot"),
+    ("Planet Cards", "planet"),
+    ("Spectral Cards", "spectral"),
+]
+
+
+def seed_consumables(dry_run: bool, limit: int | None) -> int:
+    """Pobla Tarots, Planets y Spectrals desde sus categorías respectivas.
+
+    Aunque las tres categorías comparten plantilla, viven en categorías
+    separadas en la wiki. Iteramos las tres, parseamos con el mismo
+    `parse_consumable` y validamos que el tipo extraído coincida con la
+    categoría (sanity check defensivo contra plantillas mal categorizadas).
+
+    Returns:
+        Número total de consumibles procesados (los tres tipos sumados).
+    """
+    total = 0
+    for category, expected_type in _CONSUMABLE_CATEGORIES:
+        titles = wiki.list_pages_in_category(category)
+        titles = _filter_category_index_pages(titles, category)
+        if limit is not None:
+            titles = titles[:limit]
+
+        click.echo(
+            f"  Found {len(titles)} {expected_type} pages in Category:{category}"
+        )
+
+        for title in titles:
+            try:
+                wikitext = wiki.fetch_wikitext(title)
+                if not wikitext:
+                    click.secho(f"  ⚠ No wikitext for {title!r}", fg="yellow")
+                    continue
+
+                data = wiki.parse_consumable(wikitext)
+                if not data:
+                    click.secho(
+                        f"  ⚠ Page lacks 'Consumable info' template: {title!r}",
+                        fg="yellow",
+                    )
+                    continue
+
+                if data.get("item_number") is None:
+                    click.secho(f"  ⚠ Skipped (no item_number): {title!r}", fg="yellow")
+                    continue
+
+                if data["type"] != expected_type:
+                    click.secho(
+                        f"  ⚠ Type mismatch for {title!r}: "
+                        f"expected {expected_type!r}, got {data['type']!r}",
+                        fg="yellow",
+                    )
+                    continue
+
+                _upsert_consumable(data, title)
+
+                if not dry_run:
+                    db.session.commit()
+
+                total += 1
+            except Exception as e:
+                db.session.rollback()
+                click.secho(f"  ✗ Error processing {title!r}: {e}", fg="red")
+                logger.exception("Failed processing %s", title)
+                continue
+
+    if dry_run:
+        db.session.rollback()
+        click.secho("  (dry-run: changes rolled back)", fg="yellow")
+
+    return total
+
+
+def _upsert_consumable(data: dict, title: str) -> None:
+    """Inserta o actualiza un Consumable (Tarot, Planet o Spectral) en la BD."""
+    image_url = (
+        wiki.resolve_image_url(data["image_filename"])
+        if data.get("image_filename")
+        else None
+    )
+
+    consumable_type = UnlockableType(data["type"])  # 'tarot'/'planet'/'spectral'
+
+    existing = Unlockable.query.filter_by(
+        type=consumable_type,
+        item_number=data["item_number"],
+    ).first()
+
+    if existing is not None:
+        # Detección defensiva de colisión por item_number duplicado.
+        # Si el registro existente tiene OTRO nombre, es porque dos páginas de la
+        # wiki comparten el mismo number (error de la fuente). Skipeamos para
+        # no pisar el primer registro insertado.
+        if existing.name != data["name"]:
+            click.secho(
+                f"  ⚠ Number collision: {data['type']} #{data['item_number']} "
+                f"already taken by {existing.name!r}, skipping {data['name']!r}",
+                fg="yellow",
+            )
+            return
+
+        # ── Actualizar registro existente (mismo nombre = misma carta) ──
+        existing.name = data["name"]
+        existing.description = data["description"]
+        existing.image_url = image_url
+        existing.unlock_condition = data["unlock_condition"]
+        existing.wiki_url = wiki.page_url(title)
+
+        c = existing.consumable
+        c.buy_price = data["buy_price"]
+        c.sell_price = data["sell_price"]
+        c.in_shop = data["in_shop"]
+
+        click.echo(
+            f"  ↻ Updated: [{data['type']:>8}] "
+            f"#{data['item_number']:>3} {data['name']}"
+        )
+    else:
+        unlockable = Unlockable(
+            type=consumable_type,
+            item_number=data["item_number"],
+            name=data["name"],
+            description=data["description"],
+            image_url=image_url,
+            unlock_condition=data["unlock_condition"],
+            wiki_url=wiki.page_url(title),
+        )
+        unlockable.consumable = Consumable(
+            buy_price=data["buy_price"],
+            sell_price=data["sell_price"],
+            in_shop=data["in_shop"],
+        )
+        db.session.add(unlockable)
+        click.echo(
+            f"  + Created: [{data['type']:>8}] "
+            f"#{data['item_number']:>3} {data['name']}"
+        )
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Seeder: decks
+# ──────────────────────────────────────────────────────────────────────
+
+
+def seed_decks(dry_run: bool, limit: int | None) -> int:
+    """Pobla las Decks desde ``Category:Decks`` de la wiki.
+
+    Returns:
+        Número de decks procesados.
+    """
+    titles = wiki.list_pages_in_category("Decks")
+    titles = _filter_category_index_pages(titles, "Decks")
+
+    if limit is not None:
+        titles = titles[:limit]
+
+    click.echo(f"  Found {len(titles)} deck pages in Category:Decks")
+
+    count = 0
+    for title in titles:
+        try:
+            wikitext = wiki.fetch_wikitext(title)
+            if not wikitext:
+                click.secho(f"  ⚠ No wikitext for {title!r}", fg="yellow")
+                continue
+
+            data = wiki.parse_deck(wikitext)
+            if not data:
+                click.secho(
+                    f"  ⚠ Page lacks 'Deck info' template: {title!r}",
+                    fg="yellow",
+                )
+                continue
+
+            if data.get("item_number") is None:
+                click.secho(
+                    f"  ⚠ Skipped meta-page (no item_number): {title!r}",
+                    fg="yellow",
+                )
+                continue
+
+            _upsert_deck(data, title)
+
+            if not dry_run:
+                db.session.commit()
+
+            count += 1
+        except Exception as e:
+            db.session.rollback()
+            click.secho(f"  ✗ Error processing {title!r}: {e}", fg="red")
+            logger.exception("Failed processing %s", title)
+            continue
+
+    if dry_run:
+        db.session.rollback()
+        click.secho("  (dry-run: changes rolled back)", fg="yellow")
+
+    return count
+
+
+def _upsert_deck(data: dict, title: str) -> None:
+    """Inserta o actualiza una Deck en la BD.
+
+    Las Decks no tienen campos específicos en la tabla `decks` (toda la
+    información cabe en el padre Unlockable). La fila hija existe solo
+    para anclar el FK con tipado consistente.
+    """
+    image_url = (
+        wiki.resolve_image_url(data["image_filename"])
+        if data.get("image_filename")
+        else None
+    )
+
+    existing = Unlockable.query.filter_by(
+        type=UnlockableType.DECK,
+        item_number=data["item_number"],
+    ).first()
+
+    if existing is not None:
+        existing.name = data["name"]
+        existing.description = data["description"]
+        existing.image_url = image_url
+        existing.unlock_condition = data["unlock_condition"]
+        existing.wiki_url = wiki.page_url(title)
+        click.echo(f"  ↻ Updated: #{data['item_number']:>3} {data['name']}")
+    else:
+        unlockable = Unlockable(
+            type=UnlockableType.DECK,
+            item_number=data["item_number"],
+            name=data["name"],
+            description=data["description"],
+            image_url=image_url,
+            unlock_condition=data["unlock_condition"],
+            wiki_url=wiki.page_url(title),
+        )
+        unlockable.deck = Deck()
         db.session.add(unlockable)
         click.echo(f"  + Created: #{data['item_number']:>3} {data['name']}")
