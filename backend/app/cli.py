@@ -37,6 +37,35 @@ from app.models import (
     UnlockableType,
 )
 
+# ──────────────────────────────────────────────────────────────────────
+#  Overrides de datos para errores conocidos en la wiki fuente
+# ──────────────────────────────────────────────────────────────────────
+
+# Cuando un campo de la wiki es objetivamente incorrecto, lo corregimos aquí.
+# Cada entrada DEBE incluir un comentario explicando el motivo y, si es posible,
+# un enlace a la página de la wiki para verificación futura. Cuando la wiki se
+# corrija, basta con eliminar la entrada correspondiente.
+_WIKI_DATA_OVERRIDES = {
+    # The Hierophant tiene number=7 en la wiki, lo cual colisiona con The Lovers
+    # (también number=7). Según el orden estándar del Major Arcana y la posición
+    # en el juego, The Hierophant es la 6ª carta. Aplicamos override hasta que
+    # el editor de la wiki corrija el campo.
+    # Wiki: https://balatrowiki.org/wiki/The_Hierophant
+    ("tarot", "The Hierophant"): {"item_number": 6},
+}
+
+
+def _apply_overrides(data: dict) -> dict:
+    """Aplica correcciones para errores conocidos en la wiki fuente.
+
+    Funciona como un parche entre el parser y el upsert: el parser sigue
+    leyendo datos crudos, y aquí se aplican correcciones documentadas.
+    """
+    key = (data.get("type"), data.get("name"))
+    if key in _WIKI_DATA_OVERRIDES:
+        data = {**data, **_WIKI_DATA_OVERRIDES[key]}
+    return data
+
 
 logger = logging.getLogger(__name__)
 
@@ -177,6 +206,8 @@ def seed_jokers(dry_run: bool, limit: int | None) -> int:
                     fg="yellow",
                 )
                 continue
+
+            data = _apply_overrides(data)
 
             # Defensa: items sin item_number no pueden satisfacer NOT NULL.
             # Suelen ser páginas meta o de overview categorizadas erróneamente.
@@ -340,6 +371,8 @@ def seed_consumables(dry_run: bool, limit: int | None) -> int:
                     )
                     continue
 
+                data = _apply_overrides(data)
+
                 if data.get("item_number") is None:
                     click.secho(f"  ⚠ Skipped (no item_number): {title!r}", fg="yellow")
                     continue
@@ -471,6 +504,8 @@ def seed_decks(dry_run: bool, limit: int | None) -> int:
                     fg="yellow",
                 )
                 continue
+
+            data = _apply_overrides(data)
 
             if data.get("item_number") is None:
                 click.secho(
