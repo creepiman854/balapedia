@@ -22,7 +22,7 @@ import logging
 
 import click
 from flask.cli import with_appcontext
-from sqlalchemy import text
+from sqlalchemy import func, text
 
 from app.extensions import db
 from app.models import Joker, JokerRarity, Unlockable, UnlockableType
@@ -35,6 +35,8 @@ from app.models import (
     JokerRarity,
     Unlockable,
     UnlockableType,
+    Voucher,
+    VoucherTier,
 )
 
 # ──────────────────────────────────────────────────────────────────────
@@ -88,7 +90,7 @@ def register_commands(app) -> None:
 @click.option(
     "--type",
     "item_type",
-    type=click.Choice(["jokers", "consumables", "decks", "all"]),
+    type=click.Choice(["jokers", "consumables", "decks", "vouchers", "all"]),
     default="all",
     help="Tipo de items a sembrar. 'all' = todos los disponibles.",
 )
@@ -130,7 +132,8 @@ def seed_db(item_type: str, dry_run: bool, limit: int | None) -> None:
         "jokers": seed_jokers,
         "consumables": seed_consumables,
         "decks": seed_decks,
-        # vouchers, achievements: en commits futuros
+        "vouchers": seed_vouchers,
+        # achievements: en commit futuro
     }
 
     types_to_seed = list(seeders.keys()) if item_type == "all" else [item_type]
@@ -571,3 +574,201 @@ def _upsert_deck(data: dict, title: str) -> None:
         unlockable.deck = Deck()
         db.session.add(unlockable)
         click.echo(f"  + Created: #{data['item_number']:>3} {data['name']}")
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Seeder: vouchers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def seed_vouchers(dry_run: bool, limit: int | None) -> int:
+    """Pobla los Vouchers desde ``Category:Vouchers`` de la wiki.
+
+    Implementación en dos pasadas:
+
+      1. **Pass 1**: inserta o actualiza cada Voucher con sus campos básicos
+         (nombre, descripción, tier, etc.), pero deja ``next_voucher_id`` a
+         ``None``. Aquí no podemos resolverlo porque el voucher al que apunta
+         puede no existir todavía en la BD.
+
+      2. **Pass 2**: con todos los vouchers ya insertados, resuelve cada
+         enlace ``base.next_voucher_name`` → ``upgrade.id`` consultando por
+         nombre y actualiza la columna ``next_voucher_id``.
+
+    Particularidad: la plantilla ``Voucher info`` de la wiki **no incluye
+    campo ``number``**, así que asignamos ``item_number`` nosotros con
+    ``_next_voucher_number()``. Para preservar idempotencia entre runs, el
+    upsert busca primero por ``name`` (estable) y reutiliza el número
+    existente; solo cuando es un voucher nuevo se asigna el siguiente libre.
+
+    Returns:
+        Número de vouchers procesados (insertados o actualizados).
+    """
+    titles = wiki.list_pages_in_category("Vouchers")
+    titles = _filter_category_index_pages(titles, "Vouchers")
+
+    if limit is not None:
+        titles = titles[:limit]
+
+    click.echo(f"  Found {len(titles)} voucher pages in Category:Vouchers")
+
+    # ── PASS 1: upsert básico, sin resolver la cadena ──
+    click.secho("  Pass 1/2: upserting vouchers...", fg="white")
+
+    # base_name → next_voucher_name (recolectado durante el pass 1)
+    chain_links: dict[str, str] = {}
+    count = 0
+
+    for title in titles:
+        try:
+            wikitext = wiki.fetch_wikitext(title)
+            if not wikitext:
+                click.secho(f"  ⚠ No wikitext for {title!r}", fg="yellow")
+                continue
+
+            data = wiki.parse_voucher(wikitext)
+            if not data:
+                click.secho(
+                    f"  ⚠ Page lacks 'Voucher info' template: {title!r}",
+                    fg="yellow",
+                )
+                continue
+
+            data = _apply_overrides(data)
+
+            # Recolecta el enlace de cadena para el pass 2
+            if data.get("next_voucher_name"):
+                chain_links[data["name"]] = data["next_voucher_name"]
+
+            _upsert_voucher(data, title)
+
+            if not dry_run:
+                db.session.commit()
+
+            count += 1
+        except Exception as e:
+            db.session.rollback()
+            click.secho(f"  ✗ Error processing {title!r}: {e}", fg="red")
+            logger.exception("Failed processing %s", title)
+            continue
+
+    # ── PASS 2: resolver la cadena Base → Upgraded ──
+    if chain_links:
+        click.echo()
+        click.secho(
+            f"  Pass 2/2: resolving {len(chain_links)} chain links...",
+            fg="white",
+        )
+
+        for base_name, next_name in chain_links.items():
+            try:
+                base = Unlockable.query.filter_by(
+                    type=UnlockableType.VOUCHER,
+                    name=base_name,
+                ).first()
+                nxt = Unlockable.query.filter_by(
+                    type=UnlockableType.VOUCHER,
+                    name=next_name,
+                ).first()
+
+                if base is None or nxt is None:
+                    click.secho(
+                        f"  ⚠ Cannot link {base_name!r} → {next_name!r} "
+                        f"(voucher missing in DB)",
+                        fg="yellow",
+                    )
+                    continue
+
+                base.voucher.next_voucher_id = nxt.id
+
+                if not dry_run:
+                    db.session.commit()
+
+                click.echo(f"  → {base_name!r} → {next_name!r}")
+            except Exception as e:
+                db.session.rollback()
+                click.secho(f"  ✗ Error linking {base_name!r}: {e}", fg="red")
+                logger.exception("Failed linking %s", base_name)
+                continue
+
+    if dry_run:
+        db.session.rollback()
+        click.secho("  (dry-run: changes rolled back)", fg="yellow")
+
+    return count
+
+
+def _next_voucher_number() -> int:
+    """Devuelve el siguiente ``item_number`` libre para un Voucher.
+
+    Como ``Voucher info`` no expone número en la wiki, asignamos uno
+    secuencial por orden de inserción. Consulta el máximo actual en BD y
+    devuelve ``max + 1``. Para el primer voucher de la BD devuelve 1.
+    """
+    max_n = (
+        db.session.query(func.max(Unlockable.item_number))
+        .filter(Unlockable.type == UnlockableType.VOUCHER)
+        .scalar()
+    )
+    return (max_n or 0) + 1
+
+
+def _upsert_voucher(data: dict, title: str) -> None:
+    """Inserta o actualiza un Voucher en la BD.
+
+    A diferencia de los otros upserts, este busca primero por ``name`` (no
+    por ``item_number``) porque el item_number lo asignamos nosotros y no
+    queremos pisarlo en re-runs. Si el voucher es nuevo, asigna el siguiente
+    número libre con ``_next_voucher_number()``.
+
+    El campo ``next_voucher_id`` NO se rellena aquí: se gestiona en el
+    pass 2 de ``seed_vouchers``, una vez todos los vouchers están en BD.
+    """
+    image_url = (
+        wiki.resolve_image_url(data["image_filename"])
+        if data.get("image_filename")
+        else None
+    )
+
+    voucher_tier = VoucherTier(data["voucher_tier"])  # 'Base' o 'Upgraded'
+
+    # Búsqueda por nombre (más estable que item_number, que asignamos nosotros)
+    existing = Unlockable.query.filter_by(
+        type=UnlockableType.VOUCHER,
+        name=data["name"],
+    ).first()
+
+    if existing is not None:
+        # Mantén el item_number ya asignado en runs anteriores
+        existing.description = data["description"]
+        existing.image_url = image_url
+        existing.unlock_condition = data["unlock_condition"]
+        existing.wiki_url = wiki.page_url(title)
+        existing.voucher.voucher_tier = voucher_tier
+        # next_voucher_id se gestiona en el pass 2
+
+        click.echo(
+            f"  ↻ Updated: [{voucher_tier.value:>8}] "
+            f"#{existing.item_number:>3} {data['name']}"
+        )
+    else:
+        # Voucher nuevo: asigna el siguiente número disponible
+        next_num = _next_voucher_number()
+
+        unlockable = Unlockable(
+            type=UnlockableType.VOUCHER,
+            item_number=next_num,
+            name=data["name"],
+            description=data["description"],
+            image_url=image_url,
+            unlock_condition=data["unlock_condition"],
+            wiki_url=wiki.page_url(title),
+        )
+        unlockable.voucher = Voucher(
+            voucher_tier=voucher_tier,
+            next_voucher_id=None,  # se rellena en pass 2
+        )
+        db.session.add(unlockable)
+        click.echo(
+            f"  + Created: [{voucher_tier.value:>8}] " f"#{next_num:>3} {data['name']}"
+        )
