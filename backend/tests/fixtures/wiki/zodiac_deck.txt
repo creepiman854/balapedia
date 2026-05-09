@@ -1,0 +1,7 @@
+{{Deck info
+|number = 11
+|title = Zodiac Deck
+|image = Zodiac Deck.png
+|limit = Start run with {{V|Tarot Merchant|class=hl-purple}}, {{V|Planet Merchant|class=hl-cyan}}, and {{V|Overstock|class=hl-orange}}
+|unlock = Win a run with any [[Decks|deck]] on the {{Stake|Red}} difficulty or harder
+}}

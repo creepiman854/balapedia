@@ -1,0 +1,10 @@
+{{Consumable info
+| number = 1
+| title = The Fool
+| image = The Fool.png
+| effect = Creates the last [[Tarot Cards|{{hl|purple|Tarot}}]] or [[Planet Cards|{{hl|cyan|Planet}}]] card used during this run<br><small>{{hl|purple|The Fool}} excluded</small>
+| type = Tarot
+| buyprice = 3
+| sellprice = 1
+| unlock = Available from start.
+}}

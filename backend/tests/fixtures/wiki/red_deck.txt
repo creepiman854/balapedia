@@ -1,0 +1,7 @@
+{{Deck info
+|number = 1
+|title = Red Deck
+|image = Red Deck.png
+|limit = {{hl|red|+1}} discard every round
+|unlock = Unlocked from start
+}}

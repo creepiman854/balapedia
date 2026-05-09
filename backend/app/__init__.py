@@ -2,6 +2,7 @@ from flask import Flask, jsonify
 from .config import DevConfig
 from .extensions import db, migrate, cors, limiter
 
+
 def create_app(config_class=DevConfig):
     app = Flask(__name__)
     app.config.from_object(config_class)
@@ -13,23 +14,32 @@ def create_app(config_class=DevConfig):
     limiter.init_app(app)
 
     # Registra los modelos para que Flask-Migrate los descubra
-    from app import models # noqa: F401
+    from app import models  # noqa: F401
+
+    # Registra los comandos CLI personalizados (flask seed-db, etc.)
+    from app.cli import register_commands
+
+    register_commands(app)
 
     # Endpoint de salud (verifica que el server arranca)
     @app.get("/api/health")
     def health():
         from sqlalchemy import text
+
         try:
             db.session.execute(text("SELECT 1"))
             db_status = "ok"
         except Exception:
             db_status = "error"
         status_code = 200 if db_status == "ok" else 503
-        return jsonify(
-            service="balapedia-backend",
-            status="ok" if db_status == "ok" else "degraded",
-            database=db_status,
-        ), status_code
+        return (
+            jsonify(
+                service="balapedia-backend",
+                status="ok" if db_status == "ok" else "degraded",
+                database=db_status,
+            ),
+            status_code,
+        )
 
     # Aquí registrarás los blueprints más adelante:
     # from .api.auth import bp as auth_bp; app.register_blueprint(auth_bp)

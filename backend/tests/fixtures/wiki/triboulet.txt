@@ -1,0 +1,16 @@
+{{Joker info
+| number = 147
+| title = Triboulet
+| image = Triboulet.png
+| negativeimage = Triboulet (Negative).png
+| effect = Played Kings and Queens each give {{xmult|2}} when scored
+| rarity = Legendary
+| type = Multiplicative Mult
+| activation = On Scored
+| buyprice = 20 (cannot be found in shop)
+| sellprice = 10
+| unlock = Find this [[Jokers|Joker]] from the [[Spectral Cards|{{hl|sblue|Soul}}]] card.
+| compat-copyable = 1
+| compat-perishable = 1
+| compat-eternal = 1
+}}

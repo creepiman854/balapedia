@@ -1,0 +1,7 @@
+{{Voucher info
+| title = Seed Money
+| image = Seed Money.png
+| type = Base
+| effect = Raise the cap on interest earned in each round to {{Money|10}}
+| next = Money Tree
+}}

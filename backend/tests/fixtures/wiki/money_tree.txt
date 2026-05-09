@@ -1,0 +1,8 @@
+{{Voucher info
+| title = Money Tree
+| image = Money Tree.png
+| type = Upgraded
+| effect = Raise the cap on interest earned in each round to {{Money|20}}
+| unlock = Max out the interest per round earnings for ten consecutive rounds
+| previous = Seed Money
+}}

@@ -1,0 +1,10 @@
+{{Consumable info
+| number = 6
+| title = Jupiter
+| image = Jupiter.png
+| effect = Increases {{ph|Flush}} hand value by {{mult|+2}} and {{chips|+15}}
+| type = Planet
+| buyprice = 3
+| sellprice = 1
+| unlock = Available from start.
+}}

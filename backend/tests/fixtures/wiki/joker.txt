@@ -1,0 +1,14 @@
+{{Joker info
+| number = 1
+| title = Joker
+| image = Joker.png
+| negativeimage = Joker (Negative).png
+| effect = {{Mult|+4}}
+| rarity = Common
+| type = Additive Mult
+| activation = Independent
+| buyprice = 2
+| compat-copyable = 1
+| compat-perishable = 1
+| compat-eternal = 1
+}}

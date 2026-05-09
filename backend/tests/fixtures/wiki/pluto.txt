@@ -1,0 +1,10 @@
+{{Consumable info
+| number = 1
+| title = Pluto
+| image = Pluto.png
+| effect = Increases {{ph|High Card}} hand value by {{mult|+1}} and {{chips|+10}}
+| type = Planet
+| buyprice = 3
+| sellprice = 1
+| unlock = Available from start.
+}}

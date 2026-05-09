@@ -1,0 +1,15 @@
+{{Joker info
+| number = 107
+| title = Mr. Bones
+| image = Mr. Bones.png
+| negativeimage = Mr. Bones (Negative).png
+| effect = Prevents Death if chips scored are at least {{hl|orange|25%}} of required chips <br> {{hl|red|self destructs}}
+| rarity = Uncommon
+| type = Effect
+| buyprice = 5
+| activation = N/A (Passive)
+| unlock = Lose {{hl|orange|5}} runs
+| compat-copyable = 0
+| compat-perishable = 1
+| compat-eternal = 0
+}}
