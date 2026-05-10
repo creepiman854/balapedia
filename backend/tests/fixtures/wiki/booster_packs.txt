@@ -1,0 +1,669 @@
+[[File:Booster Packs.png|thumb|200x200px|A list of Standard Packs as shown from the [[Collection]].]]
+Two Booster Packs are always offered in each [[The Shop|Shop]], often but not always of two different types. These come in five categories:
+
+* '''Arcana''' Packs, containing [[Tarot Cards]] for immediate use.
+* '''Celestial''' Packs, containing [[Planet Cards]] for immediate use.
+* '''Standard''' Packs, containing Playing Cards (often with [[Card Modifiers|Enhancements, Seals and/or Editions]]) that are added into your deck.
+* '''Buffoon''' Packs, containing [[Jokers|Joker Cards]] to add to your run.
+* '''Spectral''' Packs, containing [[Spectral Cards]] for immediate use.
+
+A new set of Booster Packs will be offered with each shop. Booster Packs do not refresh when rerolling the Shop.
+
+Purchasing a Booster Pack opens it immediately, where it then reveals multiple card options for the player to choose. For Tarot and Spectral Packs, a hand of Playing Cards equal to the player's current hand size is dealt for the player to apply effects on. The player is able to use any consumables they currently have in their Consumable Slots before selecting a Tarot or Spectral card, however, for Normal and Jumbo packs all cards will be removed upon selecting one of the cards offered, while Mega Packs allow the player to use one card offered before using their consumables. The player is not required to select an option and can choose to skip if no cards offered are appealing or potentially detrimental to the player's current run. Skipping a booster pack will increase {{j|Red Card|}}'s current {{hl|red|Mult}} by {{mult|3}}; this includes skipping a mega pack after selecting only one of the cards being offered.
+
+Each category of Booster Pack comes in three Sizes - Normal, Jumbo and Mega - with each providing more choice than the previous one. Within each Size, there is a variety of artwork which can be shown on the Booster Pack; this does not affect the behavior of the Booster Pack.
+
+== List of Booster Packs==
+{| class="wikitable" style="text-align: center;"
+! class="unsortable" style="width: 250px;" | Image(s)
+! data-sort-type="currency" | Cost
+! Size
+! Effect
+|-
+! colspan="4" id="Arcana Packs" | '''Arcana Packs'''
+|-
+| id="Arcana Pack" | [[File:Arcana Normal 1.png|frameless|50px]] [[File:Arcana Normal 2.png|frameless|50px]] [[File:Arcana Normal 3.png|frameless|50px]] [[File:Arcana Normal 4.png|frameless|50px]]
+| {{Money|4}}
+| Normal
+| Choose {{hl|orange|1}} of {{hl|orange|3}} [[Tarot Cards|{{hl|purple|Tarot}}]] Cards to be used immediately.
+|-
+| id="Arcana Jumbo Pack" | [[File:Arcana Jumbo 1.png|frameless|50px]] [[File:Arcana Jumbo 2.png|frameless|50px]]
+| {{Money|6}}
+| Jumbo
+| Choose {{hl|orange|1}} of {{hl|orange|5}} [[Tarot Cards|{{hl|purple|Tarot}}]] Cards to be used immediately.
+|-
+| id="Arcana Mega Pack" | [[File:Arcana Mega 1.png|frameless|50px]] [[File:Arcana Mega 2.png|frameless|50px]]
+| {{Money|8}}
+| Mega
+| Choose up to {{hl|orange|2}} of {{hl|orange|5}} [[Tarot Cards|{{hl|purple|Tarot}}]] Cards to be used immediately.
+|-
+! colspan="4" id="Celestial Packs" | '''Celestial Packs'''
+|-
+| id="Celestial Pack" | [[File:Celestial Normal 1.png|frameless|50px]] [[File:Celestial Normal 2.png|frameless|50px]] [[File:Celestial Normal 3.png|frameless|50px]] [[File:Celestial Normal 4.png|frameless|50px]]
+| {{Money|4}}
+| Normal
+| Choose {{hl|orange|1}} of {{hl|orange|3}} [[Planet Cards|{{hl|cyan|Planet}}]] Cards to be used immediately.
+|-
+| id="Celestial Jumbo Pack" | [[File:Celestial Jumbo 1.png|frameless|50px]] [[File:Celestial Jumbo 2.png|frameless|50px]]
+| {{Money|6}}
+| Jumbo
+| Choose {{hl|orange|1}} of {{hl|orange|5}} [[Planet Cards|{{hl|cyan|Planet}}]] Cards to be used immediately.
+|-
+| id="Celestial Mega Pack" | [[File:Celestial Mega 1.png|frameless|50px]] [[File:Celestial Mega 2.png|frameless|50px]]
+| {{Money|8}}
+| Mega
+| Choose up to {{hl|orange|2}} of {{hl|orange|5}} [[Planet Cards|{{hl|cyan|Planet}}]] Cards to be used immediately.
+|-
+! colspan="4" id="Standard Packs" | '''Standard Packs'''
+|-
+| id="Standard Pack" | [[File:Standard Normal 1.png|frameless|50px]] [[File:Standard Normal 2.png|frameless|50px]] [[File:Standard Normal 3.png|frameless|50px]] [[File:Standard Normal 4.png|frameless|50px]]
+| {{Money|4}}
+| Normal
+| Choose {{hl|orange|1}} of {{hl|orange|3 Playing}} Cards to add to your Deck.
+|-
+| id="Standard Jumbo Pack" | [[File:Standard Jumbo 1.png|frameless|50px]] [[File:Standard Jumbo 2.png|frameless|50px]]
+| {{Money|6}}
+| Jumbo
+| Choose {{hl|orange|1}} of {{hl|orange|5 Playing}} Cards to add to your Deck.
+|-
+| id="Standard Mega Pack" | [[File:Standard Mega 1.png|frameless|50px]] [[File:Standard Mega 2.png|frameless|50px]]
+| {{Money|8}}
+| Mega
+| Choose up to {{hl|orange|2}} of {{hl|orange|5 Playing}} Cards to add to your Deck.
+|-
+! colspan="4" id="Buffoon Packs" | '''Buffoon Packs'''
+|-
+| id="Buffoon Pack" | [[File:Buffoon Normal 1.png|frameless|50px]] [[File:Buffoon Normal 2.png|frameless|50px]]
+| {{Money|4}}
+| Normal
+| Choose {{hl|orange|1}} of {{hl|orange|2}} Joker Cards.
+|-
+| id="Buffoon Jumbo Pack" | [[File:Buffoon Jumbo 1.png|frameless|50px]]
+| {{Money|6}}
+| Jumbo
+| Choose {{hl|orange|1}} of {{hl|orange|4}} Joker Cards
+|-
+| id="Buffoon Mega Pack" | [[File:Buffoon Mega 1.png|frameless|50px]]
+| {{Money|8}}
+| Mega
+| Choose up to {{hl|orange|2}} of {{hl|orange|4}} Joker Cards.
+|-
+! colspan="4" id="Spectral Packs" | '''Spectral Packs'''
+|-
+| id="Spectral Pack" | [[File:Spectral Normal 1.png|frameless|50px]] [[File:Spectral Normal 2.png|frameless|50px]]
+| {{Money|4}}
+| Normal
+| Choose {{hl|orange|1}} of {{hl|orange|2}} [[Spectral Cards|{{hl|sblue|Spectral}}]] Cards to be used immediately.
+|-
+| id="Spectral Jumbo Pack" | [[File:Spectral Jumbo 1.png|frameless|50px]]
+| {{Money|6}}
+| Jumbo
+| Choose {{hl|orange|1}} of {{hl|orange|4}} [[Spectral Cards|{{hl|sblue|Spectral}}]] Cards to be used immediately.
+|-
+| id="Spectral Mega Pack" | [[File:Spectral Mega 1.png|frameless|50px]]
+| {{Money|8}}
+| Mega
+| Choose up to {{hl|orange|2}} of {{hl|orange|4}} [[Spectral Cards|{{hl|sblue|Spectral}}]] Cards to be used immediately.
+|}
+
+== Booster Pack Rates ==
+The Booster Packs offered to the player are determined using different probabilities based on their Type and Size. Each ''kind'' of Booster Pack has a weight assigned to it, which determines how likely it is to be drawn; for instance, a Jumbo Arcana Pack has four times the likelihood to be offered than a Mega Arcana Pack, but is half as likely to be offered as a Normal Arcana Pack.
+{| class="wikitable" style="text-align: center;"
+! rowspan="2" | Name
+! colspan= "2" | Normal Pack
+! colspan= "2" | Jumbo Pack
+! colspan= "2" | Mega Pack
+|-
+! Weight
+! Chance To Appear
+! Weight
+! Chance To Appear
+! Weight
+! Chance To Appear
+|-
+| Standard Pack
+| 4
+| 17.84%
+| 2
+| 8.92%
+| 0.5
+| 2.23%
+|-
+| Arcana Pack
+| 4
+| 17.84%
+| 2
+| 8.92%
+| 0.5
+| 2.23%
+|-
+| Celestial Pack
+| 4
+| 17.84%
+| 2
+| 8.92%
+| 0.5
+| 2.23%
+|-
+| Buffoon Pack
+| 1.2
+| 5.35%
+| 0.6
+| 2.68%
+| 0.15
+| 0.67%
+|-
+| Spectral Pack
+| 0.6
+| 2.68%
+| 0.3
+| 1.34%
+| 0.07
+| 0.31%
+|}
+
+==Usage Notes==
+* The {{D|Fragile}} [[challenge]] bans Standard Packs.
+* The {{D|Jokerless}} [[challenge]] bans Buffoon Packs.
+
+== Trivia ==
+* Opening an Arcana, Standard, Buffoon, or Spectral Pack triggers the [[Arcana Theme]], while opening a Celestial Pack triggers the [[Celestial Theme]].
+* It is possible to softlock the game during a Arcana/Spectral Pack opening if you have 0 cards left to apply effects to. You can remove cards from the drawn hand using e.g. {{Spectral|Immolate}} or {{Tarot|The Hanged Man}}. Once there are 0 cards left in your hand, the game greys out the skip button and will not allow you to use any consumables that apply effects. Other consumables that do not apply effects to cards like {{Tarot|Temperance}} or {{Tarot|The Hermit}} will still work.<!--True for at least in version 1.0.0n as of writing, maybe other versions too. Proof here: https://discord.com/channels/1116389027176787968/1213585727791566898 if anyone's interested.-->
+* The "MEGA" text on Mega Booster Packs mimicks the style of the [https://commons.wikimedia.org/wiki/File:Metallica_logo_black_and_white.svg Metallica logo].
+* Booster packs follow a set order of consumables specific to each [[seed]]. This means if a shop has two of the exact same booster packs, opening both packs in any order will yield the same result.
+* In the cover of all of the booster packs, except for all of the Standard Packs and 2 normal Spectral Packs, there is a Joker or a consumable card that is represented. In the order of the [[Collection]], the represented cards are:
+** For the Arcana Packs: {{tarot|The Fool}}, {{tarot|Temperance}}, {{tarot|The Hierophant}}, {{tarot|The World}}, {{tarot|Death}} (Jumbo), {{tarot|The Emperor}} (Jumbo), {{tarot|The Tower}} (Mega), and {{tarot|The Hermit}} (Mega).
+** For the Celestial Packs: {{planet|Mercury}}, {{planet|Jupiter}}, {{planet|Earth}}, {{planet|Uranus}}, {{planet|Mars}} (Jumbo), {{planet|Pluto}} (Jumbo), {{planet|Saturn}} (Mega), and {{planet|Venus}} (Mega).
+** For the Buffoon Packs: {{j|Hack}}, {{j|Juggler}}, {{j|Banner}} (Jumbo), and {{j|Brainstorm}} (Mega).
+** For the Spectral Packs: {{spectral|Incantation}} (Jumbo) and {{spectral|Ectoplasm}} (Mega).
+* Before Booster Packs were introduced (at [[Update 0.8.8|0.8.8]]), the player obtained cards by purchasing them directly from the store or, with {{V|Telescope}} and {{V|Crystal Ball}} respectively, by entering "Tarot Reading" and "Planetarium", in which the player could select one from two Planet and Tarot cards. Purchasing {{V|observatory}} or {{V|Omen Globe}} increases the number of available cards to 4. This mechanism later became Booster Packs.
+* At the start of every Shop, Booster Packs have a spawning animation with a dark blue color that matches the color of their label when you hover over them.
+** Their label is shortened to simply say "Booster".
+
+==In other languages==
+{{Languages
+|zhs = 补充包
+|zhs_note = Literally "supplementary pack"
+|zht = 擴充包
+|nl = Boosterpakket
+|fr = Paquet Booster
+|de = Booster-Paket
+|id = Booster Pack
+|it = busta di espansione
+|it_note = Literally "expansion envelope". Similarity to "booster" is probably a coincidence
+|ja = ブースターパック
+|ko = 부스터 팩
+|pl = paczka wzmacniająca
+|pt = Pacote de Reforço
+|pt_note = Literally "reinforcement packet"
+|ru = бустерный набор
+|es-es = paquete potenciador
+|es-es_note = Literally "enhancing package"
+|es-latam = paquete potenciador
+|version = 1.0.0n
+}}
+{| class="sortable mw-collapsible mw-collapsed wikitable"
+|+Arcana&nbsp;Packs
+!Language
+!Arcana Pack
+!Jumbo Arcana Pack
+!Mega Arcana Pack
+!Notes<!-- Info like translations of the foreign name -->
+|-
+|Chinese (Simplified)
+|秘术包<!-- 1.0.0n -->
+|巨型秘术包<!-- 1.0.0n -->
+|超级秘术包<!-- 1.0.0n -->
+|
+|-
+|Chinese (Traditional)
+|奧秘禮包<!-- 1.0.0n -->
+|特大奧秘禮包<!-- 1.0.0n -->
+|超級奧秘禮包<!-- 1.0.0n -->
+|
+|-
+|Dutch
+|Arcanapakket<!-- 1.0.0n -->
+|Jumbo Arcanapakket<!-- 1.0.0n -->
+|Mega Arcanapakket<!-- 1.0.0n -->
+|'Pakket' usually refers to 'packages' rather than packs of cards. 'Pakje' is more common, but might have been omitted due to being a diminutive and clashing with the 'Jumbo' and 'Mega' adjectives.
+|-
+|French
+|Paquet Arcana<!-- 1.0.0n -->
+|Paquet Jumbo Arcana<!-- 1.0.0n -->
+|Paquet Méga-Arcana<!-- 1.0.0n -->
+|
+|-
+|German
+|Arkana-Paket<!-- 1.0.0n -->
+|Riesiges Arkana-Paket<!-- 1.0.0n -->
+|Mega-Arkana-Paket<!-- 1.0.0n -->
+|
+|-
+|Indonesian
+|Arcana Pack<!-- 1.0.0n -->
+|Jumbo Arcana Pack<!-- 1.0.0n -->
+|Mega Arcana Pack<!-- 1.0.0n -->
+|
+|-
+|Italian
+|Busta arcana<!-- 1.0.0n -->
+|Busta arcana jumbo<!-- 1.0.0n -->
+|Busta arcana mega<!-- 1.0.0n -->
+|
+|-
+|Japanese
+|アルカナパック<!-- 1.0.0n -->
+|ジャンボアルカナパック<!-- 1.0.0n -->
+|メガアルカナパック<!-- 1.0.0n -->
+|
+|-
+|Korean
+|아르카나 팩<!-- 1.0.0n -->
+|점보 아르카나 팩<!-- 1.0.0n -->
+|메가 아르카나 팩<!-- 1.0.0n -->
+|
+|-
+|Polish
+|Paczka wiedzy tajemnej<!-- 1.0.0n -->
+|Olbrzymia paczka wiedzy tajemnej<!-- 1.0.0n -->
+|Megapaczka wiedzy tajemnej<!-- 1.0.0n -->
+|
+|-
+|Portuguese (Brazilian)
+|Pacote Arcano<!-- 1.0.0n -->
+|Pacote Arcano Jumbo<!-- 1.0.0n -->
+|Pacote Arcano Mega<!-- 1.0.0n -->
+|
+|-
+|Russian
+|Набор аркана<!-- 1.0.0n -->
+|Набор аркана Джамбо<!-- 1.0.0n -->
+|Набор мегааркана<!-- 1.0.0n -->
+|
+|-
+|Spanish (Spain)
+|Paquete arcano<!-- 1.0.0n -->
+|Paquete arcano jumbo<!-- 1.0.0n -->
+|Paquete arcano mega<!-- 1.0.0n -->
+|
+|-
+|Spanish (Latin America)
+|Paquete arcano<!-- 1.0.0n -->
+|Paquete arcano jumbo<!-- 1.0.0n -->
+|Paquete arcano mega<!-- 1.0.0n -->
+|
+|}
+
+{| class="sortable mw-collapsible mw-collapsed wikitable"
+|+Celestial&nbsp;Packs
+!Language
+!Celestial Pack
+!Jumbo Celestial Pack
+!Mega Celestial Pack
+!Notes<!-- Info like translations of the foreign name -->
+|-
+|Chinese (Simplified)
+|天体包<!-- 1.0.0n -->
+|巨型天体包<!-- 1.0.0n -->
+|超级天体包<!-- 1.0.0n -->
+|
+|-
+|Chinese (Traditional)
+|天外禮包<!-- 1.0.0n -->
+|超大天外禮包<!-- 1.0.0n -->
+|超級天外禮包<!-- 1.0.0n -->
+|
+|-
+|Dutch
+|Hemels pakket<!-- 1.0.0n -->
+|Jumbo Hemels pakket<!-- 1.0.0n -->
+|Mega Hemels pakket<!-- 1.0.0n -->
+|
+|-
+|French
+|Paquet Céleste<!-- 1.0.0n -->
+|Paquet Jumbo Céleste<!-- 1.0.0n -->
+|Paquet Méga-Céleste<!-- 1.0.0n -->
+|
+|-
+|German
+|Himmelspaket<!-- 1.0.0n -->
+|Riesiges Himmelspaket<!-- 1.0.0n -->
+|Mega-Himmelspaket<!-- 1.0.0n -->
+|
+|-
+|Indonesian
+|Celestial Pack<!-- 1.0.0n -->
+|Jumbo Celestial Pack<!-- 1.0.0n -->
+|Mega Celestial Pack<!-- 1.0.0n -->
+|
+|-
+|Italian
+|Busta celestiale<!-- 1.0.0n -->
+|Busta celestiale jumbo<!-- 1.0.0n -->
+|Busta celestiale mega<!-- 1.0.0n -->
+|
+|-
+|Japanese
+|天体パック<!-- 1.0.0n -->
+|ジャンボ天体パック<!-- 1.0.0n -->
+|メガ天体パック<!-- 1.0.0n -->
+|
+|-
+|Korean
+|천체 팩<!-- 1.0.0n -->
+|점보 천체 팩<!-- 1.0.0n -->
+|메가 천체 팩<!-- 1.0.0n -->
+|
+|-
+|Polish
+|Paczka niebiańska<!-- 1.0.0n -->
+|Olbrzymia paczka niebiańska<!-- 1.0.0n -->
+|Megapaczka niebiańska<!-- 1.0.0n -->
+|
+|-
+|Portuguese (Brazilian)
+|Pacote Celestial<!-- 1.0.0n -->
+|Pacote Celestial Jumbo<!-- 1.0.0n -->
+|Pacote Celestial Mega<!-- 1.0.0n -->
+|
+|-
+|Russian
+|Небесный набор<!-- 1.0.0n -->
+|Небесный набор Джамбо<!-- 1.0.0n -->
+|Меганебесный набор<!-- 1.0.0n -->
+|
+|-
+|Spanish (Spain)
+|Paquete celestial<!-- 1.0.0n -->
+|Paquete celestial jumbo<!-- 1.0.0n -->
+|Paquete celestial mega<!-- 1.0.0n -->
+|
+|-
+|Spanish (Latin America)
+|Paquete celestial<!-- 1.0.0n -->
+|Paquete celestial jumbo<!-- 1.0.0n -->
+|Paquete celestial mega<!-- 1.0.0n -->
+|
+|}
+
+{| class="sortable mw-collapsible mw-collapsed wikitable"
+|+Standard&nbsp;Packs
+!Language
+!Standard Pack
+!Jumbo Standard Pack
+!Mega Standard Pack
+!Notes<!-- Info like translations of the foreign name -->
+|-
+|Chinese (Simplified)
+|标准包<!-- 1.0.0n -->
+|巨型标准包<!-- 1.0.0n -->
+|超级标准包<!-- 1.0.0n -->
+|
+|-
+|Chinese (Traditional)
+|標準禮包<!-- 1.0.0n -->
+|特大標準禮包<!-- 1.0.0n -->
+|超級標準禮包<!-- 1.0.0n -->
+|
+|-
+|Dutch
+|Standaardpakket<!-- 1.0.0n -->
+|Jumbo Standaardpakket<!-- 1.0.0n -->
+|Mega Standaardpakket<!-- 1.0.0n -->
+|
+|-
+|French
+|Paquet Standard<!-- 1.0.0n -->
+|Paquet Jumbo Standard<!-- 1.0.0n -->
+|Paquet Méga-Standard<!-- 1.0.0n -->
+|
+|-
+|German
+|Standardpaket<!-- 1.0.0n -->
+|Riesiges Standardpaket<!-- 1.0.0n -->
+|Mega-Standardpaket<!-- 1.0.0n -->
+|
+|-
+|Indonesian
+|Standard Pack<!-- 1.0.0n -->
+|Jumbo Standard Pack<!-- 1.0.0n -->
+|Mega Standard Pack<!-- 1.0.0n -->
+|
+|-
+|Italian
+|Busta standard<!-- 1.0.0n -->
+|Busta standard jumbo<!-- 1.0.0n -->
+|Busta standard mega<!-- 1.0.0n -->
+|
+|-
+|Japanese
+|スタンダードパック<!-- 1.0.0n -->
+|ジャンボスタンダードパック<!-- 1.0.0n -->
+|メガスタンダードパック<!-- 1.0.0n -->
+|
+|-
+|Korean
+|표준 팩<!-- 1.0.0n -->
+|점보 표준 팩<!-- 1.0.0n -->
+|메가 표준 카드<!-- 1.0.0n -->
+|
+|-
+|Polish
+|Paczka standardowa<!-- 1.0.0n -->
+|Olbrzymia paczka standardowa<!-- 1.0.0n -->
+|Megapaczka standardowa<!-- 1.0.0n -->
+|
+|-
+|Portuguese (Brazilian)
+|Pacote Padrão<!-- 1.0.0n -->
+|Pacote Padrão Jumbo<!-- 1.0.0n -->
+|Pacote Padrão Mega<!-- 1.0.0n -->
+|
+|-
+|Russian
+|Стандартный набор<!-- 1.0.0n -->
+|Стандартный набор Джамбо<!-- 1.0.0n -->
+|Мегастандартный набор<!-- 1.0.0n -->
+|
+|-
+|Spanish (Spain)
+|Paquete estándar<!-- 1.0.0n -->
+|Paquete estándar jumbo<!-- 1.0.0n -->
+|Paquete estándar mega<!-- 1.0.0n -->
+|
+|-
+|Spanish (Latin America)
+|Paquete estándar<!-- 1.0.0n -->
+|Paquete estándar jumbo<!-- 1.0.0n -->
+|Paquete estándar mega<!-- 1.0.0n -->
+|
+|}
+
+{| class="sortable mw-collapsible mw-collapsed wikitable"
+|+Buffoon&nbsp;Packs
+!Language
+!Buffoon Pack
+!Jumbo Buffoon Pack
+!Mega Buffoon Pack
+!Notes<!-- Info like translations of the foreign name -->
+|-
+|Chinese (Simplified)
+|小丑包<!-- 1.0.0n -->
+|巨型小丑包<!-- 1.0.0n -->
+|超级小丑包<!-- 1.0.0n -->
+|
+|-
+|Chinese (Traditional)
+|丑角禮包<!-- 1.0.0n -->
+|特大丑角禮包<!-- 1.0.0n -->
+|超級丑角禮包<!-- 1.0.0n -->
+|
+|-
+|Dutch
+|Lolbroekenpakket<!-- 1.0.0n -->
+|Jumbo Lolbroekenpakket<!-- 1.0.0n -->
+|Mega Lolbroekenpakket<!-- 1.0.0n -->
+|
+|-
+|French
+|Paquet Bouffon<!-- 1.0.0n -->
+|Paquet Jumbo Bouffon<!-- 1.0.0n -->
+|Paquet Méga-Bouffon<!-- 1.0.0n -->
+|
+|-
+|German
+|Clownspaket<!-- 1.0.0n -->
+|Riesiges Clownspaket<!-- 1.0.0n -->
+|Mega-Clownspaket<!-- 1.0.0n -->
+|
+|-
+|Indonesian
+|Buffoon Pack<!-- 1.0.0n -->
+|Jumbo Buffoon Pack<!-- 1.0.0n -->
+|Mega Buffoon Pack<!-- 1.0.0n -->
+|
+|-
+|Italian
+|Busta buffone<!-- 1.0.0n -->
+|Busta buffone jumbo<!-- 1.0.0n -->
+|Busta buffone mega<!-- 1.0.0n -->
+|
+|-
+|Japanese
+|道化師パック<!-- 1.0.0n -->
+|ジャンボ道化師パック<!-- 1.0.0n -->
+|メガ道化師パック<!-- 1.0.0n -->
+|
+|-
+|Korean
+|어릿광대 팩<!-- 1.0.0n -->
+|점보 어릿광대 팩<!-- 1.0.0n -->
+|메가 어릿광대 팩<!-- 1.0.0n -->
+|
+|-
+|Polish
+|Paczka pajaca<!-- 1.0.0n -->
+|Olbrzymia paczka pajaca<!-- 1.0.0n -->
+|Megapaczka pajaca<!-- 1.0.0n -->
+|
+|-
+|Portuguese (Brazilian)
+|Pacote Bufão<!-- 1.0.0n -->
+|Pacote Bufão Jumbo<!-- 1.0.0n -->
+|Pacote Bufão Mega<!-- 1.0.0n -->
+|
+|-
+|Russian
+|Набор шута<!-- 1.0.0n -->
+|Набор шута Джамбо<!-- 1.0.0n -->
+|Меганабор шута<!-- 1.0.0n -->
+|
+|-
+|Spanish (Spain)
+|Paquete de bufón<!-- 1.0.0n -->
+|Paquete de bufón jumbo<!-- 1.0.0n -->
+|Paquete de bufón mega<!-- 1.0.0n -->
+|
+|-
+|Spanish (Latin America)
+|Paquete de bufón<!-- 1.0.0n -->
+|Paquete de bufón jumbo<!-- 1.0.0n -->
+|Paquete de bufón mega<!-- 1.0.0n -->
+|
+|}
+
+{| class="sortable mw-collapsible mw-collapsed wikitable"
+|+Spectral&nbsp;Packs
+!Language
+!Spectral Pack
+!Jumbo Spectral Pack
+!Mega Spectral Pack
+!Notes<!-- Info like translations of the foreign name -->
+|-
+|Chinese (Simplified)
+|幻灵包<!-- 1.0.0n -->
+|巨型幻灵包<!-- 1.0.0n -->
+|超级幻灵包<!-- 1.0.0n -->
+|
+|-
+|Chinese (Traditional)
+|幻靈禮包<!-- 1.0.0n -->
+|特大幻靈禮包<!-- 1.0.0n -->
+|超級幻靈禮包<!-- 1.0.0n -->
+|
+|-
+|Dutch
+|Spectraal pakket<!-- 1.0.0n -->
+|Jumbo Spectraal pakket<!-- 1.0.0n -->
+|Mega Spectraal pakket<!-- 1.0.0n -->
+|
+|-
+|French
+|Paquet Spectral<!-- 1.0.0n -->
+|Paquet Jumbo Spectral<!-- 1.0.0n -->
+|Paquet Méga-Spectral<!-- 1.0.0n -->
+|
+|-
+|German
+|Geisterpaket<!-- 1.0.0n -->
+|Riesiges Geisterpaket<!-- 1.0.0n -->
+|Mega-Geisterpaket<!-- 1.0.0n -->
+|
+|-
+|Indonesian
+|Spectral Pack<!-- 1.0.0n -->
+|Jumbo Spectral Pack<!-- 1.0.0n -->
+|Mega Spectral Pack<!-- 1.0.0n -->
+|
+|-
+|Italian
+|Busta spettrale<!-- 1.0.0n -->
+|Busta spettrale jumbo<!-- 1.0.0n -->
+|Busta spettrale mega<!-- 1.0.0n -->
+|
+|-
+|Japanese
+|スペクトルパック<!-- 1.0.0n -->
+|ジャンボスペクトルパック<!-- 1.0.0n -->
+|メガスペクトルパック<!-- 1.0.0n -->
+|
+|-
+|Korean
+|유령 팩<!-- 1.0.0n -->
+|점보 유령 팩<!-- 1.0.0n -->
+|메가 유령 팩<!-- 1.0.0n -->
+|
+|-
+|Polish
+|Paczka kart Ducha<!-- 1.0.0n -->
+|Olbrzymia paczka kart Ducha<!-- 1.0.0n -->
+|Megapaczka kart Ducha<!-- 1.0.0n -->
+|
+|-
+|Portuguese (Brazilian)
+|Pacote Espectral<!-- 1.0.0n -->
+|Pacote Espectral Jumbo<!-- 1.0.0n -->
+|Pacote Espectral Mega<!-- 1.0.0n -->
+|
+|-
+|Russian
+|Спектральный набор<!-- 1.0.0n -->
+|Спектральный набор Джамбо<!-- 1.0.0n -->
+|Мегаспектральный набор<!-- 1.0.0n -->
+|
+|-
+|Spanish (Spain)
+|Paquete espectral<!-- 1.0.0n -->
+|Paquete espectral jumbo<!-- 1.0.0n -->
+|Paquete espectral mega<!-- 1.0.0n -->
+|
+|-
+|Spanish (Latin America)
+|Paquete espectral<!-- 1.0.0n -->
+|Paquete espectral jumbo<!-- 1.0.0n -->
+|Paquete espectral mega<!-- 1.0.0n -->
+|
+|}
+[[Category:Balatro]]

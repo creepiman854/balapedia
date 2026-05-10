@@ -5,25 +5,26 @@ Encapsular los valores válidos en clases Enum aporta:
   - Una única fuente de verdad: si añadimos un nuevo tipo, se cambia aquí.
   - Documentación implícita: el listado de valores es autodescriptivo.
 """
+
+"""Enumerados centralizados para los modelos."""
 from enum import Enum
 
 
 class UnlockableType(str, Enum):
-    """Categoría de cada elemento desbloqueable del juego.
+    """Categoría de cada elemento desbloqueable del juego."""
 
-    Sirve como discriminador en la tabla `unlockables` para saber
-    a qué tabla específica (jokers, consumables, decks, vouchers) pertenece.
-    """
     JOKER = "joker"
     TAROT = "tarot"
     PLANET = "planet"
     SPECTRAL = "spectral"
     VOUCHER = "voucher"
     DECK = "deck"
+    BOOSTER_PACK = "booster_pack"
 
 
 class JokerRarity(str, Enum):
-    """Rareza de un Joker, según definida en la wiki oficial de Balatro."""
+    """Rareza de un Joker."""
+
     COMMON = "Common"
     UNCOMMON = "Uncommon"
     RARE = "Rare"
@@ -31,23 +32,36 @@ class JokerRarity(str, Enum):
 
 
 class VoucherTier(str, Enum):
-    """Nivel de un Voucher dentro de su cadena de mejora.
+    """Nivel de un Voucher dentro de su cadena de mejora."""
 
-    Los Vouchers en Balatro siempre vienen en pares: una versión Base
-    y su Upgraded correspondiente, encadenadas por `next_voucher_id`.
-    """
     BASE = "Base"
     UPGRADED = "Upgraded"
 
 
 class UnlockSource(str, Enum):
-    """Origen del registro de desbloqueo de un usuario.
+    """Origen del registro de desbloqueo de un usuario."""
 
-    - MANUAL: el usuario marcó el item como desbloqueado en la web.
-    - STEAM_SYNC: se importó automáticamente desde la API de Steam.
-
-    La distinción permite no pisar las marcas manuales al sincronizar
-    con Steam (el sync solo actualiza registros con source=STEAM_SYNC).
-    """
     MANUAL = "manual"
     STEAM_SYNC = "steam_sync"
+
+
+class BoosterPackType(str, Enum):
+    """Categoría de Booster Pack según el contenido que ofrece al abrirlo.
+
+    Cada categoría aparece con tres tamaños distintos (Normal, Jumbo, Mega),
+    formando un total de 15 booster packs distintos en el juego base.
+    """
+
+    ARCANA = "Arcana"  # contiene Tarot Cards
+    CELESTIAL = "Celestial"  # contiene Planet Cards
+    STANDARD = "Standard"  # contiene Playing Cards
+    BUFFOON = "Buffoon"  # contiene Joker Cards
+    SPECTRAL = "Spectral"  # contiene Spectral Cards
+
+
+class BoosterPackSize(str, Enum):
+    """Tamaño del Booster Pack, que determina precio y cantidad de opciones."""
+
+    NORMAL = "Normal"  # más barato, menos cartas
+    JUMBO = "Jumbo"  # intermedio
+    MEGA = "Mega"  # más caro, permite elegir múltiples cartas

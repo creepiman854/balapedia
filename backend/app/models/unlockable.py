@@ -12,8 +12,15 @@ Justificación: mantiene la integridad referencial (cada registro hijo apunta
 a un padre real), permite consultas transversales eficientes desde el padre,
 y evita columnas NULL masivas que tendría una tabla única.
 """
+
 from app.extensions import db
-from app.models.enums import UnlockableType, JokerRarity, VoucherTier
+from app.models.enums import (
+    BoosterPackSize,
+    BoosterPackType,
+    JokerRarity,
+    UnlockableType,
+    VoucherTier,
+)
 
 
 class Unlockable(db.Model):
@@ -23,6 +30,7 @@ class Unlockable(db.Model):
     aquí. El campo `type` indica de qué tipo concreto es y por tanto en qué
     tabla hija viven sus datos específicos.
     """
+
     __tablename__ = "unlockables"
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -67,6 +75,12 @@ class Unlockable(db.Model):
         cascade="all, delete-orphan",
         foreign_keys="Voucher.id",  # disambigua de next_voucher_id
     )
+    booster_pack = db.relationship(
+        "BoosterPack",
+        uselist=False,
+        back_populates="unlockable",
+        cascade="all, delete-orphan",
+    )
 
     # Relación inversa con la tabla pivote de progreso de usuarios
     user_unlocks = db.relationship(
@@ -87,6 +101,7 @@ class Unlockable(db.Model):
 
 class Joker(db.Model):
     """Datos específicos de los Jokers."""
+
     __tablename__ = "jokers"
 
     id = db.Column(db.Integer, db.ForeignKey("unlockables.id"), primary_key=True)
@@ -121,6 +136,7 @@ class Consumable(db.Model):
     una sola tabla los modela limpiamente. La distinción entre tarot/planet/
     spectral viene del campo `type` del padre `unlockables`.
     """
+
     __tablename__ = "consumables"
 
     id = db.Column(db.Integer, db.ForeignKey("unlockables.id"), primary_key=True)
@@ -144,6 +160,7 @@ class Deck(db.Model):
     `user_unlocks` con tipado consistente; queda preparada por si en el
     futuro añadimos campos específicos.
     """
+
     __tablename__ = "decks"
 
     id = db.Column(db.Integer, db.ForeignKey("unlockables.id"), primary_key=True)
@@ -162,6 +179,7 @@ class Voucher(db.Model):
     `next_voucher_id = NULL` (fin de cadena); los Base apuntan a su
     versión mejorada.
     """
+
     __tablename__ = "vouchers"
 
     id = db.Column(db.Integer, db.ForeignKey("unlockables.id"), primary_key=True)
@@ -189,3 +207,44 @@ class Voucher(db.Model):
 
     def __repr__(self) -> str:
         return f"<Voucher id={self.id} tier={self.voucher_tier.value}>"
+
+
+class BoosterPack(db.Model):
+    """Datos específicos de los Booster Packs (sobres comprables en la tienda).
+
+    A diferencia de los items individuales, los Booster Packs son contenedores
+    que al abrirse ofrecen al jugador varias cartas entre las que elegir. Se
+    organizan en 5 categorías (Arcana, Celestial, Standard, Buffoon, Spectral)
+    según qué tipo de carta contienen, y 3 tamaños (Normal, Jumbo, Mega) que
+    determinan precio y cantidad de opciones, totalizando 15 packs distintos
+    en el juego base.
+
+    Aunque los Booster Packs no se "desbloquean" en el sentido tradicional
+    (siempre están disponibles desde el inicio del juego), se modelan dentro
+    de la jerarquía de Unlockables por simetría arquitectónica y para
+    aprovechar los campos comunes (nombre, descripción, imagen, wiki_url).
+    """
+
+    __tablename__ = "booster_packs"
+
+    id = db.Column(db.Integer, db.ForeignKey("unlockables.id"), primary_key=True)
+
+    pack_type = db.Column(
+        db.Enum(BoosterPackType, name="booster_pack_type"),
+        nullable=False,
+        index=True,
+    )
+    size = db.Column(
+        db.Enum(BoosterPackSize, name="booster_pack_size"),
+        nullable=False,
+        index=True,
+    )
+    cost = db.Column(db.SmallInteger, nullable=False, index=True)
+
+    unlockable = db.relationship("Unlockable", back_populates="booster_pack")
+
+    def __repr__(self) -> str:
+        return (
+            f"<BoosterPack id={self.id} "
+            f"{self.pack_type.value} {self.size.value} ${self.cost}>"
+        )

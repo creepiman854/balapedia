@@ -292,13 +292,24 @@ def render_wikitext(raw: Any) -> str:
             return arg(1)
 
         if isinstance(node, Wikilink):
-            return str(node.text or node.title)
+            # Toma el alias si existe, si no el título. Ambos pueden contener
+            # plantillas anidadas (p.ej. [[Tarot Cards|{{hl|purple|Tarot}}]])
+            # que deben aplanarse recursivamente, no convertirse a string crudo.
+            inner = node.text if node.text else node.title
+            if hasattr(inner, "nodes"):
+                return "".join(render_node(n) for n in inner.nodes)
+            return str(inner)
 
         if isinstance(node, Tag):
             tag_name = str(node.tag).lower()
             if tag_name == "br":
                 return " "
-            return str(node.contents or "")
+            # Las contents de tags como <small>, <span>, etc. también pueden
+            # contener plantillas anidadas que requieren render recursivo.
+            contents = node.contents
+            if hasattr(contents, "nodes"):
+                return "".join(render_node(n) for n in contents.nodes)
+            return str(contents) if contents else ""
 
         if isinstance(node, (Comment, HTMLEntity)):
             return ""
@@ -452,4 +463,175 @@ def parse_voucher(wikitext: str) -> Optional[dict]:
         "unlock_condition": render_wikitext(
             _field(tpl, "unlock", "Available from start.")
         ),
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  4. Parser de tabla: Booster Packs
+# ──────────────────────────────────────────────────────────────────────
+#  A diferencia de los parsers de plantilla infobox, los Booster Packs
+#  no tienen una página por item: viven todos en una única página
+#  ('Booster Packs') estructurada como una wikitable. Esto requiere un
+#  enfoque distinto: en lugar de buscar una plantilla, recorremos las
+#  filas de la tabla y extraemos las celdas individualmente.
+# ──────────────────────────────────────────────────────────────────────
+
+
+def parse_booster_packs_page(wikitext: str) -> list[dict]:
+    """Parsea la página 'Booster Packs' a una lista de dicts.
+
+    Estructura esperada en el wikitexto::
+
+        == List of Booster Packs ==
+        {| class="wikitable" ...
+        ! ... headers de columna ...
+        |-
+        ! colspan="4" id="Arcana Packs" | '''Arcana Packs'''
+        |-
+        | id="Arcana Pack" | [[File:Arcana Normal 1.png|...]] ...
+        | {{Money|4}}
+        | Normal
+        | Choose {{hl|orange|1}} of {{hl|orange|3}} [[Tarot Cards|...]] ...
+        |-
+        ... más filas y secciones ...
+        |}
+
+    Args:
+        wikitext: Wikitexto completo de la página 'Booster Packs'.
+
+    Returns:
+        Lista de dicts (uno por pack), con campos:
+            - ``type``: siempre ``"booster_pack"``
+            - ``name``: nombre del pack (del atributo ``id`` de la celda imagen)
+            - ``pack_type``: Arcana / Celestial / Standard / Buffoon / Spectral
+            - ``size``: Normal / Jumbo / Mega
+            - ``cost``: int extraído de ``{{Money|N}}``
+            - ``description``: texto del efecto (aplanado)
+            - ``image_filename``: primer filename de imagen encontrado
+
+        Si no se localiza la sección 'List of Booster Packs', devuelve
+        lista vacía y emite un warning en el log.
+
+    Notas de diseño:
+        - La celda de imagen contiene múltiples File: links (variantes
+          visuales de la portada). Solo se extrae el primero, ya que
+          las variantes adicionales no aportan información distinta.
+        - Las cabeceras de sección (``colspan="4"`` con ``id="X Packs"``)
+          actúan como discriminador de ``pack_type`` para las filas
+          siguientes hasta encontrar la próxima cabecera.
+    """
+    # 1. Aísla la wikitable concreta de "List of Booster Packs". La página
+    #    contiene varias tablas (rates, traducciones por idioma...) y solo
+    #    nos interesa la primera tras esa cabecera.
+    section_match = re.search(
+        r"==\s*List of Booster Packs\s*==\s*(\{\|.*?\|\})",
+        wikitext,
+        re.DOTALL,
+    )
+    if not section_match:
+        logger.warning("Could not find 'List of Booster Packs' section in wikitext")
+        return []
+
+    table = section_match.group(1)
+
+    # 2. Divide la tabla en filas por el separador estándar "|-".
+    rows = table.split("\n|-")
+
+    packs: list[dict] = []
+    current_pack_type: Optional[str] = None
+
+    for row in rows:
+        # Salta el header de columnas (Image(s), Cost, Size, Effect).
+        if "Image(s)" in row and "Cost" in row:
+            continue
+
+        # Detecta cabecera de sección: ! colspan="4" id="X Packs" | ...
+        section_header = re.search(
+            r'colspan="4"[^|!]*id="(\w+)\s+Packs"',
+            row,
+        )
+        if section_header:
+            current_pack_type = section_header.group(1)  # "Arcana", "Celestial"...
+            continue
+
+        # Si aún no hemos visto una cabecera de sección, ignora la fila.
+        if current_pack_type is None:
+            continue
+
+        # Procesa fila normal de pack.
+        cells = _split_wikitable_cells(row)
+        if len(cells) < 4:
+            continue
+
+        pack = _parse_booster_pack_row(cells, current_pack_type)
+        if pack is not None:
+            packs.append(pack)
+
+    return packs
+
+
+def _split_wikitable_cells(row: str) -> list[str]:
+    """Divide una fila de wikitable en sus celdas.
+
+    Cada celda comienza en una línea que empieza con ``|`` (excluyendo
+    ``|-`` que es el separador de filas y ``|}`` que cierra la tabla).
+    Las celdas en esta tabla concreta no son multilínea, así que basta
+    con una pasada por las líneas de la fila.
+    """
+    cells = []
+    for line in row.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        if (
+            line.startswith("|")
+            and not line.startswith("|-")
+            and not line.startswith("|}")
+        ):
+            # Quita el '|' inicial y los espacios.
+            cells.append(line.lstrip("|").lstrip())
+    return cells
+
+
+def _parse_booster_pack_row(cells: list[str], pack_type: str) -> Optional[dict]:
+    """Extrae los datos de una fila de pack a un dict.
+
+    Args:
+        cells: Lista mínima de 4 celdas: imagen, cost, size, effect.
+        pack_type: Categoría detectada de la cabecera de sección anterior.
+
+    Returns:
+        Dict con los campos del pack, o None si la celda imagen no tiene
+        atributo ``id`` (en cuyo caso no podemos derivar el nombre).
+    """
+    image_cell, cost_cell, size_cell, effect_cell = cells[:4]
+
+    # 1. Nombre del pack: del atributo id="..." de la celda imagen.
+    id_match = re.search(r'id="([^"]+)"', image_cell)
+    if not id_match:
+        return None
+    name = id_match.group(1)
+
+    # 2. Filename de la primera imagen [[File:X.png|...]].
+    img_match = re.search(r"\[\[File:([^|\]]+)", image_cell)
+    image_filename = img_match.group(1).strip() if img_match else None
+
+    # 3. Cost: número del template {{Money|N}}, ya aplanado a "$N" por
+    #    render_wikitext, del que extraemos el entero líder.
+    cost = extract_leading_int(render_wikitext(cost_cell))
+
+    # 4. Size: texto plano (Normal / Jumbo / Mega).
+    size = size_cell.strip()
+
+    # 5. Description: aplanado del efecto, manejando templates anidados.
+    description = render_wikitext(effect_cell)
+
+    return {
+        "type": "booster_pack",
+        "name": name,
+        "pack_type": pack_type,
+        "size": size,
+        "cost": cost,
+        "description": description,
+        "image_filename": image_filename,
     }
