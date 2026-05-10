@@ -30,6 +30,9 @@ from app.scrapers import steam, wiki
 
 from app.models import (
     Achievement,
+    BoosterPack,
+    BoosterPackSize,
+    BoosterPackType,
     Consumable,
     Deck,
     Joker,
@@ -108,7 +111,15 @@ def register_commands(app) -> None:
     "--type",
     "item_type",
     type=click.Choice(
-        ["jokers", "consumables", "decks", "vouchers", "achievements", "all"]
+        [
+            "jokers",
+            "consumables",
+            "decks",
+            "vouchers",
+            "achievements",
+            "booster_packs",
+            "all",
+        ]
     ),
     default="all",
     help="Tipo de items a sembrar. 'all' = todos los disponibles.",
@@ -153,6 +164,7 @@ def seed_db(item_type: str, dry_run: bool, limit: int | None) -> None:
         "decks": seed_decks,
         "vouchers": seed_vouchers,
         "achievements": seed_achievements,
+        "booster_packs": seed_booster_packs,
     }
 
     types_to_seed = list(seeders.keys()) if item_type == "all" else [item_type]
@@ -717,6 +729,21 @@ def seed_vouchers(dry_run: bool, limit: int | None) -> int:
     return count
 
 
+def _next_item_number_for_type(type_value: UnlockableType) -> int:
+    """Devuelve el siguiente item_number libre para un tipo de Unlockable.
+
+    Generalización utilizada por los seeders cuyos items no traen ``number``
+    explícito en la wiki (Vouchers y Booster Packs). Consulta el máximo
+    actual en BD para ese ``type`` y devuelve ``max + 1``.
+    """
+    max_n = (
+        db.session.query(func.max(Unlockable.item_number))
+        .filter(Unlockable.type == type_value)
+        .scalar()
+    )
+    return (max_n or 0) + 1
+
+
 def _next_voucher_number() -> int:
     """Devuelve el siguiente ``item_number`` libre para un Voucher.
 
@@ -891,3 +918,135 @@ def _upsert_achievement(ach: dict) -> None:
             )
         )
         click.echo(f"  + Created: {steam_name:<8} {display_name}")
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Seeder: booster packs (parser de wikitable, página única)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def seed_booster_packs(dry_run: bool, limit: int | None) -> int:
+    """Pobla los Booster Packs desde la página única 'Booster Packs' de la wiki.
+
+    A diferencia del resto de seeders (que iteran páginas individuales de
+    una categoría), aquí descargamos UNA sola página y el parser de
+    wikitable nos devuelve la lista de los 15 packs en una sola pasada.
+
+    Particularidades:
+      - La wiki no asigna ``item_number`` a los packs, así que se asigna
+        secuencialmente con ``_next_item_number_for_type()`` y se preserva
+        entre runs gracias a la búsqueda por ``name`` en el upsert.
+      - Todos los packs comparten ``wiki_url`` (apuntan a la misma página)
+        y ``unlock_condition = "Available from start."`` (siempre disponibles).
+
+    Returns:
+        Número de packs procesados (creados o actualizados).
+    """
+    click.echo("  Fetching 'Booster Packs' page from wiki...")
+
+    wikitext = wiki.fetch_wikitext("Booster Packs")
+    if not wikitext:
+        click.secho("  ✗ Could not fetch 'Booster Packs' page", fg="red")
+        return 0
+
+    packs = wiki.parse_booster_packs_page(wikitext)
+    if not packs:
+        click.secho(
+            "  ⚠ Parser returned 0 packs (¿cambió el formato de la página?)",
+            fg="yellow",
+        )
+        return 0
+
+    click.echo(f"  Parsed {len(packs)} booster packs from the table")
+
+    if limit is not None:
+        packs = packs[:limit]
+
+    count = 0
+    for data in packs:
+        try:
+            _upsert_booster_pack(data)
+
+            if not dry_run:
+                db.session.commit()
+
+            count += 1
+        except Exception as e:
+            db.session.rollback()
+            click.secho(
+                f"  ✗ Error processing {data.get('name', '?')!r}: {e}",
+                fg="red",
+            )
+            logger.exception("Failed processing %s", data.get("name"))
+            continue
+
+    if dry_run:
+        db.session.rollback()
+        click.secho("  (dry-run: changes rolled back)", fg="yellow")
+
+    return count
+
+
+def _upsert_booster_pack(data: dict) -> None:
+    """Inserta o actualiza un Booster Pack en la BD.
+
+    Como la wiki no asigna ``item_number`` a los Booster Packs, la búsqueda
+    de existentes se hace por ``name`` (estable entre runs). Si es un pack
+    nuevo, se asigna el siguiente número disponible.
+
+    Todos los packs son siempre comprables ("Available from start"), por lo
+    que ``unlock_condition`` se rellena con ese valor constante y
+    ``wiki_url`` apunta a la página común 'Booster Packs'.
+    """
+    image_url = (
+        wiki.resolve_image_url(data["image_filename"])
+        if data.get("image_filename")
+        else None
+    )
+
+    pack_type = BoosterPackType(data["pack_type"])  # Arcana / Celestial / ...
+    size = BoosterPackSize(data["size"])  # Normal / Jumbo / Mega
+
+    # Búsqueda por nombre (estable: no depende del item_number autogenerado)
+    existing = Unlockable.query.filter_by(
+        type=UnlockableType.BOOSTER_PACK,
+        name=data["name"],
+    ).first()
+
+    if existing is not None:
+        existing.description = data["description"]
+        existing.image_url = image_url
+        existing.unlock_condition = "Available from start."
+        existing.wiki_url = wiki.page_url("Booster Packs")
+
+        bp = existing.booster_pack
+        bp.pack_type = pack_type
+        bp.size = size
+        bp.cost = data["cost"]
+
+        click.echo(
+            f"  ↻ Updated: [{pack_type.value:>9} {size.value:>6}] "
+            f"#{existing.item_number:>2} {data['name']}"
+        )
+    else:
+        next_num = _next_item_number_for_type(UnlockableType.BOOSTER_PACK)
+
+        unlockable = Unlockable(
+            type=UnlockableType.BOOSTER_PACK,
+            item_number=next_num,
+            name=data["name"],
+            description=data["description"],
+            image_url=image_url,
+            unlock_condition="Available from start.",
+            wiki_url=wiki.page_url("Booster Packs"),
+        )
+        unlockable.booster_pack = BoosterPack(
+            pack_type=pack_type,
+            size=size,
+            cost=data["cost"],
+        )
+        db.session.add(unlockable)
+        click.echo(
+            f"  + Created: [{pack_type.value:>9} {size.value:>6}] "
+            f"#{next_num:>2} {data['name']}"
+        )
