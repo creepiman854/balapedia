@@ -1,0 +1,81 @@
+{{Challenge info
+|title = Five-Card Draw
+|number = 17
+|modifier = {{hl|red|6}} discards per round<br>{{hl|orange|5}} hand size<br>{{hl|orange|7}} Joker slots
+|starter = {{J|Card Sharp}}<br>{{J|Joker}}
+|banned = Banned Jokers: {{J|Juggler}}, {{J|Troubadour}}, {{J|Turtle Bean}}
+}}
+'''Five-Card Draw''' is a [[Challenge Deck]]. Its small hand size can be supplemented by the additional discards in order to find and play the same hand multiple times.
+
+== Starting Contents ==
+The starting deck contains the standard 52 cards.
+
+== Synergies ==
+===[[Jokers]]===
+* Generic {{Mult|+}} Jokers like {{J|Half Joker}} and {{J|Gros Michel}} can help you push through the early antes.
+* Jokers that benefit from the extra Joker slots, like {{J|Abstract Joker}}, {{J|Riff-Raff}}, and {{J|Joker Stencil}}.
+* Jokers that benefit from the extra discards, like {{J|Banner}} and {{J|Delayed Gratification}}.
+* {{J|Blackboard}} becomes much easier to activate due to the small hand size.
+* Strong {{xMult|}} Jokers that aren't reliant on hand type, such as {{J|Hologram}}, {{J|Constellation}}, and {{J|Cavendish}}.
+* {{J|Blue Joker}} gives slightly more chips due to drawing fewer cards from your deck.
+* {{J|Yorick}} is amazing in this challenge, as the increased discards mean it can consistently gain {{XMult|1}} every blind with the use of 5 discards.
+* {{J|Raised Fist}} can have a better score from the reduced hand size, as it's easier to hold onto high-ranked cards.
+* Effect Jokers that provide no direct scoring, such as {{J|Splash}}, {{J|Shortcut}} or {{J|Luchador}}, become easier to keep thanks to the extra 2 Joker Slots.
+
+===[[Vouchers]]===
+* {{v|Paint Brush}} and {{v|Palette}} can be used to increase your hand size in this challenge.
+
+===[[Tags]]===
+* {{Tag|Juggle}} can give a temporary hand size for the player. This can help on certain situations where the normal hand size of this challenge isn't enough.
+* {{Tag|Garbage}} will give more money for unused discards.
+
+===[[Consumables]]===
+*The value of {{Tarot|Temperance}} rises from two extra Jokers.
+
+===Boss Blinds===
+*{{Blind|The House}} becomes less deadly since only 5 cards are drawn face down.
+
+== Anti-Synergies ==
+===Jokers===
+* Held in hand effects such as {{J|Baron}} and {{J|Shoot the Moon}} are less effective due to the decreased hand size and banning of hand size-increasing Jokers.
+*Straight-based Jokers, such as {{J|Runner}}, {{J|Crazy Joker}}, and {{J|The Order}}, becomes much harder to use due to the decreased hand size, which makes it extremely hard to assemble Straights.
+**On a similar note, {{J|Séance}} requires playing a Straight Flush, which is practically impossible with a hand size of 5.
+*{{J|Stuntman}} and {{J|Merry Andy}} should be avoided, as their reduced hand size penalty will make it impossible to play 5-card poker hands.
+*{{J|Burglar}} is very risky to use, as its 3 extra hands do not benefit too much, unlike the 3 extra discards already provided by this challenge.
+*{{J|Mystic Summit}} becomes harder to activate due to the extra discards.
+*{{J|Green Joker}} and {{J|Ramen}} do not benefit too much from the extra discards.
+
+===Consumables===
+*{{Spectral|Ectoplasm}} shouldn't be used, as its permanent hand size reduction will make certain hands impossible to assemble, and the player already has 2 extra Joker Slots, making it less valuable.
+*{{Spectral|Sigil}} and {{Spectral|Ouija}} will transform fewer cards due to the small hand size. Not only that, but {{Spectral|Ouija}} also reduces hand size, making it significantly more punishing to use.
+
+===[[Modifiers]]===
+*The decreased hand size doesn't allow many {{Enhancement|Gold}}, {{Enhancement|Steel}}, and {{Seal|Blue|name=Blue Seals}} to be utilized.
+
+===Blinds===
+*{{Blind|The Manacle}}'s reduced hand size can be dangerous, as it will prevent the player from playing 5-card poker hands.
+*If the player reduces hand size even by one (assuming they didn't redeem {{V|Paint Brush}}), {{Blind|The Psychic}} will become unbeatable.
+
+== Trivia ==
+*Five-Card Draw brings ''Balatro'' closer to [[Wikipedia:Five-card draw|the popular poker variant of the same name]], where players are dealt five cards in their hand and are able to discard and replace many of these easily.
+
+== In other languages ==
+{{Languages
+|zhs = 五连抽
+|zht = 五張換牌
+|nl = Trekking van vijf kaarten
+|fr = Tirage à cinq cartes
+|de = Fünf-Karten-Zug
+|id = Tarik Lima Kartu
+|it = Poker tradizionale
+|ja = ファイブカードドロー
+|ko = 카드 5장 뽑기
+|pl = Losowanie pięciu kart
+|pt = Saque de Cinco Cartas
+|ru = Пять карт
+|es-es = Retirada de cinco cartas
+|es-latam = Saca cinco cartas
+|version = 1.0.0n
+}}
+
+{{Navbox Decks}}

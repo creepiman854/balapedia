@@ -82,6 +82,13 @@ class Unlockable(db.Model):
         cascade="all, delete-orphan",
     )
 
+    challenge_deck = db.relationship(
+        "ChallengeDeck",
+        uselist=False,
+        back_populates="unlockable",
+        cascade="all, delete-orphan",
+    )
+
     # Relación inversa con la tabla pivote de progreso de usuarios
     user_unlocks = db.relationship(
         "UserUnlock",
@@ -248,3 +255,46 @@ class BoosterPack(db.Model):
             f"<BoosterPack id={self.id} "
             f"{self.pack_type.value} {self.size.value} ${self.cost}>"
         )
+
+
+class ChallengeDeck(db.Model):
+    """Datos específicos de los Challenge Decks (modos de juego con desafío).
+
+    A diferencia de las barajas regulares, los Challenge Decks son modos
+    especiales que combinan una baraja inicial (a menudo modificada), un
+    conjunto de reglas alteradas (modifier), items iniciales pre-redimidos
+    (starter) y restricciones sobre qué items pueden aparecer (banned).
+
+    Decisión de modelado: los campos descriptivos se almacenan como TEXT
+    plano (renderizado del wikitexto). Una alternativa "perfecta" sería
+    crear tablas pivote relacionando cada challenge con los items concretos
+    que prohíbe o entrega, pero la complejidad es desproporcionada al
+    alcance del TFG y los textos renderizados son perfectamente útiles
+    para mostrar al usuario.
+
+    Mecánica de desbloqueo: los Challenge Decks no tienen un unlock_condition
+    individual en la fuente — la wiki documenta que los primeros 5 se
+    desbloquean al ganar con 5 barajas distintas y los siguientes 15 al
+    completar Challenge Decks previos. El campo `unlock_condition` del padre
+    Unlockable se rellena con un texto descriptivo común para todos.
+    """
+
+    __tablename__ = "challenge_decks"
+
+    id = db.Column(db.Integer, db.ForeignKey("unlockables.id"), primary_key=True)
+
+    # Modificadores de reglas del challenge (siempre presente)
+    modifier = db.Column(db.Text, nullable=False)
+    # Items iniciales pre-redimidos (jokers, tarots, vouchers); puede ser NULL
+    starter = db.Column(db.Text, nullable=True)
+    # Items prohibidos durante la partida; puede ser NULL
+    banned = db.Column(db.Text, nullable=True)
+    # Modificación de la baraja base (p.ej. "Ranks 2-9 only, 32 cards total");
+    # NULL significa que se usa la baraja estándar de 52 cartas
+    deck_description = db.Column(db.Text, nullable=True)
+
+    unlockable = db.relationship("Unlockable", back_populates="challenge_deck")
+
+    def __repr__(self) -> str:
+        name = self.unlockable.name if self.unlockable else "?"
+        return f"<ChallengeDeck id={self.id} name={name!r}>"

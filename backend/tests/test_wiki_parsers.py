@@ -405,3 +405,155 @@ class TestParseBoosterPacksPage:
         from app.scrapers.wiki import parse_booster_packs_page
 
         assert parse_booster_packs_page("Just some random wikitext") == []
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  parse_challenge_deck
+# ──────────────────────────────────────────────────────────────────────
+
+
+class TestParseChallengeDeck:
+    """Parser de la plantilla 'Challenge info' de los Challenge Decks.
+
+    Los 6 fixtures cubren toda la combinatoria relevante:
+      - X-ray Vision: el más simple, solo `modifier`.
+      - Jokerless: banned complejo multilínea, sin starter.
+      - Non-Perishable: banned inline simple, sin starter.
+      - Bram Poker: starter rico (sticker + tarots + vouchers), sin banned.
+      - Five-Card Draw: starter + banned.
+      - Mad World: starter + banned + deck modificado (caso completo).
+    """
+
+    def test_x_ray_vision_minimal(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_challenge_deck
+
+        result = parse_challenge_deck(load_wiki_fixture("challenge_x_ray_vision"))
+        assert result["type"] == "challenge_deck"
+        assert result["item_number"] == 5
+        assert result["name"] == "X-ray Vision"
+        assert "1 in 4" in result["modifier"]
+        # Sin starter, banned ni deck en este challenge
+        assert result["starter"] is None
+        assert result["banned"] is None
+        assert result["deck_description"] is None
+
+    def test_jokerless_complex_banned(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_challenge_deck
+
+        result = parse_challenge_deck(load_wiki_fixture("challenge_jokerless"))
+        assert result["item_number"] == 20
+        assert result["name"] == "Jokerless"
+        # El modifier menciona "shop" y "0 Joker Slots" tras renderizar
+        assert "shop" in result["modifier"].lower()
+        assert "0" in result["modifier"]
+        assert result["starter"] is None
+        # banned debe contener referencias a múltiples categorías
+        assert result["banned"] is not None
+        for keyword in ("Tarot", "Spectral", "Tags", "Blinds", "Vouchers"):
+            assert keyword in result["banned"]
+        # Items concretos
+        for item in ("Judgement", "Wraith", "Antimatter"):
+            assert item in result["banned"]
+
+    def test_non_perishable_inline_banned(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_challenge_deck
+
+        result = parse_challenge_deck(load_wiki_fixture("challenge_non_perishable"))
+        assert result["name"] == "Non-Perishable"
+        assert result["item_number"] == 8
+        assert "Eternal" in result["modifier"]
+        # Banned inline con varios jokers
+        assert result["banned"] is not None
+        for joker in ("Gros Michel", "Cavendish", "Ice Cream", "Ramen"):
+            assert joker in result["banned"]
+
+    def test_bram_poker_starter_with_sticker_and_consumables(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_challenge_deck
+
+        result = parse_challenge_deck(load_wiki_fixture("challenge_bram_poker"))
+        assert result["name"] == "Bram Poker"
+        assert result["item_number"] == 13
+        # Starter debe mencionar Vampire, las dos Tarots y los dos Vouchers
+        assert result["starter"] is not None
+        for item in (
+            "Vampire",
+            "The Emperor",
+            "The Empress",
+            "Magic Trick",
+            "Illusion",
+        ):
+            assert item in result["starter"]
+        # Sin banned ni deck modificado
+        assert result["banned"] is None
+        assert result["deck_description"] is None
+
+    def test_five_card_draw_starter_and_banned(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_challenge_deck
+
+        result = parse_challenge_deck(load_wiki_fixture("challenge_five_card_draw"))
+        assert result["name"] == "Five-Card Draw"
+        assert result["item_number"] == 17
+        # Starter: Card Sharp y Joker
+        assert "Card Sharp" in result["starter"]
+        assert "Joker" in result["starter"]
+        # Banned: 3 jokers concretos
+        for joker in ("Juggler", "Troubadour", "Turtle Bean"):
+            assert joker in result["banned"]
+        assert result["deck_description"] is None
+
+    def test_mad_world_complete_case(self, load_wiki_fixture):
+        """Mad World tiene los 4 campos opcionales rellenos."""
+        from app.scrapers.wiki import parse_challenge_deck
+
+        result = parse_challenge_deck(load_wiki_fixture("challenge_mad_world"))
+        assert result["name"] == "Mad World"
+        assert result["item_number"] == 6
+        # Modifier menciona "Hands" e "Interest"
+        assert "Hands" in result["modifier"]
+        assert "Interest" in result["modifier"]
+        # Starter: Pareidolia y Business Card
+        assert "Pareidolia" in result["starter"]
+        assert "Business Card" in result["starter"]
+        # Banned: The Plant
+        assert "The Plant" in result["banned"]
+        # Deck modificado: 32 cartas, ranks 2-9
+        assert result["deck_description"] is not None
+        assert "32" in result["deck_description"]
+
+    def test_image_filename_always_none(self, load_wiki_fixture):
+        """La plantilla Challenge info no expone imagen."""
+        from app.scrapers.wiki import parse_challenge_deck
+
+        for slug in ("jokerless", "bram_poker", "x_ray_vision"):
+            result = parse_challenge_deck(load_wiki_fixture(f"challenge_{slug}"))
+            assert result["image_filename"] is None
+
+    def test_descriptions_are_fully_flattened(self, load_wiki_fixture):
+        """Ningún campo descriptivo debe tener wikitext crudo tras renderizar."""
+        from app.scrapers.wiki import parse_challenge_deck
+
+        for slug in (
+            "jokerless",
+            "bram_poker",
+            "mad_world",
+            "five_card_draw",
+            "non_perishable",
+            "x_ray_vision",
+        ):
+            result = parse_challenge_deck(load_wiki_fixture(f"challenge_{slug}"))
+            for field in ("modifier", "starter", "banned", "deck_description"):
+                value = result.get(field)
+                if value is None:
+                    continue
+                assert (
+                    "{{" not in value
+                ), f"Wikitext crudo en {result['name']!r}.{field}: {value}"
+                assert "}}" not in value
+                assert "[[" not in value
+                assert "]]" not in value
+
+    def test_returns_none_for_non_challenge_template(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_challenge_deck
+
+        # Pasarle un Joker debe devolver None
+        assert parse_challenge_deck(load_wiki_fixture("joker")) is None

@@ -33,6 +33,7 @@ from app.models import (
     BoosterPack,
     BoosterPackSize,
     BoosterPackType,
+    ChallengeDeck,
     Consumable,
     Deck,
     Joker,
@@ -118,6 +119,7 @@ def register_commands(app) -> None:
             "vouchers",
             "achievements",
             "booster_packs",
+            "challenge_decks",
             "all",
         ]
     ),
@@ -165,6 +167,7 @@ def seed_db(item_type: str, dry_run: bool, limit: int | None) -> None:
         "vouchers": seed_vouchers,
         "achievements": seed_achievements,
         "booster_packs": seed_booster_packs,
+        "challenge_decks": seed_challenge_decks,
     }
 
     types_to_seed = list(seeders.keys()) if item_type == "all" else [item_type]
@@ -1050,3 +1053,146 @@ def _upsert_booster_pack(data: dict) -> None:
             f"  + Created: [{pack_type.value:>9} {size.value:>6}] "
             f"#{next_num:>2} {data['name']}"
         )
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Seeder: challenge_decks
+# ──────────────────────────────────────────────────────────────────────
+
+
+# Texto común para unlock_condition de TODOS los Challenge Decks.
+# La mecánica del juego es: los primeros 5 se desbloquean al ganar con
+# 5 barajas distintas, los siguientes 15 al completar challenges previos.
+# Esta condición no aparece en la plantilla individual; se aplica aquí
+# como regla compartida.
+_CHALLENGE_DECK_UNLOCK_CONDITION = (
+    "Challenge Mode is unlocked by winning a regular run with five "
+    "different decks. The first 5 challenges become available then; each "
+    "subsequent challenge unlocks after winning a run with a previous one."
+)
+
+
+def seed_challenge_decks(dry_run: bool, limit: int | None) -> int:
+    """Pobla los Challenge Decks desde ``Category:Challenges`` de la wiki.
+
+    Returns:
+        Número de challenge decks procesados (insertados o actualizados).
+    """
+    titles = wiki.list_pages_in_category("Challenges")
+
+    # Filtra páginas índice (overview, list of...) que estén categorizadas
+    # como Challenges pero no sean challenges individuales.
+    titles = _filter_category_index_pages(titles, "Challenges")
+
+    # Filtros adicionales: la página meta "Challenge Deck" usa la plantilla
+    # 'Deck info' (no 'Challenge info'), está en otra categoría conceptual,
+    # y describe el tema entero, no un challenge concreto. Excluida defensiva.
+    EXTRA_INDEX_PAGES = {"Challenge Deck", "Challenge Decks"}
+    titles = [t for t in titles if t not in EXTRA_INDEX_PAGES]
+
+    if limit is not None:
+        titles = titles[:limit]
+
+    click.echo(f"  Found {len(titles)} challenge pages in Category:Challenges")
+
+    count = 0
+    for title in titles:
+        try:
+            wikitext = wiki.fetch_wikitext(title)
+            if not wikitext:
+                click.secho(f"  ⚠ No wikitext for {title!r}", fg="yellow")
+                continue
+
+            data = wiki.parse_challenge_deck(wikitext)
+            if not data:
+                click.secho(
+                    f"  ⚠ Page lacks 'Challenge info' template: {title!r}",
+                    fg="yellow",
+                )
+                continue
+
+            data = _apply_overrides(data)
+
+            if data.get("item_number") is None:
+                click.secho(f"  ⚠ Skipped (no item_number): {title!r}", fg="yellow")
+                continue
+
+            _upsert_challenge_deck(data, title)
+
+            if not dry_run:
+                db.session.commit()
+
+            count += 1
+        except Exception as e:
+            db.session.rollback()
+            click.secho(f"  ✗ Error processing {title!r}: {e}", fg="red")
+            logger.exception("Failed processing %s", title)
+            continue
+
+    if dry_run:
+        db.session.rollback()
+        click.secho("  (dry-run: changes rolled back)", fg="yellow")
+
+    return count
+
+
+def _upsert_challenge_deck(data: dict, title: str) -> None:
+    """Inserta o actualiza un Challenge Deck en la BD.
+
+    A diferencia de los items con plantillas más estándar, los Challenge Decks
+    componen su ``unlockable.description`` a partir del campo ``modifier`` de
+    la plantilla (que recoge las reglas modificadas; lo más equivalente a una
+    "descripción funcional"). Los campos específicos (modifier, starter,
+    banned, deck_description) se almacenan también en la tabla hija
+    ``challenge_decks`` para queries más detalladas en el frontend.
+
+    Como la plantilla no expone imagen y la condición de desbloqueo es común
+    a todos, ``image_url = None`` y ``unlock_condition`` se rellenan con el
+    texto compartido ``_CHALLENGE_DECK_UNLOCK_CONDITION``.
+    """
+    existing = Unlockable.query.filter_by(
+        type=UnlockableType.CHALLENGE_DECK,
+        item_number=data["item_number"],
+    ).first()
+
+    if existing is not None:
+        # Detección defensiva de colisión (el mismo number en dos challenges)
+        if existing.name != data["name"]:
+            click.secho(
+                f"  ⚠ Number collision: challenge_deck #{data['item_number']} "
+                f"already taken by {existing.name!r}, skipping {data['name']!r}",
+                fg="yellow",
+            )
+            return
+
+        existing.name = data["name"]
+        existing.description = data["modifier"]
+        existing.image_url = None
+        existing.unlock_condition = _CHALLENGE_DECK_UNLOCK_CONDITION
+        existing.wiki_url = wiki.page_url(title)
+
+        cd = existing.challenge_deck
+        cd.modifier = data["modifier"]
+        cd.starter = data["starter"]
+        cd.banned = data["banned"]
+        cd.deck_description = data["deck_description"]
+
+        click.echo(f"  ↻ Updated: #{data['item_number']:>2} {data['name']}")
+    else:
+        unlockable = Unlockable(
+            type=UnlockableType.CHALLENGE_DECK,
+            item_number=data["item_number"],
+            name=data["name"],
+            description=data["modifier"],
+            image_url=None,
+            unlock_condition=_CHALLENGE_DECK_UNLOCK_CONDITION,
+            wiki_url=wiki.page_url(title),
+        )
+        unlockable.challenge_deck = ChallengeDeck(
+            modifier=data["modifier"],
+            starter=data["starter"],
+            banned=data["banned"],
+            deck_description=data["deck_description"],
+        )
+        db.session.add(unlockable)
+        click.echo(f"  + Created: #{data['item_number']:>2} {data['name']}")

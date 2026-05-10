@@ -10,6 +10,7 @@ from app.models.enums import (
 from app.models.user import User
 from app.models.unlockable import (
     BoosterPack,
+    ChallengeDeck,
     Consumable,
     Deck,
     Joker,
@@ -30,6 +31,7 @@ __all__ = [
     # Modelos
     "Achievement",
     "BoosterPack",
+    "ChallengeDeck",
     "Consumable",
     "Deck",
     "Joker",
