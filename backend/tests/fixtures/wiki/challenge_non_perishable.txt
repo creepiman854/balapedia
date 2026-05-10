@@ -1,0 +1,46 @@
+{{Challenge info
+|title = Non-Perishable
+|number = 8
+|modifier = All Jokers are Eternal
+|banned = Banned Jokers: {{J|Gros Michel}}, {{J|Cavendish}} {{J|Ice Cream}}; {{J|Turtle Bean}}, {{J|Ramen}}, {{J|Diet Cola}}; {{J|Seltzer}}; {{J|Popcorn}}, {{J|Mr. Bones}}, {{J|Invisible Joker}} and {{J|Luchador}}<br>Banned [[Blinds]]: {{Blind|Verdant Leaf}}
+}}'''Non-Perishable''' is a [[Challenge Deck]]. All [[Jokers]] found while playing are {{Sticker|Eternal}}.
+
+== Starting Contents ==
+The starting deck contains the standard 52 cards.
+
+== Synergies ==
+Since this Challenge prevents the player from selling any kind of Joker once bought, it's important to pick the Jokers that you absolutely want to keep for the rest of the run. Focus on Consumables such as [[Tarot Cards]] and [[Planet Cards]] to get through the early Antes until you find a good Joker lineup.
+*{{J|Madness}} works well with this challenge since it cannot destroy any {{Sticker|Eternal}} Jokers but still gains {{xmult|0.5}}.
+*{{Spectral|Ankh}} and {{Spectral|Hex}} can be used to duplicate and add {{Edition|Polychrome}} freely. However, {{Spectral|Ankh}} becomes useless after all Joker slots are filled.
+*Scaling Jokers like {{J|Constellation}}, {{J|Spare Trousers}}, {{J|Square Joker}}, etc. can be good choices as well since they will become stronger over the course of the run. Getting them as an early commitment may not be as detrimental to your build this way.
+
+== Anti-Synergies==
+*{{J|Ceremonial Dagger}} doesn't work at all since it can't destroy any {{Sticker|Eternal}} Jokers and doesn't gain {{Hl|Red|{{Mult|+}}}}.
+*{{J|Riff-Raff}} normally can't spawn stickered Jokers, but does spawn {{Sticker|Eternal}} Jokers during this challenge, making it an extremely risky pick-up.
+**This also applies to {{Tarot|Judgement}}, {{Spectral|Wraith}},{{Spectral|The Soul}} and the {{Tag|Top-up}}.
+*Since Jokers cannot be sold once bought, {{J|Egg}} and {{J|Gift Card}} don't give any value (besides for {{J|Swashbuckler}} and {{Tarot|Temperance}}), making them useless.
+*Unless the player can get an extra Joker slots by either {{Spectral|Ectoplasm}} or {{V|Antimatter}}, {{J|Showman}} is pretty much a waste of a Joker slot.
+
+== Trivia ==
+* Along with {{D|Typecast}}, this is one of the two possible decks where you can have {{Sticker|Eternal|image=Canio.png}} [[Legendary Jokers]].
+
+== In other languages ==
+{{Languages
+|zhs = 不腐之物
+|zht = 保久物資
+|nl = Houdbaar
+|fr = Non périssable
+|de = Haltbar
+|id = Tidak Mudah Rusak
+|it = Non deperibile
+|ja = 保存食
+|ko = 비부패
+|pl = Trwały
+|pt = Não Perecível
+|ru = Не портится
+|es-es = No perecedero
+|es-latam = No perecedero
+|version = 1.0.0n
+}}
+
+{{Navbox Decks}}

@@ -1,0 +1,56 @@
+{{Challenge info
+|title = X-ray Vision
+|number = 5
+|modifier = {{hl|green|1 in 4}} cards are drawn face down
+}}
+'''X-ray Vision''' is a [[Challenge Deck]]. During this challenge, there is a {{Hl|Green|1 in 4}}, or a 25% chance for cards to be drawn face down.
+
+== Usage Notes ==
+*Using {{J|Oops! All 6s}} will not affect the probabilities of drawing cards face down.
+
+== Starting Contents ==
+The starting deck contains the standard 52 cards.
+
+== Synergies ==
+Due to the difficulty of ensuring the player has a certain hand, a [[Poker Hands|High Card]] or Pair build can be a more reliable way to beat the challenge. As such, [[Jokers]] that synergize with easier/smaller hands may be successful, such as:
+* Jokers that rely on playing many hands reliably, such as {{J|Green Joker}}
+* Jokers that rely on in-hand effects, such as {{J|Shoot the Moon}} and {{J|Raised Fist}}
+* Jokers that require the player to discard certain cards, such as {{J|Castle}} and {{J|Burnt Joker}}
+
+However, if the player still wishes to play bigger hands, Jokers that help the player plays them reliably become much more important. This includes:
+* Jokers that make specific hands easier to play, like {{J|Four Fingers}}, {{J|Shortcut}}, and {{J|Smeared Joker}}
+* Jokers that enable the player to see more of your deck, like {{J|Drunkard}} and {{J|Juggler}}
+
+Since {{J|Oops! All 6s}} has no effect on how many cards are drawn face down, it can be safely used alongside chance-based Jokers like {{J|Space Joker}}.
+
+==Anti-Synergies==
+* Jokers that can reset, like {{J|Ride the Bus}} or {{J|Obelisk}}, can be accidentally reset due to the cards drawn face down.
+* Bosses that already draw cards face down like {{Blind|The Fish}} or {{Blind|The House}} can be more deadly than usual.
+
+==Strategies==
+* The Sort feature at the bottom of the screen can narrow down what the face down cards are. Sorting by rank sorts in descending order, with Aces being the highest rank and 2s being the lowest. Sorting by suit sorts in the order of Spades, Hearts, Clubs, then Diamonds, with each suit being sorted by rank.
+* The player can briefly see face-down cards when using certain [[Tarot Cards|Tarot]] or [[Spectral Cards|Spectral]] cards, e.g., {{Tarot|The Empress}} or {{Spectral|Ouija}}.
+
+==Trivia==
+* X-ray is an electromagnetic wave of high energy and very short wavelength, which is able to pass through many materials opaque to light. This challenge reflects this by making each card have a 1 in 4 chance of being drawn face down, because the player would need X-ray to see a card that has been drawn face down.
+
+==In other languages==
+{{Languages
+|zhs = X光视界
+|zht = 透視眼
+|nl = Röntgenogen
+|fr = Vision aux rayons X
+|de = Röntgenblick
+|id = Penglihatan sinar-X
+|it = Visione a raggi X
+|ja = 透視能力
+|ko = 엑스레이 시야
+|pl = Rentgenowski wzrok
+|pt = Visão de Raio X
+|ru = Рентгеновское зрение
+|es-es = Visión de rayos X
+|es-latam = Visión de rayos X
+|version = 1.0.0n
+}}
+
+{{Navbox Decks}}

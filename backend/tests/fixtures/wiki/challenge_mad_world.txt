@@ -1,0 +1,70 @@
+{{Challenge info
+|title = Mad World
+|number = 6
+|modifier = Extra {{hl|blue|Hands}} no longer earn money<br>Earn no {{hl|orange|Interest}} at end of round
+|starter = Eternal, Negative {{Sticker|Eternal|image=Pareidolia (Negative).png|link=Pareidolia|name=Pareidolia|showtooltip=1}}<br>Eternal {{Sticker|Eternal|image=Business Card.png|link=Business Card|name=Business Card|showtooltip=1}}
+|banned = Banned Blinds: {{Blind|The Plant}}
+|deck = Ranks 2 through 9 only, 32 cards total
+}}
+'''Mad World''' is a [[Challenge Deck]]. It bans most forms of earning money, but supplies an [[Eternal]], [[Negative]] {{Sticker|Eternal|image=Pareidolia (Negative).png|link=Pareidolia|name=Pareidolia|showtooltip=1}} and Eternal {{Sticker|Eternal|image=Business Card.png|link=Business Card|name=Business Card|showtooltip=1}} to assist with economy.
+
+== Starting Contents ==
+The starting deck contains 32 cards in total, consisting of ranks 2 through 9 in each suit.
+
+== Synergies ==
+===[[Jokers]]===
+Because remaining hands no longer earn money, scaling {{Chips|+}} and {{Mult|+}} Jokers become considerably stronger here as players can waste all hands to scale them without any penalty.
+*{{j|Reserved Parking}} will provide additional income in addition to {{j|Business Card}}.
+*{{J|Oops! All 6s}}, combined with the Eternal {{j|Business Card}} and {{j|Pareidolia}}, guarantees that every card earns {{Money|2}} on scoring.
+**Additionally, with the {{j|Reserved Parking}} synergy stated above, this also guarantees every card held in hand to earn {{Money|1}} after a hand is played.
+*{{J|Splash}} lets you play five-card hands that don't score very well, if the only thing you are trying to do with the hand is to earn money and not score.
+**Retrigger jokers such as {{J|Hanging Chad}} or {{J|Seltzer}} can help even further when earning money with the {{J|Business Card}} by playing hands.
+*{{j|Midas Mask}} works well together with the {{j|Pareidolia}}, being able to give a consistent source of income.
+**This allows Jokers like {{J|Golden Ticket}}, {{J|Vampire}} and {{J|Driver's License}} to be more useful too.
+*Any Joker that benefits from Face Cards is useful for this challenge, be it {{j|Scary Face}}, {{j|Smiley Face}}, {{j|Sock and Buskin}}, etc.
+*Jokers that rely on many number cards such as {{j|Fibonacci}}, {{j|Even Steven}}, and {{j|Odd Todd}} are stronger on this deck, as those three Jokers affect half of the deck rather than only 20/52 cards in a normal deck.
+*{{j|Mail-In Rebate}} picks a random rank in the deck every round, which is considerably easier to find with only 8 ranks in this deck.
+*Just a simple discard joker like {{J|Drunkard}} lets you practically see all of your deck without needing to play throwaway hands. {{J|Merry Andy}} also works, but is usually overkill and comes at the cost of decreased hand size. 
+*{{J|The Idol}} has fewer options to choose from, making it more useful without needing to significantly manipulating the deck.
+*{{J|Canio}} gains {{xmult|1}} when any card is destroyed. However, this can be dangerous due to the small deck.
+
+== Anti-Synergies ==
+===Jokers===
+*{{J|Ride the Bus}} will never gain anything due to the eternal Pareidolia.
+*{{J|To the Moon}} should be avoided as this challenge does not generate interest.
+*{{J|Vagabond}} is hard to use due to Business Card providing lots of money during the blind. {{J|Credit Card}} can loosen the burden of it, however.
+*Due to the small size of the deck, {{J|Erosion}} will have a lower ceiling on its maximum Mult.
+**Similarly, {{J|Blue Joker}} does not work well in this challenge due to the small size of the deck.
+*{{j|Scholar}} and {{J|Superposition}} require Aces, which this deck does not start with.
+*{{j|Walkie Talkie}} requires 10s and 4s, but this deck does not start with any 10s.
+*{{j|Baron}}, {{j|Shoot the Moon}}, {{j|Hit the Road}} and {{j|Triboulet}} all rely on specific ranks of face cards, but this deck lacks them.
+
+===Vouchers===
+*{{V|Seed Money}} and {{V|Money Tree}} work towards Interest, which is banned here.
+
+===Boss Blinds===
+*{{Blind|The Mark}} is a particularly dangerous boss in this challenge, as it essentially means that all of your cards will be drawn face down.
+
+== Trivia ==
+* The title is likely a reference to the Tears for Fears song [[wikipedia:Mad World|Mad World]], which begins with the line "All around me are familiar faces", here referring to face cards.
+* This challenge deck in particular has only 32 cards, making it the smallest challenge deck.
+
+== In other languages ==
+{{Languages
+|zhs = 疯狂世界
+|zht = 瘋狂世界
+|nl = Krankzinnige wereld
+|fr = Monde de fous
+|de = Verrückte Welt
+|id = Dunia Gila
+|it = Mondo folle
+|ja = 狂気の世界
+|ko = 미친 세계
+|pl = Szalony świat
+|pt = Mundo Maluco
+|ru = Безумный мир
+|es-es = Mundo loco
+|es-latam = Mundo loco
+|version = 1.0.0n
+}}
+{{Navbox Decks}}

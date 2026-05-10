@@ -1,0 +1,53 @@
+{{Challenge info
+|title = Bram Poker
+|number = 13
+|modifier = Jokers no longer appear in the [[The Shop|{{hl|orange|shop}}]]
+|starter = Eternal {{Sticker|Eternal|image=Vampire.png|link=Vampire|name=Vampire}}<br>{{tarot|The Emperor}}, {{tarot|The Empress}}<br>{{v|Magic Trick}}, {{v|Illusion}}
+}}
+'''Bram Poker''' is a [[Challenge Deck]]. While playing this challenge, jokers no longer appear in the [[Shop]], meaning players will have to rely on scaling with the starting [[eternal]] {{Sticker|Eternal|image=Vampire.png|link=Vampire|name=Vampire}} using card enhancements and Planet cards. Note that Jokers can still be acquired via {{Tarot|Judgement}}, Booster Packs, and tags that spawn Jokers in the Shop.
+
+== Starting Contents ==
+The starting deck contains the standard 52 cards, an eternal {{J|Vampire}}, and the Tarot Cards {{Tarot|The Emperor}} and {{Tarot|The Empress}}. The Vouchers {{v|Magic Trick}} and {{v|Illusion}} have also been redeemed.
+
+== Synergies ==
+Because Vampire requires a large amount of Enhanced cards to remove enhancements from, a strong economy and Tarot Card supply are needed to beat this challenge. This includes:
+*Any economy , like {{J|Golden Joker}}, {{J|Rocket}}, or {{J|Cloud 9}}.
+*Tarot-generating Jokers like {{J|8 Ball}}, {{J|Superposition}}, {{J|Cartomancer}}, or {{J|Vagabond}}.
+*{{J|Midas Mask}} can be a great addition, as it can help scale {{J|Vampire}} much faster.
+*As the player needs to rely on Tarot Cards, {{J|Fortune Teller}} can be a good pickup.
+*Since the player starts with {{Voucher|Magic Trick}}, {{J|Hologram}} will scale much faster.
+*The {{Tag|Uncommon}} and {{Tag|Rare}} tags allow additional Jokers to spawn in the Shop, which can be combined with the {{Tag|Foil}}, {{Tag|Holographic}}, {{Tag|Polychrome}}, and {{Tag|Negative}} to enhance them. If there are no Buffoon Packs in the Shop after a while, it might be worthwhile to skip blinds for these Tags if players are desperately in need of more Jokers.
+**The {{Tag|Top-up}} and {{Tag|Buffoon}} can be used to, but they cannot be combined with the Edition tags.
+*{{V|Clearance Sale}} and {{V|Liquidation}} can help with the cost of Arcana Packs, [[Tarot Cards]], and playing cards.
+*{{V|Tarot Merchant}} and {{V|Tarot Tycoon}} will make it more likely for Tarot Cards to appear to scale Vampire. It also makes {{Tarot|Judgement}} appear more often to get more Jokers.
+
+== Anti-Synergies ==
+*While not straight-up useless, {{J|Showman}} is significantly less useful due to Jokers no longer appearing in the Shop.
+*Jokers that rely on specific card enhancements like {{J|Lucky Cat}}, {{J|Glass Joker}}, and {{J|Golden Ticket}} are basically useless, as it will be hard for the player to hold on to enhanced playing cards.
+*{{J|Driver's License}} becomes impossible to use, as it limits the player not to play any enhanced cards in order to stay activated.
+*While not directly useless, any Joker that benefits from Planet Cards, such as {{J|Constellation}}, {{J|Astronomer}} or {{J|Satellite}}, are harder to use since Planet Cards don't do a lot with Vampire.
+
+== Trivia ==
+*''Bram Poker'' is a pun on the name of Irish author [[Wikipedia:Bram Stoker|Bram Stoker]], famously known for his 1897 novel [[Wikipedia:Dracula|Dracula]], which popularised vampires outside Transylvanian folklore, and invented the idea of vampires transforming into bats and their weaknesses to garlic, crucifixes, and sunlight.
+*This is the only challenge deck that starts with [[consumables]].
+
+== In other languages ==
+{{Languages
+|zhs = 布莱姆·扑克
+|zht = 布蘭撲克
+|nl = Bram Poker
+|fr = Bram Poker
+|de = Bram-Poker
+|id = Bram Poker
+|it = Bram Poker
+|ja = ブラムポーカー
+|ko = 브램 포커
+|pl = Bram Poker
+|pt = Bram Pôquer
+|ru = Брэм-покер
+|es-es = Bram Poker
+|es-latam = Bram Póker
+|version = 1.0.0n
+}}
+
+{{Navbox Decks}}

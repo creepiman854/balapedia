@@ -1,0 +1,83 @@
+{{Challenge info
+|title = Jokerless
+| number = 20
+| modifier = Jokers no longer appear in the [[The Shop|{{hl|orange|shop}}]]<br><br><!--
+-->{{hl|orange|0}} Joker Slots
+| banned = All methods of acquiring Jokers:
+*[[Tarot Cards]]: {{Tarot|Judgement}}
+*[[Spectral Cards]]: {{Spectral|Wraith}} and {{Spectral|The Soul}}
+*[[Tags]]: {{Tag|Uncommon}}, {{Tag|Rare}}, {{Tag|Negative}}, {{Tag|Foil}}, {{Tag|Holographic}}, {{Tag|Polychrome}}, {{Tag|Buffoon}}, {{Tag|Top-up}}
+*[[Blinds]]: {{Blind|Crimson Heart}}, {{Blind|Verdant Leaf}}, {{Blind|Amber Acorn}}
+*[[Vouchers]]: {{V|Antimatter}}
+*[[Booster Packs]]: all 4 Buffoon Packs
+}}
+'''Jokerless''' is a [[Challenge Decks|Challenge Deck]]. The player is unable to acquire Jokers and must rely on {{Planet|}} Cards, [[Card Modifiers|card modifications]] through {{Tarot|}} Cards and {{Spectral|}} Cards, and [[Vouchers]] for scoring.
+
+== Starting Contents ==
+The starting deck contains the standard 52 cards.
+
+== Synergies ==
+===[[Poker Hands]]===
+* {{ph|Straight}} is the most consistent hand to win, as it is both able to be played early game without any deck fixing, and {{Planet|Saturn}} has great scaling for late game.
+
+===[[Consumables]]===
+* Without Jokers taking up most of the slots in the shop, Tarot Cards like {{Tarot|Death}} and {{Tarot|The Hanged Man}} appear far more frequently. This can make deck fixing far easier.
+
+===[[Modifiers|Card Modifiers]]===
+* {{Seal|Blue|name=Blue Seals}} provide the most consistent source of scaling without Jokers.
+* {{Seal|Purple|name=Purple Seals}} provide a source of Tarot Cards without Jokers.
+* {{Enhancement|Gold}} and {{Seal|Gold|name=Gold Seals}} provide one of the only ways to gain more money without economy Jokers.
+* {{Enhancement|Steel}} provide a consistent way to score more without Jokers.
+*{{edition|Polychrome|type=Playing Card}} Cards similarly provide a consistent way to score more without Jokers.
+* {{Enhancement|Glass}} provides both a way to deck fix by breaking cards early, a quick way to score more in tough [[Boss Blinds]] or when Antes scale too quickly, and an incredibly powerful source of {{xmult|}} late game.
+* {{Seal|Red|name=Red Seals}} synergize with any of: {{Seal|Red|name=Gold Cards|link=Gold Cards|image=Gold Card.png}}, {{Seal|Red|name=Steel Cards|link=Steel Cards|image=Steel Card.png}}, {{Seal|Red|name=Glass Cards|link=Glass Cards|image=Glass Card.png}}, and {{Seal|Red|name=Polychrome Cards|image=Ace of Spades (Polychrome).png|link=Polychrome}}.
+
+* All editions on playing cards, while rare, are far more powerful without scoring Jokers, making [[Standard Packs]] and {{Spectral|Aura}} even more valuable.
+===[[Vouchers]]===
+* {{v|Telescope}} improves the efficiency of shop purchases by ensuring the player will receive a card of their chosen hand type.
+* {{v|Observatory}} provides {{xmult|1.5}} per planet card held in the consumable area, which will greatly increase scoring due to the lack of {{xmult|}} available.
+** {{v|Crystal Ball}} further synergizes with this by offering an additional consumable slot, allowing the player to hold more planet cards.
+* Due to the ban on 3 of 5 [[Finisher blind|Finisher Blinds]], the risk of encountering {{Blind|Violet Vessel}} is greatly increased (1 in 2) in Jokerless, and its extremely high score requirement may be detrimental. As Jokers are unavailable, {{V|Director's Cut}} (and {{V|Retcon}}) become the only stable way to avoid Boss Blinds.
+* {{V|Omen Globe}} can be used to find Spectral Cards easier.
+
+== Anti-Synergies ==
+* Several Tarot Cards and Spectral Cards are still available which have no effect, such as {{Tarot|The Wheel of Fortune}}, {{Tarot|Temperance}}, {{Spectral|Ectoplasm}}, {{Spectral|Ankh}}, and {{Spectral|Hex}}.
+* {{v|Blank}} is still available but does nothing since {{V|Antimatter}} is banned and Jokers can't be purchased anyways.
+* {{v|Hone}} and {{v|Glow Up}} are less useful because Jokers are unobtainable, but the Editioned Playing Cards from [[Standard Packs]] can still be useful.
+* Since 3 of the 5 finisher Boss Blinds are banned in this challenge, only {{Blind|Violet Vessel}} and {{Blind|Cerulean Bell}} can appear, which are both pretty deadly.
+
+== Trivia ==
+* After Update [[Update 1.0.1f|1.0.1f]], Jokerless bans {{Blind|Amber Acorn}}. This is likely because there wouldn't be any Jokers for it to shuffle, meaning its effect would be rendered obsolete, making it just a normal Blind with a 2x base Blind size. In a similar fashion, {{Blind|Crimson Heart}} is also banned. In {{Blind|Verdant Leaf}}'s case, this is likely banned because its effect requires the player to sell a Joker, which is not possible due to the challenge's constraints.
+* This is the only deck where the first shop will not have a [[Booster Packs|Buffoon Pack]] as they're banned.
+
+==Update History==
+{{Update history|
+update='''{{patch|1.0.1f}}'''
+*Banned Crimson Heart, Verdant Leaf and Amber Acorn
+*Fixed bug where [[Booster Packs|Buffoon Pack]] could show up during the challenge
+'''{{patch|1.0.1e}}'''
+*Banned Top-up [[Tags|tag]] and Antimatter [[Vouchers|Voucher]]
+}}
+
+== In other languages ==
+{{Languages
+|zhs = 无小丑
+|zht = 小丑不再
+|nl = Zonder jokers
+|nl_note = 'Without Jokers', splitting it into two words like the French translation.
+|fr = Sans blague
+|fr_note = Translate literally into : 'No joke'
+|de = Jokerlos
+|id = Tanpa Joker
+|it = Senza Jolly
+|ja = ジョーカーなし
+|ko = 조커 없음
+|pl = Bez jokera
+|pt = Sem Curinga
+|ru = Без джокеров
+|es-es = Sin comodines
+|es-latam = Sin comodines
+|version = 1.0.0n
+}}
+
+{{Navbox Decks}}
