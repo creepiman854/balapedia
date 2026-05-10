@@ -292,13 +292,24 @@ def render_wikitext(raw: Any) -> str:
             return arg(1)
 
         if isinstance(node, Wikilink):
-            return str(node.text or node.title)
+            # Toma el alias si existe, si no el título. Ambos pueden contener
+            # plantillas anidadas (p.ej. [[Tarot Cards|{{hl|purple|Tarot}}]])
+            # que deben aplanarse recursivamente, no convertirse a string crudo.
+            inner = node.text if node.text else node.title
+            if hasattr(inner, "nodes"):
+                return "".join(render_node(n) for n in inner.nodes)
+            return str(inner)
 
         if isinstance(node, Tag):
             tag_name = str(node.tag).lower()
             if tag_name == "br":
                 return " "
-            return str(node.contents or "")
+            # Las contents de tags como <small>, <span>, etc. también pueden
+            # contener plantillas anidadas que requieren render recursivo.
+            contents = node.contents
+            if hasattr(contents, "nodes"):
+                return "".join(render_node(n) for n in contents.nodes)
+            return str(contents) if contents else ""
 
         if isinstance(node, (Comment, HTMLEntity)):
             return ""
