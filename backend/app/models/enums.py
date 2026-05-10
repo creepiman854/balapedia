@@ -20,6 +20,7 @@ class UnlockableType(str, Enum):
     VOUCHER = "voucher"
     DECK = "deck"
     BOOSTER_PACK = "booster_pack"
+    CHALLENGE_DECK = "challenge_deck"
 
 
 class JokerRarity(str, Enum):
