@@ -1,0 +1,535 @@
+[[File:BalatroHands.png|thumb|400px|List of poker hands that can be found by clicking "Run Info"]]
+'''Poker Hands''' are sets of one to five cards that can be played in ''[[Balatro]]'' to obtain {{Chips|}} and [[Mult]] for scoring. Each hand also has a level that affects its potency. In general, the more difficult it is to play a certain Poker Hand, the higher its base score will be. For example, a {{Ph|Pair}} will score for much less than a {{Ph|Four of a Kind}}.
+
+At the beginning of a run, all Hands start at Level 1, and are generally upgraded through [[Planet Cards|{{hl|cyan|Planet cards}}]]. Hands can also be upgraded with the{{Tag|Orbital}}, the {{Spectral|Black Hole}} [[Spectral Cards|{{hl|sblue|Spectral card}}]], {{J|Burnt Joker}}, and {{J|Space Joker}}. The level can also be permanently decreased by {{Blind|The Arm}}. There is no limit to how many times a Poker Hand can be leveled up. Furthermore, the Poker Hand levels are reset back to Level 1 each time when starting a new run.
+
+Higher-tier hands take precedence over lower-tier hands regardless of their level or scoring. For example, if the hand is 9 9 9 9 2, and all of them are diamonds, the hand will always be a Four of a Kind and never a Flush. By selecting the desired cards before playing them, it is possible to check which Poker Hand it will count as on the left-hand side, over the scoreboard. An exception to this is when playing against a [[Blinds and Antes|Boss Blind]] that turns cards in hand face down which, when selected, will make the poker hand name appear as "???" until it is played.
+
+Generally, only the cards relevant to the hand are scored. All others are not scored. For example, if an Ace is played as a {{Ph|High Card}} with 4 other cards, only the High Card base amount and the Ace's values are used for the hand's score. The other cards (up to 4) are just discarded and have no effect. However, sometimes it can be beneficial to play extra cards as an extra discard while still having the main hand score. This would not work with any hand that requires five cards to be played. The main exceptions to this rule are with {{J|Splash}}, which explicitly allows all played cards to be scored, with {{j|Four Fingers}}, which can be used to score a {{Ph|Straight}} that contains two cards of matching rank (A A K Q J); and with {{Enhancement|Stone}} to gain an extra {{Chips|+50}}.
+
+== Regular Poker Hands ==
+{| class="sortable wikitable"
+|-
+!Poker Hand
+!Base Scoring
+!Planet Card
+!style="width: 600px;"|How to Play the Hand
+!style="width: 420px;"|Example
+|-
+| id="High Card" | {{hl|orange|High Card}}
+| {{Chips|5}} x {{Mult|1}}
+| {{Planet|Pluto}}<br>{{mult|+1}}, {{chips|+10}}
+| When no other hand is possible, scores whichever played card is the highest rank.
+| [[File:Ace of Spades.png|frameless|75px]] [[File:Queen of Diamonds.png|frameless|40px]] [[File:9 of Diamonds.png|frameless|40px]] [[File:4 of Clubs.png|frameless|40px]] [[File:3 of Diamonds.png|frameless|40px]]
+|-
+| id="Pair" | {{hl|orange|Pair}}
+| {{Chips|10}} x {{Mult|2}}
+| {{Planet|Mercury}}<br>{{mult|+1}}, {{chips|+15}}
+| Two cards with a matching rank. Suits may be different.
+| [[File:Ace of Spades.png|frameless|75px]] [[File:Ace of Hearts.png|frameless|75px]] [[File:9 of Diamonds.png|frameless|40px]] [[File:6 of Hearts.png|frameless|40px]] [[File:3 of Diamonds.png|frameless|40px]]
+|-
+| id="Two Pair" | {{hl|orange|Two Pair}}
+| {{Chips|20}} x {{Mult|2}}
+| {{Planet|Uranus}}<br>{{mult|+1}}, {{chips|+20}}
+| Two cards with a matching rank and two cards with a different matching rank. Suits may be different.
+| [[File:Ace of Spades.png|frameless|75px]] [[File:Ace of Hearts.png|frameless|75px]] [[File:King of Spades.png|frameless|75px]] [[File:King of Hearts.png|frameless|75px]][[File:Queen of Clubs.png|frameless|40px]]
+|-
+| id="Three of a Kind" | {{hl|orange|Three of a Kind}}
+| {{Chips|30}} x {{Mult|3}}
+| {{Planet|Venus}}<br>{{mult|+2}}, {{chips|+20}}
+| Three cards with a matching rank. Suits may be different.
+| [[File:Ace of Spades.png|frameless|75px]] [[File:Ace of Hearts.png|frameless|75px]] [[File:Ace of Clubs.png|frameless|75px]] [[File:6 of Hearts.png|frameless|40px]] [[File:2 of Diamonds.png|frameless|40px]]
+|-
+| id="Straight" | {{hl|orange|Straight}}
+| {{Chips|30}} x {{Mult|4}}
+| {{Planet|Saturn}}<br>{{mult|+3}}, {{chips|+30}}
+| Five cards with ranks that are in consecutive order. Suits may be different. Aces can be counted as high (A K Q J 10) or low (A 2 3 4 5), but not at the same time (K A 2 3 4 is not valid).
+| [[File:Ace of Spades.png|frameless|75px]] [[File:King of Hearts.png|frameless|75px]] [[File:Queen of Clubs.png|frameless|75px]] [[File:Jack of Diamonds.png|frameless|75px]] [[File:10 of Spades.png|frameless|75px]]
+|-
+| id="Flush" | {{hl|orange|Flush}}
+| {{Chips|35}} x {{Mult|4}}
+| {{Planet|Jupiter}}<br>{{mult|+2}}, {{chips|+15}}
+| Five cards of any rank that all share the same suit.
+| [[File:Ace of Spades.png|frameless|75px]] [[File:Queen of Spades.png|frameless|75px]] [[File:Jack of Spades.png|frameless|75px]] [[File:10 of Spades.png|frameless|75px]] [[File:9 of Spades.png|frameless|75px]]
+|-
+| id="Full House" | {{hl|orange|Full House}}
+| {{Chips|40}} x {{Mult|4}}
+| {{Planet|Earth}}<br>{{mult|+2}}, {{chips|+25}}
+| Three cards with a matching rank and two cards with a different matching rank, with cards from at least two or more suits.
+| [[File:Ace of Spades.png|frameless|75px]] [[File:Ace of Hearts.png|frameless|75px]] [[File:Ace of Clubs.png|frameless|75px]] [[File:King of Spades.png|frameless|75px]] [[File:King of Hearts.png|frameless|75px]]
+|-
+| id="Four of a Kind" | {{hl|orange|Four of a Kind}}
+| {{Chips|60}} x {{Mult|7}}
+| {{Planet|Mars}}<br>{{mult|+3}}, {{chips|+30}}
+| Four cards with a matching rank. Suits may be different.
+| [[File:Ace of Spades.png|frameless|75px]] [[File:Ace of Hearts.png|frameless|75px]] [[File:Ace of Clubs.png|frameless|75px]] [[File:Ace of Diamonds.png|frameless|75px]] [[File:King of Spades.png|frameless|40px]]
+|-
+| id="Straight Flush" | {{hl|orange|Straight Flush}}
+| {{Chips|100}} x {{Mult|8}}
+| {{Planet|Neptune}}<br>{{mult|+4}}, {{chips|+40}}
+| Five cards in consecutive order that all share the same suit.
+| [[File:Queen of Spades.png|frameless|75px]] [[File:Jack of Spades.png|frameless|75px]] [[File:10 of Spades.png|frameless|75px]] [[File:9 of Spades.png|frameless|75px]] [[File:8 of Spades.png|frameless|75px]]
+|-
+| id="Royal Flush" | {{hl|orange|Royal Flush}}
+| {{Chips|100}} x {{Mult|8}}
+| {{Planet|Neptune}}<br>{{mult|+4}}, {{chips|+40}}
+| A Straight Flush that contains an Ace, King, Queen, Jack, and 10 on the same suit.<br><small>(For most purposes, such as hand levels, number of hands played for Obelisk and Supernova and hands for The Eye and The Mouth, this is equivalent to a Straight Flush.)</small>
+| [[File:Ace of Spades.png|frameless|75px]] [[File:King of Spades.png|frameless|75px]] [[File:Queen of Spades.png|frameless|75px]] [[File:Jack of Spades.png|frameless|75px]] [[File:10 of Spades.png|frameless|75px]]
+|}
+
+== Secret Poker Hands ==
+There are three "secret" Poker Hands that are only possible through adding more playing cards to the deck, or changing existing cards with Consumables or Jokers. These Poker Hands will not appear in the Run Info screen until they have been played at least once, after which they will show up on the info menu, and their respective Planet Cards will be obtainable '''only during the current run'''. These Poker Hands will also be upgraded by {{Spectral|Black Hole}}, even before they are unlocked.
+
+{| class="sortable wikitable"
+|-
+!Poker Hand
+!Base Scoring
+!Planet Card
+!style="width: 600px;"|How to Play the Hand
+!style="width: 420px;"|Example
+|-
+| id="Five of a Kind" | {{hl|orange|Five of a Kind}}
+| {{Chips|120}} x {{Mult|12}}
+| {{Planet|Planet X}}<br>{{mult|+3}}, {{chips|+35}}
+| Five cards with the same rank which are not all the same suit.
+| [[File:Ace of Spades.png|frameless|75px]] [[File:Ace of Spades.png|frameless|75px]] [[File:Ace of Hearts.png|frameless|75px]] [[File:Ace of Clubs.png|frameless|75px]] [[File:Ace of Diamonds.png|frameless|75px]]
+|-
+| id="Flush House" | {{hl|orange|Flush House}}
+| {{Chips|140}} x {{Mult|14}}
+| {{Planet|Ceres}}<br>{{mult|+4}}, {{chips|+40}}
+| Three cards with the same rank, and two cards with the same rank, all from a single suit.
+| [[File:Ace of Spades.png|frameless|75px]] [[File:Ace of Spades.png|frameless|75px]] [[File:Ace of Spades.png|frameless|75px]] [[File:King of Spades.png|frameless|75px]] [[File:King of Spades.png|frameless|75px]]
+|-
+| id="Flush Five" | {{hl|orange|Flush Five}}
+| {{Chips|160}} x {{Mult|16}}
+| {{Planet|Eris}}<br>{{mult|+3}}, {{chips|+50}}
+| Five cards with the same rank and same suit.
+| [[File:Ace of Spades.png|frameless|75px]] [[File:Ace of Spades.png|frameless|75px]] [[File:Ace of Spades.png|frameless|75px]] [[File:Ace of Spades.png|frameless|75px]] [[File:Ace of Spades.png|frameless|75px]]
+|}
+
+==Additional Notes==
+*The exact judgment criteria of a {{ph|Straight Flush}} is "any hand which is both a Straight and a Flush". With {{J|Four Fingers}}, it's possible to make a Straight Flush with such cards as 9♠️ 8♠️ 7♥️ 6♠️ 3♠️. Additionally, a Royal Flush is "a Straight Flush with all cards of rank 10 or higher".
+**Similarly, the exact judgment criteria of a '''Flush House''' is "any hand which is both a Full House and a Flush". With {{J|Four Fingers}}, it's possible to make a Flush House with such cards as 8♠️ 8♠️ 8♥️ 6♠️ 6♠️.
+**In much the same way, the exact judgement criteria of '''Flush Five''' is "any hand which is both Five of a Kind and a Flush". With {{J|Four Fingers}}, it's possible to make a Flush Five with 5 cards of the same rank, of which only 4 are of the same suit.
+*{{Ph|Two Pair}} and {{Ph|Full House}} require that the cards are of different ranks. Thus, {{ph|Four of a Kind}}, {{ph|Five of a Kind}}, and {{ph|Flush Five}} are not considered as containing '''Two Pair''', and '''Five of a Kind''' and '''Flush Five''' do not contain a '''Full House'''.
+*A poker hand's type is unaffected by the card order. For example, a {{ph|Straight}} will still count as one, even if the cards are played as 10, Ace, Queen, King, Jack. This makes it useful with Jokers like {{J|Hanging Chad}}, so certain cards in the scoring order can maximize their potential.
+*In older versions, it was possible for poker hands to be decreased to Level 0, by playing a hand of Level 1 during {{Blind|The Arm}}. This was changed to a minimum of level 1 in [[Update 1.0.0k|1.0.0k]].
+*Unlike most Poker Hands that level up through the use of a Planet Card, the {{ph|Royal Flush}} instead levels up alongside the {{ph|Straight Flush}}.
+
+==Trivia==
+* X(''number'') of a kind are sometimes referred as Xoak (for example, 3oak/4oak) for short in the community.
+* In poker terminology, the two types of straight that Ace can form are called ''Broadway Straight'' (A K Q J 10) and ''Wheel Straight'' (A 2 3 4 5). These names are sometimes used in the community.
+* Each secret poker hand is impossible to encounter when using a standard 52-card deck with 13 cards in each suit.
+* {{ph|Flush Five}} used to not exist and was considered as {{ph|Five of a Kind}}. The Flush Five (with the corresponding [[Planet Cards|planet card]] {{Planet|Eris}}) was later introduced in January 2024.<ref>[https://discord.com/channels/1116389027176787968/1201980596533084160/1201980600723189920 Announcement of update in Balatro Discord]</ref>
+
+== In other languages ==
+'''Regular poker hands '''
+{{Languages
+|zhs = 高牌
+|zhs_note = 
+|zht = 高牌
+|zht_note = 
+|nl = High Card
+|nl_note = 
+|fr = Carte Haute
+|fr_note = 
+|de = High Card
+|de_note = 
+|id = High Card
+|id_note = 
+|it = Carta più alta
+|it_note = 
+|ja = ハイカード
+|ja_note = 
+|ko = 하이 카드
+|ko_note = 
+|pl = Wysoka karta
+|pl_note = 
+|pt = Carta Alta
+|pt_note = 
+|ru = Старшая карта
+|ru_note = 
+|es-es = Carta más alta
+|es-es_note = 
+|es-latam = Carta más alta
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Languages
+|zhs = 对子
+|zhs_note = 
+|zht = 對子
+|zht_note = 
+|nl = Pair
+|nl_note = 
+|fr = Paire
+|fr_note = 
+|de = Paar
+|de_note = 
+|id = Pair
+|id_note = 
+|it = Coppia
+|it_note = 
+|ja = ワンペア
+|ja_note = 
+|ko = 페어
+|ko_note = 
+|pl = Para
+|pl_note = 
+|pt = Par
+|pt_note = 
+|ru = Пара
+|ru_note = 
+|es-es = Pareja
+|es-es_note = 
+|es-latam = Par
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Languages
+|zhs = 两对
+|zhs_note = 
+|zht = 兩對
+|zht_note = 
+|nl = Two Pair
+|nl_note = 
+|fr = Double paire
+|fr_note = 
+|de = Zwei Paare
+|de_note = 
+|id = Two Pair
+|id_note = 
+|it = Doppia coppia
+|it_note = 
+|ja = ツーペア
+|ja_note = 
+|ko = 투 페어
+|ko_note = 
+|pl = Dwie {{Not a typo|pary}}
+|pl_note = 
+|pt = Dois Pares
+|pt_note = 
+|ru = Две пары
+|ru_note = 
+|es-es = Doble pareja
+|es-es_note = 
+|es-latam = Doble par
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Languages
+|zhs = 三条
+|zhs_note = 
+|zht = 三條
+|zht_note = 
+|nl = Three of a Kind
+|nl_note = 
+|fr = Brelan
+|fr_note = 
+|de = Drilling
+|de_note = 
+|id = Three of a Kind
+|id_note = 
+|it = Tris
+|it_note = 
+|ja = スリーカード
+|ja_note = 
+|ko = 트리플
+|ko_note = 
+|pl = Trójka
+|pl_note = 
+|pt = Trinca
+|pt_note = 
+|ru = Сет
+|ru_note = 
+|es-es = Trío
+|es-es_note = 
+|es-latam = Tercia
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Languages
+|zhs = 顺子
+|zhs_note = 
+|zht = 順子
+|zht_note = 
+|nl = Straight
+|nl_note = 
+|fr = Suite
+|fr_note = 
+|de = Straight
+|de_note = 
+|id = Straight
+|id_note = 
+|it = Scala
+|it_note = 
+|ja = ストレート
+|ja_note = 
+|ko = 스트레이트
+|ko_note = 
+|pl = Strit
+|pl_note = 
+|pt = Sequência
+|pt_note = 
+|ru = Стрит
+|ru_note = 
+|es-es = Escalera
+|es-es_note = 
+|es-latam = Escalera
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Languages
+|zhs = 同花
+|zhs_note = 
+|zht = 同花
+|zht_note = 
+|nl = Flush
+|nl_note = 
+|fr = Couleur
+|fr_note = 
+|de = Flush
+|de_note = 
+|id = Flush
+|id_note = 
+|it = Colore
+|it_note = 
+|ja = フラッシュ
+|ja_note = 
+|ko = 플러시
+|ko_note = 
+|pl = Kolor
+|pl_note = 
+|pt = Flush
+|pt_note = 
+|ru = Флеш
+|ru_note = 
+|es-es = Color
+|es-es_note = 
+|es-latam = Color
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Languages
+|zhs = 葫芦
+|zhs_note = 
+|zht = 葫蘆
+|zht_note = 
+|nl = Full House
+|nl_note = 
+|fr = Main pleine
+|fr_note = 
+|de = Full House
+|de_note = 
+|id = Full House
+|id_note = 
+|it = Full
+|it_note = 
+|ja = フルハウス
+|ja_note = 
+|ko = 풀하우스
+|ko_note = 
+|pl = Full
+|pl_note = 
+|pt = Full House
+|pt_note = 
+|ru = Фулл-хаус
+|ru_note = 
+|es-es = Full
+|es-es_note = 
+|es-latam = Full house
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Languages
+|zhs = 四条
+|zhs_note = 
+|zht = 四條
+|zht_note = 
+|nl = Four of a Kind
+|nl_note = 
+|fr = Carré
+|fr_note = 
+|de = Vierling
+|de_note = 
+|id = Four of a Kind
+|id_note = 
+|it = Poker
+|it_note = 
+|ja = フォーカード
+|ja_note = 
+|ko = 포 카드
+|ko_note = 
+|pl = Kareta
+|pl_note = 
+|pt = Quadra
+|pt_note = 
+|ru = Каре
+|ru_note = 
+|es-es = Póker
+|es-es_note = 
+|es-latam = Póker
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Languages
+|zhs = 同花顺
+|zhs_note = 
+|zht = 同花順
+|zht_note = 
+|nl = Straight Flush
+|nl_note = 
+|fr = Quinte flush
+|fr_note = 
+|de = Straight Flush
+|de_note = 
+|id = Straight Flush
+|id_note = 
+|it = Scala reale
+|it_note = 
+|ja = ストレートフラッシュ
+|ja_note = 
+|ko = 스트레이트 플러시
+|ko_note = 
+|pl = Poker
+|pl_note = 
+|pt = Straight Flush
+|pt_note = 
+|ru = Стрит-флеш
+|ru_note = 
+|es-es = Escalera de color
+|es-es_note = 
+|es-latam = Escalera corrida
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Languages
+|zhs = 皇家同花顺
+|zhs_note = 
+|zht = 皇家同花順
+|zht_note = 
+|nl = Royal Flush
+|nl_note = 
+|fr = Quinte flush royale
+|fr_note = 
+|de = Royal Flush
+|de_note = 
+|id = Royal Flush
+|id_note = 
+|it = Scala reale massima
+|it_note = 
+|ja = ロイヤルフラッシュ
+|ja_note = 
+|ko = 로열 플러시
+|ko_note = 
+|pl = Poker królewski
+|pl_note = 
+|pt = Royal Flush
+|pt_note = 
+|ru = Флеш-рояль
+|ru_note = 
+|es-es = Escalera real
+|es-es_note = 
+|es-latam = Escalera real
+|es-latam_note = 
+|version = 1.0.0n
+}}
+'''Secret poker hands'''
+
+{{Languages
+|zhs = 五条
+|zhs_note = 
+|zht = 五條
+|zht_note = 
+|nl = Five of a Kind
+|nl_note = 
+|fr = Cinq cartes identiques
+|fr_note = 
+|de = Fünfling
+|de_note = 
+|id = Five of a Kind
+|id_note = 
+|it = Pokerissimo
+|it_note = 
+|ja = ファイブカード
+|ja_note = 
+|ko = 파이브 카드
+|ko_note = 
+|pl = Piątka
+|pl_note = 
+|pt = Five of a Kind
+|pt_note = 
+|ru = Пять одного вида
+|ru_note = 
+|es-es = Repóquer
+|es-es_note = 
+|es-latam = Quintilla
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Languages
+|zhs = 同花葫芦
+|zhs_note = 
+|zht = 同花葫蘆
+|zht_note = 
+|nl = Flush House
+|nl_note = 
+|fr = Flush House
+|fr_note = 
+|de = Flush House
+|de_note = 
+|id = Flush House
+|id_note = 
+|it = Full colore
+|it_note = 
+|ja = フラッシュハウス
+|ja_note = 
+|ko = 플러시 하우스
+|ko_note = 
+|pl = Garnitur koloru
+|pl_note = 
+|pt = Flush House
+|pt_note = 
+|ru = Флеш-хаус
+|ru_note = 
+|es-es = Full de color
+|es-es_note = 
+|es-latam = Full de color
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Languages
+|zhs = 同花五条
+|zhs_note = 
+|zht = 同花五條
+|zht_note = 
+|nl = Flush Five
+|nl_note = 
+|fr = Flush Five
+|fr_note = 
+|de = Flush Five
+|de_note = 
+|id = Flush Five
+|id_note = 
+|it = Colore perfetto
+|it_note = 
+|ja = フラッシュファイブ
+|ja_note = 
+|ko = 플러시 파이브
+|ko_note = 
+|pl = Kolorowa piątka
+|pl_note = 
+|pt = Flush Five
+|pt_note = 
+|ru = Флеш-пять
+|ru_note = 
+|es-es = Cinco de color
+|es-es_note = 
+|es-latam = Cinco de color
+|es-latam_note = 
+|version = 1.0.0n
+}}
+
+==References==
+<references />
+[[Category:Balatro]]
