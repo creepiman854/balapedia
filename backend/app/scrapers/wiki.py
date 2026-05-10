@@ -276,8 +276,34 @@ def render_wikitext(raw: Any) -> str:
             # Highlight: descarta color, mantiene texto
             if name == "hl":
                 return arg(2)
-            # Referencias a entidades del juego: usa el primer argumento
-            if name in ("suit", "ph", "v", "j", "tarot", "d"):
+            # Referencias a entidades del juego donde el primer arg ES el nombre
+            if name in (
+                "suit",
+                "ph",
+                "v",
+                "j",
+                "tarot",
+                "d",
+                "spectral",
+                "blind",
+                "enhancement",
+                "edition",
+                "tag",
+            ):
+                return arg(1)
+            # Sticker y Seal: si hay arg con nombre `name`, lo preferimos
+            # (suele ser más legible). Si no, usamos el primer arg.
+            # Ejemplos:
+            #   {{Sticker|Eternal|name=Vampire}} -> "Vampire"
+            #   {{Sticker|Eternal}}              -> "Eternal"
+            #   {{Seal|Blue|name=Blue Seals}}    -> "Blue Seals"
+            #   {{Seal|Blue}}                    -> "Blue"
+            if name in ("sticker", "seal"):
+                if node.has("name"):
+                    inner = node.get("name").value
+                    if hasattr(inner, "nodes"):
+                        return "".join(render_node(n) for n in inner.nodes)
+                    return str(inner)
                 return arg(1)
             # Stake
             if name == "stake":
@@ -285,10 +311,10 @@ def render_wikitext(raw: Any) -> str:
             # Money
             if name == "money":
                 return f"${arg(1)}"
-            # Plantilla "room" (puzzles de The Soul, etc.) -> descartada
+            # Plantilla "room" (puzzles) → descartada
             if name == "room":
                 return ""
-            # Plantilla desconocida: heurística -> primer argumento
+            # Plantilla desconocida: heurística → primer argumento
             return arg(1)
 
         if isinstance(node, Wikilink):
@@ -463,6 +489,43 @@ def parse_voucher(wikitext: str) -> Optional[dict]:
         "unlock_condition": render_wikitext(
             _field(tpl, "unlock", "Available from start.")
         ),
+    }
+
+
+def parse_challenge_deck(wikitext: str) -> Optional[dict]:
+    """Parsea una página de Challenge Deck a un dict listo para upsert.
+
+    Lee la plantilla ``{{Challenge info | ...}}`` y extrae los campos
+    necesarios para crear un registro en ``unlockables`` + ``challenge_decks``.
+
+    Particularidades de esta plantilla:
+      - **No tiene campo ``image``**: los Challenge Decks no exponen icono
+        propio en la infobox. Se devuelve ``image_filename = None``; el
+        seeder dejará ``unlockable.image_url`` también a ``None``.
+      - **No tiene campo ``unlock``**: la condición de desbloqueo es común
+        para todos (regla del juego, no propiedad individual). Se aplica
+        en el seeder con un texto descriptivo único.
+      - Los campos ``starter``, ``banned`` y ``deck`` son **opcionales**
+        (no todos los challenges los tienen). Se devuelven como ``None`` si
+        no están presentes; los demás como texto plano renderizado.
+    """
+    tpl = _get_template(wikitext, "Challenge info")
+    if not tpl:
+        return None
+
+    starter_raw = _field(tpl, "starter")
+    banned_raw = _field(tpl, "banned")
+    deck_raw = _field(tpl, "deck")
+
+    return {
+        "type": "challenge_deck",
+        "item_number": extract_leading_int(_field(tpl, "number")),
+        "name": _field(tpl, "title"),
+        "image_filename": None,  # la plantilla no expone imagen
+        "modifier": render_wikitext(_field(tpl, "modifier")),
+        "starter": render_wikitext(starter_raw) if starter_raw else None,
+        "banned": render_wikitext(banned_raw) if banned_raw else None,
+        "deck_description": render_wikitext(deck_raw) if deck_raw else None,
     }
 
 
