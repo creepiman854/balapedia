@@ -38,6 +38,7 @@ from app.models import (
     Deck,
     Joker,
     JokerRarity,
+    PokerHand,
     Unlockable,
     UnlockableType,
     Voucher,
@@ -120,6 +121,7 @@ def register_commands(app) -> None:
             "achievements",
             "booster_packs",
             "challenge_decks",
+            "poker_hands",
             "all",
         ]
     ),
@@ -168,6 +170,7 @@ def seed_db(item_type: str, dry_run: bool, limit: int | None) -> None:
         "achievements": seed_achievements,
         "booster_packs": seed_booster_packs,
         "challenge_decks": seed_challenge_decks,
+        "poker_hands": seed_poker_hands,
     }
 
     types_to_seed = list(seeders.keys()) if item_type == "all" else [item_type]
@@ -1196,3 +1199,112 @@ def _upsert_challenge_deck(data: dict, title: str) -> None:
         )
         db.session.add(unlockable)
         click.echo(f"  + Created: #{data['item_number']:>2} {data['name']}")
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Seeder: poker_hands (reference data, no jerarquía Unlockable)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def seed_poker_hands(dry_run: bool, limit: int | None) -> int:
+    """Pobla la tabla ``poker_hands`` desde la página única 'Poker Hands'.
+
+    Patrón análogo al de Booster Packs (single-page fetch + parser de
+    wikitable que devuelve lista). A diferencia de los seeders previos,
+    NO toca la tabla ``unlockables``: los Poker Hands son datos de
+    referencia, no items desbloqueables, y viven en una tabla
+    independiente sin relación con la jerarquía Unlockable.
+
+    Returns:
+        Número de hands procesados (insertados o actualizados).
+    """
+    click.echo("  Fetching 'Poker Hands' page from wiki...")
+
+    wikitext = wiki.fetch_wikitext("Poker Hands")
+    if not wikitext:
+        click.secho("  ✗ Could not fetch 'Poker Hands' page", fg="red")
+        return 0
+
+    hands = wiki.parse_poker_hands_page(wikitext)
+    if not hands:
+        click.secho(
+            "  ⚠ Parser returned 0 hands (¿cambió el formato de la página?)",
+            fg="yellow",
+        )
+        return 0
+
+    click.echo(f"  Parsed {len(hands)} poker hands from the page")
+
+    if limit is not None:
+        hands = hands[:limit]
+
+    count = 0
+    for data in hands:
+        try:
+            _upsert_poker_hand(data)
+
+            if not dry_run:
+                db.session.commit()
+
+            count += 1
+        except Exception as e:
+            db.session.rollback()
+            click.secho(
+                f"  ✗ Error processing {data.get('name', '?')!r}: {e}",
+                fg="red",
+            )
+            logger.exception("Failed processing %s", data.get("name"))
+            continue
+
+    if dry_run:
+        db.session.rollback()
+        click.secho("  (dry-run: changes rolled back)", fg="yellow")
+
+    return count
+
+
+def _upsert_poker_hand(data: dict) -> None:
+    """Inserta o actualiza un Poker Hand en la BD.
+
+    Búsqueda por ``name`` (clave única semántica). Como esta tabla NO
+    forma parte de la jerarquía Unlockable, no hay padre que actualizar:
+    todos los campos viven directamente en ``poker_hands``.
+    """
+    existing = PokerHand.query.filter_by(name=data["name"]).first()
+
+    if existing is not None:
+        existing.base_chips = data["base_chips"]
+        existing.base_mult = data["base_mult"]
+        existing.chips_per_level = data["chips_per_level"]
+        existing.mult_per_level = data["mult_per_level"]
+        existing.planet_card_name = data["planet_card_name"]
+        existing.description = data["description"]
+        existing.hidden = data["hidden"]
+        existing.hand_order = data["hand_order"]
+        existing.wiki_url = wiki.page_url("Poker Hands")
+
+        flag = " [HIDDEN]" if data["hidden"] else ""
+        click.echo(
+            f"  ↻ Updated: #{data['hand_order']:>2} {data['name']:<20}"
+            f" {data['base_chips']:>3} x {data['base_mult']:<2}{flag}"
+        )
+    else:
+        hand = PokerHand(
+            name=data["name"],
+            base_chips=data["base_chips"],
+            base_mult=data["base_mult"],
+            chips_per_level=data["chips_per_level"],
+            mult_per_level=data["mult_per_level"],
+            planet_card_name=data["planet_card_name"],
+            description=data["description"],
+            hidden=data["hidden"],
+            hand_order=data["hand_order"],
+            wiki_url=wiki.page_url("Poker Hands"),
+        )
+        db.session.add(hand)
+
+        flag = " [HIDDEN]" if data["hidden"] else ""
+        click.echo(
+            f"  + Created: #{data['hand_order']:>2} {data['name']:<20}"
+            f" {data['base_chips']:>3} x {data['base_mult']:<2}{flag}"
+        )
