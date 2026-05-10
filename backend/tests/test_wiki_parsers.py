@@ -4,6 +4,7 @@ Organización: una clase por unidad lógica del módulo wiki.py. Cada test
 valida un caso concreto contra una fixture real extraída de balatrowiki.org,
 para garantizar que cualquier cambio en los parsers no rompe la extracción.
 """
+
 from app.scrapers.wiki import (
     extract_leading_int,
     page_url,
@@ -13,7 +14,6 @@ from app.scrapers.wiki import (
     parse_voucher,
     render_wikitext,
 )
-
 
 # ──────────────────────────────────────────────────────────────────────
 #  Helpers genéricos
@@ -82,15 +82,28 @@ class TestRenderWikitext:
         assert "Visible" in text and "text" in text
 
     def test_complex_real_world(self):
-        raw = (
-            "Played cards with {{Suit|Diamond}} suit give {{Mult|+3}} when scored"
-        )
+        raw = "Played cards with {{Suit|Diamond}} suit give {{Mult|+3}} when scored"
         result = render_wikitext(raw)
         assert "Diamond" in result
         assert "+3 Mult" in result
 
     def test_none_returns_empty_string(self):
         assert render_wikitext(None) == ""
+
+    def test_wikilink_with_template_inside_alias(self):
+        """Regresión: alias con plantilla anidada debe aplanarse, no salir crudo.
+
+        Bug detectado durante la implementación del parser de Booster Packs:
+        antes del fix, esto devolvía '{{hl|purple|Tarot}}' literal.
+        """
+        result = render_wikitext("[[Tarot Cards|{{hl|purple|Tarot}}]]")
+        assert result == "Tarot"
+
+    def test_small_tag_with_template_inside_contents(self):
+        """Regresión: contents de <small> con plantilla anidada deben aplanarse."""
+        result = render_wikitext("<small>{{hl|purple|The Fool}} excluded</small>")
+        assert "The Fool excluded" in result
+        assert "{{" not in result
 
 
 class TestPageUrl:
@@ -289,3 +302,106 @@ class TestParseVoucher:
         # Tiene unlock real, no el default
         assert "ten consecutive rounds" in result["unlock_condition"]
         assert "$20" in result["description"]
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  parse_booster_packs_page  (parser de wikitable, no de infobox)
+# ──────────────────────────────────────────────────────────────────────
+
+
+class TestParseBoosterPacksPage:
+    """Parser de la wikitable de la página 'Booster Packs'.
+
+    A diferencia del resto, este parser opera sobre la página completa y
+    devuelve una lista de packs (no un único dict). La fixture es la
+    página real de la wiki tal como la devuelve la API en el momento de
+    capturarla.
+    """
+
+    def test_returns_15_packs(self, load_wiki_fixture):
+        """5 categorías × 3 tamaños = 15 booster packs en el juego base."""
+        from app.scrapers.wiki import parse_booster_packs_page
+
+        packs = parse_booster_packs_page(load_wiki_fixture("booster_packs"))
+        assert len(packs) == 15
+
+    def test_full_distribution_by_type_and_size(self, load_wiki_fixture):
+        """Cada combinación (pack_type, size) aparece exactamente una vez."""
+        from collections import Counter
+        from app.scrapers.wiki import parse_booster_packs_page
+
+        packs = parse_booster_packs_page(load_wiki_fixture("booster_packs"))
+        ctr = Counter((p["pack_type"], p["size"]) for p in packs)
+        assert len(ctr) == 15
+        assert all(n == 1 for n in ctr.values())
+
+    def test_arcana_pack_basic_fields(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_booster_packs_page
+
+        packs = parse_booster_packs_page(load_wiki_fixture("booster_packs"))
+        arcana = next(p for p in packs if p["name"] == "Arcana Pack")
+        assert arcana["pack_type"] == "Arcana"
+        assert arcana["size"] == "Normal"
+        assert arcana["cost"] == 4
+        assert arcana["image_filename"] == "Arcana Normal 1.png"
+        # Descripción ya aplanada (sin wikitext crudo)
+        assert "Tarot" in arcana["description"]
+        assert "{{" not in arcana["description"]
+
+    def test_costs_follow_size_pattern(self, load_wiki_fixture):
+        """Convención del juego: Normal=$4, Jumbo=$6, Mega=$8 en todos los tipos."""
+        from app.scrapers.wiki import parse_booster_packs_page
+
+        packs = parse_booster_packs_page(load_wiki_fixture("booster_packs"))
+        for p in packs:
+            if p["size"] == "Normal":
+                assert p["cost"] == 4, f"{p['name']} (Normal) debería costar 4"
+            elif p["size"] == "Jumbo":
+                assert p["cost"] == 6, f"{p['name']} (Jumbo) debería costar 6"
+            elif p["size"] == "Mega":
+                assert p["cost"] == 8, f"{p['name']} (Mega) debería costar 8"
+
+    def test_descriptions_are_fully_flattened(self, load_wiki_fixture):
+        """Ningún pack debe tener wikitext crudo en su descripción."""
+        from app.scrapers.wiki import parse_booster_packs_page
+
+        packs = parse_booster_packs_page(load_wiki_fixture("booster_packs"))
+        for p in packs:
+            desc = p["description"]
+            assert "{{" not in desc, f"Template crudo en {p['name']}: {desc}"
+            assert "}}" not in desc
+            assert "[[" not in desc
+            assert "]]" not in desc
+
+    def test_buffoon_packs_describe_jokers(self, load_wiki_fixture):
+        """Buffoon Packs ofrecen Jokers; sus descripciones lo deben mencionar."""
+        from app.scrapers.wiki import parse_booster_packs_page
+
+        packs = parse_booster_packs_page(load_wiki_fixture("booster_packs"))
+        buffoon = [p for p in packs if p["pack_type"] == "Buffoon"]
+        assert len(buffoon) == 3
+        for p in buffoon:
+            assert "Joker" in p["description"]
+
+    def test_each_pack_has_required_fields(self, load_wiki_fixture):
+        """Esquema mínimo de cada dict devuelto."""
+        from app.scrapers.wiki import parse_booster_packs_page
+
+        required = {
+            "type",
+            "name",
+            "pack_type",
+            "size",
+            "cost",
+            "description",
+            "image_filename",
+        }
+        packs = parse_booster_packs_page(load_wiki_fixture("booster_packs"))
+        for p in packs:
+            assert set(p.keys()) >= required, f"Falta algún campo en {p}"
+
+    def test_returns_empty_list_if_no_table_section(self):
+        """Si la página no tiene la sección esperada, devuelve []."""
+        from app.scrapers.wiki import parse_booster_packs_page
+
+        assert parse_booster_packs_page("Just some random wikitext") == []
