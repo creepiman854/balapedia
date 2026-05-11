@@ -105,6 +105,39 @@ class TestRenderWikitext:
         assert "The Fool excluded" in result
         assert "{{" not in result
 
+    def test_tag_template(self):
+        assert render_wikitext("{{Tag|Uncommon}}") == "Uncommon"
+
+    def test_blind_template(self):
+        assert render_wikitext("{{Blind|Crimson Heart}}") == "Crimson Heart"
+
+    def test_enhancement_template(self):
+        assert render_wikitext("{{Enhancement|Bonus}}") == "Bonus"
+
+    def test_edition_template(self):
+        assert render_wikitext("{{Edition|Polychrome}}") == "Polychrome"
+
+    def test_spectral_template(self):
+        assert render_wikitext("{{Spectral|Wraith}}") == "Wraith"
+
+    def test_sticker_with_name_uses_name(self):
+        """Sticker con `name=` usa el name (más legible que el tipo)."""
+        result = render_wikitext(
+            "{{Sticker|Eternal|image=Vampire.png|link=Vampire|name=Vampire}}"
+        )
+        assert result == "Vampire"
+
+    def test_sticker_without_name_falls_back_to_type(self):
+        """Sticker sin `name=` cae al primer arg (tipo de sticker)."""
+        assert render_wikitext("{{Sticker|Eternal}}") == "Eternal"
+
+    def test_seal_with_name_uses_name(self):
+        result = render_wikitext("{{Seal|Blue|name=Blue Seals}}")
+        assert result == "Blue Seals"
+
+    def test_seal_without_name_falls_back_to_color(self):
+        assert render_wikitext("{{Seal|Blue}}") == "Blue"
+
 
 class TestPageUrl:
     """Construcción de URLs públicas de la wiki."""
