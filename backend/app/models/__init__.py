@@ -19,6 +19,7 @@ from app.models.unlockable import (
 )
 from app.models.achievement import Achievement
 from app.models.progress import UserAchievement, UserUnlock
+from app.models.reference import PokerHand
 
 __all__ = [
     # Enums
@@ -40,4 +41,6 @@ __all__ = [
     "UserAchievement",
     "UserUnlock",
     "Voucher",
+        # Modelos de datos de referencia
+    "PokerHand",
 ]

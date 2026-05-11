@@ -698,3 +698,123 @@ def _parse_booster_pack_row(cells: list[str], pack_type: str) -> Optional[dict]:
         "description": description,
         "image_filename": image_filename,
     }
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  5. Parser de tabla: Poker Hands (datos de referencia, no unlockable)
+# ──────────────────────────────────────────────────────────────────────
+#  Estructura: la página "Poker Hands" tiene DOS wikitables, una bajo
+#  el header "Regular Poker Hands" (las 9 standard) y otra bajo
+#  "Secret Poker Hands" (las hidden de Balatro). Se procesan ambas y los
+#  hands de la segunda se marcan con hidden=True.
+# ──────────────────────────────────────────────────────────────────────
+
+
+# Lista ordenada de (nombre_seccion_wiki, hidden_flag). Si la wiki cambiara
+# el nombre de alguna sección, basta con actualizar aquí.
+_POKER_HAND_SECTIONS: list[tuple[str, bool]] = [
+    ("Regular Poker Hands", False),
+    ("Secret Poker Hands", True),
+]
+
+
+def parse_poker_hands_page(wikitext: str) -> list[dict]:
+    """Parsea la página 'Poker Hands' a una lista de dicts.
+
+    Recorre las dos secciones wikitable de la página (Regular y Secret),
+    extrae los datos de cada hand y asigna ``hidden`` según la sección.
+    Asigna también ``hand_order`` secuencial respetando el orden de la
+    wiki (que coincide con el orden visual del juego).
+
+    Returns:
+        Lista de dicts (uno por hand) con campos:
+            - name: nombre canónico (de id="..." de la celda nombre)
+            - base_chips: int
+            - base_mult: int
+            - chips_per_level: int (0 si no escala)
+            - mult_per_level: int (0 si no escala)
+            - planet_card_name: str | None (None si no tiene planet)
+            - description: str (texto aplanado de "How to Play")
+            - hidden: bool
+            - hand_order: int (1-N)
+
+        Lista vacía si no se encuentra ninguna sección.
+    """
+    hands: list[dict] = []
+    hand_order = 0
+
+    for section_name, is_hidden in _POKER_HAND_SECTIONS:
+        # Aísla la wikitable que sigue al header de sección.
+        section_re = r"==\s*" + re.escape(section_name) + r"\s*==.*?(\{\|.*?\|\})"
+        match = re.search(section_re, wikitext, re.DOTALL)
+        if not match:
+            logger.warning("Section %r not found in Poker Hands wikitext", section_name)
+            continue
+
+        table = match.group(1)
+        rows = table.split("\n|-")
+
+        for row in rows:
+            # Salta header de columnas.
+            if "Poker Hand" in row and "Base Scoring" in row:
+                continue
+
+            cells = _split_wikitable_cells(row)
+            if len(cells) < 4:
+                continue
+
+            hand_order += 1
+            hand = _parse_poker_hand_row(cells, is_hidden, hand_order)
+            if hand is not None:
+                hands.append(hand)
+
+    return hands
+
+
+def _parse_poker_hand_row(
+    cells: list[str], is_hidden: bool, hand_order: int
+) -> Optional[dict]:
+    """Extrae los datos de una fila de poker hand."""
+    name_cell = cells[0]
+    scoring_cell = cells[1]
+    planet_cell = cells[2]
+    description_cell = cells[3]
+
+    # 1. Nombre del atributo id="..."
+    id_match = re.search(r'id="([^"]+)"', name_cell)
+    if not id_match:
+        return None
+    name = id_match.group(1)
+
+    # 2. Scoring base: {{Chips|N}} x {{Mult|M}}
+    chips_match = re.search(r"\{\{Chips\|(\d+)\}\}", scoring_cell)
+    mult_match = re.search(r"\{\{Mult\|(\d+)\}\}", scoring_cell)
+    if not chips_match or not mult_match:
+        logger.warning("Could not extract base scoring from %r", name)
+        return None
+    base_chips = int(chips_match.group(1))
+    base_mult = int(mult_match.group(1))
+
+    # 3. Planet card + escalado: {{Planet|X}}<br>{{mult|+N}}, {{chips|+M}}
+    #    El planet puede no estar (algún hidden hand sin planet asignado).
+    planet_match = re.search(r"\{\{Planet\|([^}|]+)", planet_cell)
+    planet_card_name = planet_match.group(1).strip() if planet_match else None
+    mult_lvl_match = re.search(r"\{\{mult\|\+?(\d+)\}\}", planet_cell)
+    chips_lvl_match = re.search(r"\{\{chips\|\+?(\d+)\}\}", planet_cell)
+    mult_per_level = int(mult_lvl_match.group(1)) if mult_lvl_match else 0
+    chips_per_level = int(chips_lvl_match.group(1)) if chips_lvl_match else 0
+
+    # 4. Descripción aplanada
+    description = render_wikitext(description_cell)
+
+    return {
+        "name": name,
+        "base_chips": base_chips,
+        "base_mult": base_mult,
+        "chips_per_level": chips_per_level,
+        "mult_per_level": mult_per_level,
+        "planet_card_name": planet_card_name,
+        "description": description,
+        "hidden": is_hidden,
+        "hand_order": hand_order,
+    }

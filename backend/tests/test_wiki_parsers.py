@@ -105,6 +105,39 @@ class TestRenderWikitext:
         assert "The Fool excluded" in result
         assert "{{" not in result
 
+    def test_tag_template(self):
+        assert render_wikitext("{{Tag|Uncommon}}") == "Uncommon"
+
+    def test_blind_template(self):
+        assert render_wikitext("{{Blind|Crimson Heart}}") == "Crimson Heart"
+
+    def test_enhancement_template(self):
+        assert render_wikitext("{{Enhancement|Bonus}}") == "Bonus"
+
+    def test_edition_template(self):
+        assert render_wikitext("{{Edition|Polychrome}}") == "Polychrome"
+
+    def test_spectral_template(self):
+        assert render_wikitext("{{Spectral|Wraith}}") == "Wraith"
+
+    def test_sticker_with_name_uses_name(self):
+        """Sticker con `name=` usa el name (más legible que el tipo)."""
+        result = render_wikitext(
+            "{{Sticker|Eternal|image=Vampire.png|link=Vampire|name=Vampire}}"
+        )
+        assert result == "Vampire"
+
+    def test_sticker_without_name_falls_back_to_type(self):
+        """Sticker sin `name=` cae al primer arg (tipo de sticker)."""
+        assert render_wikitext("{{Sticker|Eternal}}") == "Eternal"
+
+    def test_seal_with_name_uses_name(self):
+        result = render_wikitext("{{Seal|Blue|name=Blue Seals}}")
+        assert result == "Blue Seals"
+
+    def test_seal_without_name_falls_back_to_color(self):
+        assert render_wikitext("{{Seal|Blue}}") == "Blue"
+
 
 class TestPageUrl:
     """Construcción de URLs públicas de la wiki."""
@@ -557,3 +590,120 @@ class TestParseChallengeDeck:
 
         # Pasarle un Joker debe devolver None
         assert parse_challenge_deck(load_wiki_fixture("joker")) is None
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  parse_poker_hands_page (datos de referencia, no unlockable)
+# ──────────────────────────────────────────────────────────────────────
+
+
+class TestParsePokerHandsPage:
+    """Parser de la wikitable de la página 'Poker Hands'.
+
+    Es el primer parser de la familia 'reference data' (datos de juego que
+    el jugador consulta pero no desbloquea). La página tiene dos secciones
+    wikitable: regular hands (10) y secret hands (3), separadas por
+    cabeceras `==` con un párrafo introductorio en medio.
+    """
+
+    def test_returns_13_hands(self, load_wiki_fixture):
+        """10 regulares + 3 secret = 13 hands totales en Balatro 1.0.0n."""
+        from app.scrapers.wiki import parse_poker_hands_page
+
+        hands = parse_poker_hands_page(load_wiki_fixture("poker_hands"))
+        assert len(hands) == 13
+
+    def test_visible_vs_hidden_distribution(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_poker_hands_page
+
+        hands = parse_poker_hands_page(load_wiki_fixture("poker_hands"))
+        visible = [h for h in hands if not h["hidden"]]
+        hidden = [h for h in hands if h["hidden"]]
+        assert len(visible) == 10
+        assert len(hidden) == 3
+
+    def test_high_card_basic_fields(self, load_wiki_fixture):
+        """High Card es el hand más simple, sirve de smoke check completo."""
+        from app.scrapers.wiki import parse_poker_hands_page
+
+        hands = parse_poker_hands_page(load_wiki_fixture("poker_hands"))
+        high_card = next(h for h in hands if h["name"] == "High Card")
+        assert high_card["hand_order"] == 1
+        assert high_card["base_chips"] == 5
+        assert high_card["base_mult"] == 1
+        assert high_card["chips_per_level"] == 10
+        assert high_card["mult_per_level"] == 1
+        assert high_card["planet_card_name"] == "Pluto"
+        assert high_card["hidden"] is False
+
+    def test_flush_five_is_hidden_with_correct_planet(self, load_wiki_fixture):
+        """Flush Five es secret, escala con Eris, scoring base 160 x 16."""
+        from app.scrapers.wiki import parse_poker_hands_page
+
+        hands = parse_poker_hands_page(load_wiki_fixture("poker_hands"))
+        flush_five = next(h for h in hands if h["name"] == "Flush Five")
+        assert flush_five["hidden"] is True
+        assert flush_five["planet_card_name"] == "Eris"
+        assert flush_five["base_chips"] == 160
+        assert flush_five["base_mult"] == 16
+
+    def test_planet_x_with_space_in_name(self, load_wiki_fixture):
+        """Planet X (con espacio) debe extraerse íntegro, no truncado."""
+        from app.scrapers.wiki import parse_poker_hands_page
+
+        hands = parse_poker_hands_page(load_wiki_fixture("poker_hands"))
+        five_kind = next(h for h in hands if h["name"] == "Five of a Kind")
+        assert five_kind["planet_card_name"] == "Planet X"
+
+    def test_royal_flush_shares_neptune_with_straight_flush(self, load_wiki_fixture):
+        """Detalle del juego: Royal Flush no tiene planet propio, usa Neptune
+        como Straight Flush."""
+        from app.scrapers.wiki import parse_poker_hands_page
+
+        hands = parse_poker_hands_page(load_wiki_fixture("poker_hands"))
+        royal = next(h for h in hands if h["name"] == "Royal Flush")
+        sf = next(h for h in hands if h["name"] == "Straight Flush")
+        assert royal["planet_card_name"] == "Neptune"
+        assert sf["planet_card_name"] == "Neptune"
+
+    def test_hand_order_is_sequential(self, load_wiki_fixture):
+        """hand_order va de 1 a 13 sin huecos, en el orden de la wiki."""
+        from app.scrapers.wiki import parse_poker_hands_page
+
+        hands = parse_poker_hands_page(load_wiki_fixture("poker_hands"))
+        orders = sorted(h["hand_order"] for h in hands)
+        assert orders == list(range(1, 14))
+
+    def test_all_hands_have_required_fields(self, load_wiki_fixture):
+        """Esquema mínimo de cada dict devuelto."""
+        from app.scrapers.wiki import parse_poker_hands_page
+
+        required = {
+            "name",
+            "base_chips",
+            "base_mult",
+            "chips_per_level",
+            "mult_per_level",
+            "planet_card_name",
+            "description",
+            "hidden",
+            "hand_order",
+        }
+        hands = parse_poker_hands_page(load_wiki_fixture("poker_hands"))
+        for h in hands:
+            assert set(h.keys()) >= required, f"Falta algún campo en {h}"
+
+    def test_descriptions_are_flattened(self, load_wiki_fixture):
+        """Las descripciones no deben contener wikitext crudo."""
+        from app.scrapers.wiki import parse_poker_hands_page
+
+        hands = parse_poker_hands_page(load_wiki_fixture("poker_hands"))
+        for h in hands:
+            d = h["description"]
+            assert "{{" not in d, f"Template crudo en {h['name']}: {d}"
+            assert "[[" not in d
+
+    def test_returns_empty_list_for_unrelated_wikitext(self):
+        from app.scrapers.wiki import parse_poker_hands_page
+
+        assert parse_poker_hands_page("Random unrelated text") == []
