@@ -66,3 +66,15 @@ class BoosterPackSize(str, Enum):
     NORMAL = "Normal"  # más barato, menos cartas
     JUMBO = "Jumbo"  # intermedio
     MEGA = "Mega"  # más caro, permite elegir múltiples cartas
+
+
+class BlindType(str, Enum):
+    """Tipo de Blind: Small/Big (siempre presentes) o Boss (variable por Ante).
+
+    Los Small y Big Blinds son fijos en cada Ante; los Boss Blinds varían
+    y son los que aportan la dificultad real con sus efectos especiales.
+    """
+
+    SMALL = "Small"
+    BIG = "Big"
+    BOSS = "Boss"
