@@ -1,0 +1,72 @@
+{{Tag info
+| title = Negative Tag
+| image = Negative tag.png
+| description = Next base edition shop Joker is free and becomes [[Negative|{{hl|edition|Negative}}]]
+| ante = 2+
+| unlock = Discover the {{edition|Negative}} edition
+}}
+The '''Negative Tag''' is a [[Tag]] that can be acquired either by skipping a {{Blind|Small Blind}} or a {{Blind|Big Blind}}. This Tag starts to appear at [[Ante 2]].
+
+Acquiring this Tag would make the next base edition [[Joker]], found in the [[Shop]], have a {{Edition|Negative}} edition instead. It would also cost {{money|0}} instead of its original cost.
+
+==Notes==
+<!-- transclude to Foil Tag, Holographic Tag, Polychrome Tag -->
+* If there are no base edition Jokers in the next shop, this Tag will instead be stored.
+* Works with the {{Tag|Uncommon}} and {{Tag|Rare}} if the generated Joker does not have an edition naturally.
+* On {{Stake|Black}} and higher, the Joker affected by the {{FULLPAGENAME}} can have any in-run [[Sticker]] that is available for that Stake.
+* The {{D|Jokerless}} [[challenge]] bans {{FULLPAGENAME}}.
+
+==Strategy==
+* While {{Edition|Negative}} Jokers can be very useful, in the case of this tag it will be applied to a random Joker from the Shop. There's no guarantee the Joker will be useful or even usable at all to a given build, and skipping a blind costs skipping the benefits and opportunities from playing a blind and visiting the subsequent shop. That said the Negative Joker will definitely bring the benefits any regular Negative brings, such as increasing {{Tarot|Temperance}}'s value and nullifying the {{Blind|Verdant Leaf}} Boss Blind.
+** The latter benefit is less likely to take place on {{Stake|Black}} and higher, as the Joker made Negative by the tag can potentially appear with an {{Sticker|Eternal}}, and thus cannot be sold to disable the boss blind.
+* Due to {{D|Anaglyph}}'s innate ability of generating {{Tag|Double}}s upon defeating a Boss Blind, it is possible to stack a substantial amount of them and collect a Negative Tag when it appears, thus transforming all the collected Double Tags into Negative Tags. The risk of a Negative Tag hitting a useless Joker may be reduced, but this is still very much a high risk strategy.
+** A Negative Tag hitting a useless Joker may still be beneficial as owning it will prevent it from appearing it in the shop again, unless {{J|Showman}} is active.
+** This is a commonly suggested strategy for players looking to obtain [[Completionist++]], however, the effectiveness of this strategy gradually reduces with the amount of {{Sticker|Gold|name=Gold Stickers}} owned, and the player will often win runs less, at the trade off of each win earning more Gold Stickers at once.
+* If the player wishes to take the Negative Tag at any point, it's imperative that the current Joker build can accommodate for missing a Shop and the bigger Blind requirements, especially on higher stakes.
+
+== Trivia ==
+* The Negative Tag is the only edition-related Tag that cannot appear in Ante 1.
+
+==Update history==
+{{Update_history|
+update='''{{patch|1.0.1f}}'''
+*Changed '''Negative tag''' - Now makes the negative joker free
+
+'''{{patch|0.9.3b-DEMO}}'''<sup>[verify]</sup> <!-- See Tags page's update history section for more details -->
+*Changed '''Negative tag''' - Removed 1/5 chance, is now guaranteed
+*Changed '''Negative tag''' to not show up on Ante 1.
+}}
+
+==In other languages==
+{{Languages
+|zhs = 负片标签
+|zhs_note = 
+|zht = 負片標籤
+|zht_note = 
+|nl = Negatieve tag
+|nl_note = 
+|fr = Badge négatif
+|fr_note = 
+|de = Negativer Tag
+|de_note = 
+|id = Tag Negatif
+|id_note = 
+|it = Patto negativo
+|it_note = 
+|ja = ネガティブタグ
+|ja_note = 
+|ko = 네거티브 태그
+|ko_note = 
+|pl = Znacznik negatyw
+|pl_note = 
+|pt = Marca Negativa
+|pt_note = 
+|ru = Негативный тег
+|ru_note = 
+|es-es = Etiqueta negativa
+|es-es_note = 
+|es-latam = Etiqueta negativa
+|es-latam_note = 
+|version = 1.0.1n
+}}
+{{Navbox Tags}}

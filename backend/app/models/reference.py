@@ -9,6 +9,7 @@ Se modelan en tablas independientes (no bajo la jerarquía Unlockable)
 porque conceptualmente son distintos: el usuario no los "desbloquea",
 son referencia consultable en la app a modo de wiki integrada.
 """
+
 from app.extensions import db
 
 
@@ -30,6 +31,7 @@ class PokerHand(db.Model):
     tabla ``unlockables`` (items desbloqueables). Si en el futuro se
     requirieran joins frecuentes, el JOIN por nombre sigue siendo posible.
     """
+
     __tablename__ = "poker_hands"
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -62,3 +64,113 @@ class PokerHand(db.Model):
 
     def __repr__(self) -> str:
         return f"<PokerHand id={self.id} name={self.name!r}>"
+
+
+from app.models.enums import BlindType
+
+
+class Stake(db.Model):
+    """Nivel de dificultad de Balatro.
+
+    Existen 8 stakes (White, Red, Green, Black, Blue, Purple, Orange, Gold)
+    de dificultad ascendente. Cada uno añade modificadores acumulativos sobre
+    los anteriores (p.ej. Red elimina el reward del Small Blind, Green sube
+    el score scaling, etc.). Los stakes se desbloquean **por deck**: para
+    desbloquear el Red Stake para el Blue Deck, hay que ganar el White Stake
+    con el Blue Deck primero.
+
+    Algunos stakes (Red, Green, Black, Blue, Gold) desbloquean además una
+    nueva baraja al ganar; se documenta en ``unlocks_deck_name`` como
+    referencia textual (no FK estricta, igual que ``planet_card_name`` en
+    PokerHand: mantenemos los dominios desacoplados).
+    """
+
+    __tablename__ = "stakes"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    # Orden secuencial 1-8 (White=1, ..., Gold=8). Indica también orden de unlock.
+    stake_order = db.Column(db.SmallInteger, unique=True, nullable=False, index=True)
+    color = db.Column(db.String(20), nullable=False)  # White, Red, Green, etc.
+    effect_description = db.Column(db.Text, nullable=False)
+    image_url = db.Column(db.String(500), nullable=True)
+    # Nombre del Deck que se desbloquea al completar este stake (NULL si no desbloquea ninguno).
+    unlocks_deck_name = db.Column(db.String(50), nullable=True)
+    wiki_url = db.Column(db.String(500), nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<Stake id={self.id} order={self.stake_order} name={self.name!r}>"
+
+
+class Blind(db.Model):
+    """Encuentro de combate en un Ante. Existen tres categorías:
+
+    - **Small Blind**: primer encuentro de cada Ante. Score multiplier base 1x.
+      Es opcional (puede skipearse a cambio de un Tag).
+    - **Big Blind**: segundo encuentro de cada Ante. Score multiplier 1.5x.
+      También skipeable por Tag.
+    - **Boss Blind**: tercer encuentro, no skipeable. Tiene efectos especiales
+      (la variedad real está aquí; ~30 boss blinds distintos). Score 2x.
+
+    Algunos Boss Blinds son **Finisher Blinds**: aparecen solo a partir del
+    Ante 8. En el wikitexto se marcan con ``ante = 8``; los normales con
+    ``ante = Any``. Mantenemos el campo como string para preservar este
+    matiz semántico.
+    """
+
+    __tablename__ = "blinds"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(100), unique=True, nullable=False, index=True)
+    blind_type = db.Column(
+        db.Enum(BlindType, name="blind_type"),
+        nullable=False,
+        index=True,
+    )
+    description = db.Column(db.Text, nullable=True)
+    image_url = db.Column(db.String(500), nullable=True)
+    # Ante donde puede aparecer: "Any" (cualquiera) o un número como string ("8" para finishers).
+    ante = db.Column(db.String(20), nullable=True)
+    # Multiplicador de chips requeridos vs el ante base. Algunos boss blinds
+    # tienen multiplicadores decimales (0.5, 1.5), de ahí el Float.
+    score_multiplier = db.Column(db.Float, nullable=True)
+    reward_money = db.Column(db.SmallInteger, nullable=True)
+    # Compatibilidad con el Joker "Matador": algunos boss blinds son inmunes
+    # a sus efectos. Se conserva como dato curioso para la UI.
+    matador_compatible = db.Column(db.Boolean, nullable=False, default=True)
+    wiki_url = db.Column(db.String(500), nullable=True)
+
+    def __repr__(self) -> str:
+        return (
+            f"<Blind id={self.id} type={self.blind_type.value} " f"name={self.name!r}>"
+        )
+
+
+class Tag(db.Model):
+    """Recompensa que se obtiene al skipear un Small o Big Blind.
+
+    Existen 24 Tags en el juego, cada uno con un efecto distinto que se
+    dispara en condiciones variables (al entrar al shop, en la siguiente
+    blind, inmediatamente, etc.). Algunos requieren descubrir un Joker o
+    una edición primero para empezar a aparecer (campo ``unlock_condition``).
+
+    El campo ``ante`` documenta a partir de qué Ante puede aparecer este Tag:
+    9 de los 24 tags (Negative, Standard, Meteor, Buffoon, Handy, Garbage,
+    Ethereal, Top-up, Orbital) NO pueden aparecer en Ante 1, los otros 15 sí.
+    """
+
+    __tablename__ = "tags"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    description = db.Column(db.Text, nullable=True)
+    image_url = db.Column(db.String(500), nullable=True)
+    # "Any" o número de Ante mínimo donde puede aparecer.
+    ante = db.Column(db.String(20), nullable=True)
+    # Condición de desbloqueo si la hay (p.ej. "Discover the Foil edition").
+    # NULL para tags sin requisito.
+    unlock_condition = db.Column(db.String(500), nullable=True)
+    wiki_url = db.Column(db.String(500), nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<Tag id={self.id} name={self.name!r}>"

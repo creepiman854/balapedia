@@ -30,6 +30,8 @@ from app.scrapers import steam, wiki
 
 from app.models import (
     Achievement,
+    Blind,
+    BlindType,
     BoosterPack,
     BoosterPackSize,
     BoosterPackType,
@@ -39,6 +41,8 @@ from app.models import (
     Joker,
     JokerRarity,
     PokerHand,
+    Stake,
+    Tag,
     Unlockable,
     UnlockableType,
     Voucher,
@@ -122,6 +126,9 @@ def register_commands(app) -> None:
             "booster_packs",
             "challenge_decks",
             "poker_hands",
+            "stakes",
+            "blinds",
+            "tags",
             "all",
         ]
     ),
@@ -171,6 +178,9 @@ def seed_db(item_type: str, dry_run: bool, limit: int | None) -> None:
         "booster_packs": seed_booster_packs,
         "challenge_decks": seed_challenge_decks,
         "poker_hands": seed_poker_hands,
+        "stakes": seed_stakes,
+        "blinds": seed_blinds,
+        "tags": seed_tags,
     }
 
     types_to_seed = list(seeders.keys()) if item_type == "all" else [item_type]
@@ -1308,3 +1318,341 @@ def _upsert_poker_hand(data: dict) -> None:
             f"  + Created: #{data['hand_order']:>2} {data['name']:<20}"
             f" {data['base_chips']:>3} x {data['base_mult']:<2}{flag}"
         )
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Seeders: stakes, blinds, tags (reference data)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def seed_stakes(dry_run: bool, limit: int | None) -> int:
+    """Pobla la tabla ``stakes`` desde la página única 'Stakes' de la wiki."""
+    click.echo("  Fetching 'Stakes' page from wiki...")
+
+    wikitext = wiki.fetch_wikitext("Stakes")
+    if not wikitext:
+        click.secho("  ✗ Could not fetch 'Stakes' page", fg="red")
+        return 0
+
+    stakes = wiki.parse_stakes_page(wikitext)
+    if not stakes:
+        click.secho("  ⚠ Parser returned 0 stakes", fg="yellow")
+        return 0
+
+    click.echo(f"  Parsed {len(stakes)} stakes from the page")
+
+    if limit is not None:
+        stakes = stakes[:limit]
+
+    count = 0
+    for data in stakes:
+        try:
+            _upsert_stake(data)
+
+            if not dry_run:
+                db.session.commit()
+
+            count += 1
+        except Exception as e:
+            db.session.rollback()
+            click.secho(
+                f"  ✗ Error processing {data.get('name', '?')!r}: {e}",
+                fg="red",
+            )
+            logger.exception("Failed processing %s", data.get("name"))
+            continue
+
+    if dry_run:
+        db.session.rollback()
+        click.secho("  (dry-run: changes rolled back)", fg="yellow")
+
+    return count
+
+
+def _upsert_stake(data: dict) -> None:
+    """Inserta o actualiza un Stake en la BD."""
+    image_url = (
+        wiki.resolve_image_url(data["image_filename"])
+        if data.get("image_filename")
+        else None
+    )
+
+    existing = Stake.query.filter_by(name=data["name"]).first()
+
+    if existing is not None:
+        existing.stake_order = data["stake_order"]
+        existing.color = data["color"]
+        existing.effect_description = data["effect_description"]
+        existing.image_url = image_url
+        existing.unlocks_deck_name = data["unlocks_deck_name"]
+        existing.wiki_url = wiki.page_url("Stakes")
+        click.echo(
+            f"  ↻ Updated: #{data['stake_order']} {data['name']:<15} "
+            f"unlocks={data['unlocks_deck_name'] or '—'}"
+        )
+    else:
+        stake = Stake(
+            name=data["name"],
+            stake_order=data["stake_order"],
+            color=data["color"],
+            effect_description=data["effect_description"],
+            image_url=image_url,
+            unlocks_deck_name=data["unlocks_deck_name"],
+            wiki_url=wiki.page_url("Stakes"),
+        )
+        db.session.add(stake)
+        click.echo(
+            f"  + Created: #{data['stake_order']} {data['name']:<15} "
+            f"unlocks={data['unlocks_deck_name'] or '—'}"
+        )
+
+
+# Small Blind y Big Blind a menudo no tienen página individual con plantilla
+# Blind info; los hardcodeamos como datos canónicos del juego para garantizar
+# que aparezcan en BD.
+_HARDCODED_NON_BOSS_BLINDS = [
+    {
+        "name": "Small Blind",
+        "image_filename": None,
+        "blind_type": "Small",
+        "description": "First blind of each Ante. Skippable for a Tag.",
+        "ante": "Any",
+        "score_multiplier": 1.0,
+        "reward_money": 3,
+        "matador_compatible": True,
+    },
+    {
+        "name": "Big Blind",
+        "image_filename": None,
+        "blind_type": "Big",
+        "description": "Second blind of each Ante. Skippable for a Tag.",
+        "ante": "Any",
+        "score_multiplier": 1.5,
+        "reward_money": 4,
+        "matador_compatible": True,
+    },
+]
+
+
+# Nombres conocidos de Finisher Blinds (los que aparecen solo en Ante 8).
+# Se incluyen explícitamente porque a veces no están en `Category:Boss Blinds`
+# y la wiki los cataloga en una categoría aparte (`Category:Finisher Blinds`)
+# o no los cataloga consistentemente. Añadirlos por nombre garantiza su
+# presencia en la BD aunque la estructura de la wiki cambie.
+_KNOWN_FINISHER_BLINDS = {
+    "Amber Acorn",
+    "Verdant Leaf",
+    "Violet Vessel",
+    "Crimson Heart",
+    "Cerulean Bell",
+}
+
+
+def seed_blinds(dry_run: bool, limit: int | None) -> int:
+    """Pobla la tabla ``blinds`` desde múltiples fuentes.
+
+    Estrategia (más robusta que la versión inicial):
+      1. Small + Big Blinds desde lista hardcoded (no tienen variedad).
+      2. Boss Blinds desde ``Category:Boss Blinds``.
+      3. Finisher Blinds desde ``Category:Finisher Blinds`` (si existe).
+      4. Los 5 nombres conocidos de finishers (red defensiva por si la
+         wiki no los cataloga en ninguna categoría).
+
+    Los duplicados entre las distintas fuentes se eliminan por nombre
+    antes del procesamiento, así que un blind cubierto por varias fuentes
+    solo se procesa una vez.
+    """
+    # Pass 1: hardcoded Small + Big
+    blinds_to_process = list(_HARDCODED_NON_BOSS_BLINDS)
+
+    # Pass 2: recolecta títulos de todas las fuentes posibles
+    click.echo("  Collecting blind page titles from wiki categories...")
+    all_titles: set[str] = set()
+
+    for category in ("Boss Blinds", "Finisher Blinds"):
+        try:
+            titles = wiki.list_pages_in_category(category)
+            count = len(titles)
+            all_titles.update(titles)
+            click.echo(f"    Category:{category} -> {count} pages")
+        except Exception as e:
+            click.secho(f"    Category:{category} -> error: {e}", fg="yellow")
+
+    # Red defensiva: los 5 finishers conocidos siempre se incluyen.
+    all_titles.update(_KNOWN_FINISHER_BLINDS)
+
+    # Filtra páginas índice (overview, list of...)
+    titles = _filter_category_index_pages(list(all_titles), "Boss Blinds")
+    titles = _filter_category_index_pages(titles, "Finisher Blinds")
+
+    click.echo(f"  Total unique blind pages to process: {len(titles)}")
+
+    # Pass 3: fetch + parse cada blind, acumula en blinds_to_process
+    for title in titles:
+        try:
+            wikitext = wiki.fetch_wikitext(title)
+            if not wikitext:
+                click.secho(f"  ⚠ No wikitext for {title!r}", fg="yellow")
+                continue
+            data = wiki.parse_blind(wikitext)
+            if not data:
+                click.secho(f"  ⚠ {title!r}: no Blind info template", fg="yellow")
+                continue
+            blinds_to_process.append(data)
+        except Exception as e:
+            click.secho(f"  ✗ Error fetching {title!r}: {e}", fg="red")
+            logger.exception("Failed fetching %s", title)
+            continue
+
+    if limit is not None:
+        blinds_to_process = blinds_to_process[:limit]
+
+    # Pass 4: upsert
+    count = 0
+    for data in blinds_to_process:
+        try:
+            _upsert_blind(data)
+            if not dry_run:
+                db.session.commit()
+            count += 1
+        except Exception as e:
+            db.session.rollback()
+            click.secho(
+                f"  ✗ Error processing {data.get('name', '?')!r}: {e}",
+                fg="red",
+            )
+            logger.exception("Failed processing %s", data.get("name"))
+            continue
+
+    if dry_run:
+        db.session.rollback()
+        click.secho("  (dry-run: changes rolled back)", fg="yellow")
+
+    return count
+
+
+def _upsert_blind(data: dict) -> None:
+    """Inserta o actualiza un Blind en la BD."""
+    image_url = (
+        wiki.resolve_image_url(data["image_filename"])
+        if data.get("image_filename")
+        else None
+    )
+
+    blind_type = BlindType(data["blind_type"])
+
+    existing = Blind.query.filter_by(name=data["name"]).first()
+
+    if existing is not None:
+        existing.blind_type = blind_type
+        existing.description = data["description"]
+        existing.image_url = image_url
+        existing.ante = data["ante"]
+        existing.score_multiplier = data["score_multiplier"]
+        existing.reward_money = data["reward_money"]
+        existing.matador_compatible = data["matador_compatible"]
+        existing.wiki_url = (
+            wiki.page_url(data["name"])
+            if blind_type == BlindType.BOSS
+            else wiki.page_url("Blinds and Antes")
+        )
+        click.echo(
+            f"  ↻ Updated: [{blind_type.value:>5}] {data['name']:<25} "
+            f"score={data['score_multiplier']}"
+        )
+    else:
+        blind = Blind(
+            name=data["name"],
+            image_url=image_url,
+            blind_type=blind_type,
+            description=data["description"],
+            ante=data["ante"],
+            score_multiplier=data["score_multiplier"],
+            reward_money=data["reward_money"],
+            matador_compatible=data["matador_compatible"],
+            wiki_url=(
+                wiki.page_url(data["name"])
+                if blind_type == BlindType.BOSS
+                else wiki.page_url("Blinds and Antes")
+            ),
+        )
+        db.session.add(blind)
+        click.echo(
+            f"  + Created: [{blind_type.value:>5}] {data['name']:<25} "
+            f"score={data['score_multiplier']}"
+        )
+
+
+def seed_tags(dry_run: bool, limit: int | None) -> int:
+    """Pobla la tabla ``tags`` iterando Category:Tags."""
+    titles = wiki.list_pages_in_category("Tags")
+    titles = _filter_category_index_pages(titles, "Tags")
+
+    if limit is not None:
+        titles = titles[:limit]
+
+    click.echo(f"  Found {len(titles)} tag pages in Category:Tags")
+
+    count = 0
+    for title in titles:
+        try:
+            wikitext = wiki.fetch_wikitext(title)
+            if not wikitext:
+                click.secho(f"  ⚠ No wikitext for {title!r}", fg="yellow")
+                continue
+
+            data = wiki.parse_tag(wikitext)
+            if not data:
+                click.secho(
+                    f"  ⚠ Page lacks 'Tag info' template: {title!r}",
+                    fg="yellow",
+                )
+                continue
+
+            _upsert_tag(data, title)
+
+            if not dry_run:
+                db.session.commit()
+
+            count += 1
+        except Exception as e:
+            db.session.rollback()
+            click.secho(f"  ✗ Error processing {title!r}: {e}", fg="red")
+            logger.exception("Failed processing %s", title)
+            continue
+
+    if dry_run:
+        db.session.rollback()
+        click.secho("  (dry-run: changes rolled back)", fg="yellow")
+
+    return count
+
+
+def _upsert_tag(data: dict, title: str) -> None:
+    """Inserta o actualiza un Tag en la BD."""
+    image_url = (
+        wiki.resolve_image_url(data["image_filename"])
+        if data.get("image_filename")
+        else None
+    )
+
+    existing = Tag.query.filter_by(name=data["name"]).first()
+
+    if existing is not None:
+        existing.description = data["description"]
+        existing.image_url = image_url
+        existing.ante = data["ante"]
+        existing.unlock_condition = data["unlock_condition"]
+        existing.wiki_url = wiki.page_url(title)
+        click.echo(f"  ↻ Updated: {data['name']}")
+    else:
+        tag = Tag(
+            name=data["name"],
+            description=data["description"],
+            image_url=image_url,
+            ante=data["ante"],
+            unlock_condition=data["unlock_condition"],
+            wiki_url=wiki.page_url(title),
+        )
+        db.session.add(tag)
+        click.echo(f"  + Created: {data['name']}")

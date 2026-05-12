@@ -707,3 +707,172 @@ class TestParsePokerHandsPage:
         from app.scrapers.wiki import parse_poker_hands_page
 
         assert parse_poker_hands_page("Random unrelated text") == []
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  parse_stakes_page
+# ──────────────────────────────────────────────────────────────────────
+
+
+class TestParseStakesPage:
+    """Parser de la wikitable de Stakes (datos de referencia)."""
+
+    def test_returns_8_stakes(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_stakes_page
+
+        stakes = parse_stakes_page(load_wiki_fixture("stakes_page"))
+        assert len(stakes) == 8
+
+    def test_stake_order_is_sequential(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_stakes_page
+
+        stakes = parse_stakes_page(load_wiki_fixture("stakes_page"))
+        orders = sorted(s["stake_order"] for s in stakes)
+        assert orders == list(range(1, 9))
+
+    def test_white_stake_basic(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_stakes_page
+
+        stakes = parse_stakes_page(load_wiki_fixture("stakes_page"))
+        white = next(s for s in stakes if s["name"] == "White Stake")
+        assert white["stake_order"] == 1
+        assert white["color"] == "White"
+        assert white["unlocks_deck_name"] is None  # White no desbloquea deck
+        assert "base difficulty" in white["effect_description"].lower()
+
+    def test_red_stake_unlocks_zodiac_deck(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_stakes_page
+
+        stakes = parse_stakes_page(load_wiki_fixture("stakes_page"))
+        red = next(s for s in stakes if s["name"] == "Red Stake")
+        assert red["stake_order"] == 2
+        assert red["color"] == "Red"
+        assert red["unlocks_deck_name"] == "Zodiac"
+
+    def test_all_stakes_have_image_filename(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_stakes_page
+
+        stakes = parse_stakes_page(load_wiki_fixture("stakes_page"))
+        for s in stakes:
+            assert s["image_filename"], f"Falta imagen en {s['name']}"
+
+    def test_returns_empty_list_for_unrelated_wikitext(self):
+        from app.scrapers.wiki import parse_stakes_page
+
+        assert parse_stakes_page("Random text without table") == []
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  parse_blind
+# ──────────────────────────────────────────────────────────────────────
+
+
+class TestParseBlind:
+    """Parser de la plantilla Blind info."""
+
+    def test_the_hook_basic_fields(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_blind
+
+        result = parse_blind(load_wiki_fixture("blind_the_hook"))
+        assert result["name"] == "The Hook"
+        assert result["blind_type"] == "Boss"
+        assert result["ante"] == "Any"
+        assert result["score_multiplier"] == 2.0
+        assert result["reward_money"] == 5
+        assert result["matador_compatible"] is False  # compat-matador = no
+        assert "Discards 2" in result["description"]
+
+    def test_the_plant_boss_with_minimum_ante(self, load_wiki_fixture):
+        """The Plant es un Boss regular con minimum ante=4 (no finisher)."""
+        from app.scrapers.wiki import parse_blind
+
+        result = parse_blind(load_wiki_fixture("blind_the_plant"))
+        assert result["blind_type"] == "Boss"
+
+    def test_returns_none_for_non_blind_template(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_blind
+
+        # Joker no es Blind
+        assert parse_blind(load_wiki_fixture("joker")) is None
+
+    def test_all_required_fields_present(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_blind
+
+        result = parse_blind(load_wiki_fixture("blind_the_hook"))
+        required = {
+            "name",
+            "image_filename",
+            "blind_type",
+            "description",
+            "ante",
+            "score_multiplier",
+            "reward_money",
+            "matador_compatible",
+        }
+        assert set(result.keys()) >= required
+
+    def test_amber_acorn_is_showdown_finisher(self, load_wiki_fixture):
+        """Los 5 finisher blinds tienen type=Showdown (no Boss) en la wiki."""
+        from app.scrapers.wiki import parse_blind
+
+        result = parse_blind(load_wiki_fixture("blind_amber_acorn"))
+        assert result["name"] == "Amber Acorn"
+        assert result["blind_type"] == "Showdown"
+        assert result["ante"] == "8"
+        assert result["score_multiplier"] == 2.0
+        assert result["reward_money"] == 8
+        assert result["matador_compatible"] is False
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  parse_tag
+# ──────────────────────────────────────────────────────────────────────
+
+
+class TestParseTag:
+    """Parser de la plantilla Tag info."""
+
+    def test_double_tag_no_unlock(self, load_wiki_fixture):
+        """Double Tag no tiene unlock condition."""
+        from app.scrapers.wiki import parse_tag
+
+        result = parse_tag(load_wiki_fixture("tag_double"))
+        assert result["name"] == "Double Tag"
+        assert result["ante"] == "Any"
+        assert result["unlock_condition"] is None
+        assert "copy" in result["description"].lower()
+
+    def test_negative_tag_with_unlock(self, load_wiki_fixture):
+        """Negative Tag requiere descubrir la edición Negative."""
+        from app.scrapers.wiki import parse_tag
+
+        result = parse_tag(load_wiki_fixture("tag_negative"))
+        assert result["name"] == "Negative Tag"
+        assert result["ante"] == "2+"
+        assert result["unlock_condition"] is not None
+        assert "Negative" in result["unlock_condition"]
+        assert "Discover" in result["unlock_condition"]
+
+    def test_polychrome_tag_basic(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_tag
+
+        result = parse_tag(load_wiki_fixture("tag_polychrome"))
+        assert result["name"] == "Polychrome Tag"
+        assert result["unlock_condition"] is not None
+        assert "Polychrome" in result["unlock_condition"]
+
+    def test_descriptions_fully_flattened(self, load_wiki_fixture):
+        """Ningún Tag debe tener wikitext o HTML crudo en su descripción."""
+        from app.scrapers.wiki import parse_tag
+
+        for slug in ("tag_double", "tag_negative", "tag_polychrome"):
+            result = parse_tag(load_wiki_fixture(slug))
+            d = result["description"]
+            assert "{{" not in d, f"Template crudo en {result['name']}: {d}"
+            assert "[[" not in d
+            assert "<small>" not in d  # regresión del fix de hl
+
+    def test_returns_none_for_non_tag_template(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_tag
+
+        assert parse_tag(load_wiki_fixture("joker")) is None

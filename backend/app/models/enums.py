@@ -66,3 +66,21 @@ class BoosterPackSize(str, Enum):
     NORMAL = "Normal"  # más barato, menos cartas
     JUMBO = "Jumbo"  # intermedio
     MEGA = "Mega"  # más caro, permite elegir múltiples cartas
+
+
+class BlindType(str, Enum):
+    """Tipo de Blind. Cuatro categorías en Balatro:
+
+    - **Small**: primer encuentro de cada Ante. Skippable por Tag.
+    - **Big**: segundo encuentro. Skippable por Tag.
+    - **Boss**: tercer encuentro variable, con efectos especiales.
+      Aparece en cualquier Ante (campo ``ante = Any``).
+    - **Showdown**: boss blind exclusivo del Ante 8 (los 5 "finishers":
+      Amber Acorn, Verdant Leaf, Violet Vessel, Crimson Heart, Cerulean
+      Bell). En la wiki se cataloga en ``Category:Showdown Blinds``
+      separadamente.
+    """
+    SMALL = "Small"
+    BIG = "Big"
+    BOSS = "Boss"
+    SHOWDOWN = "Showdown"

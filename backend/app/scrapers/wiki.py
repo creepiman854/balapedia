@@ -273,9 +273,18 @@ def render_wikitext(raw: Any) -> str:
                 return f"{arg(1)} Chips"
             if name == "xmult":
                 return f"x{arg(1).lstrip('+')} Mult"
-            # Highlight: descarta color, mantiene texto
+            # Highlight: descarta color, mantiene texto.
+            # Render recursivo del segundo arg para aplanar templates anidados
+            # (p.ej. {{hl|orange|<small>X</small>}} debe devolver "X", no
+            # "<small>X</small>"). Sin esto, las descripciones complejas de
+            # los Tags conservan HTML crudo.
             if name == "hl":
-                return arg(2)
+                if node.has(2):
+                    inner = node.get(2).value
+                    if hasattr(inner, "nodes"):
+                        return "".join(render_node(n) for n in inner.nodes)
+                    return str(inner)
+                return ""
             # Referencias a entidades del juego donde el primer arg ES el nombre
             if name in (
                 "suit",
@@ -637,22 +646,35 @@ def _split_wikitable_cells(row: str) -> list[str]:
     """Divide una fila de wikitable en sus celdas.
 
     Cada celda comienza en una línea que empieza con ``|`` (excluyendo
-    ``|-`` que es el separador de filas y ``|}`` que cierra la tabla).
-    Las celdas en esta tabla concreta no son multilínea, así que basta
-    con una pasada por las líneas de la fila.
+    ``|-`` que es separador de filas y ``|}`` que cierra la tabla). Las
+    líneas siguientes que NO comienzan con ``|`` se consideran
+    **continuación de la celda anterior**: esto es necesario para celdas
+    multilínea donde el contenido se distribuye en varias líneas (caso
+    detectado en la tabla de Stakes: el campo 'Unlocks Deck' a veces
+    pone la pipe vacía y el ``{{d|X}}`` en la línea siguiente porque la
+    DPL de MediaWiki interpreta mal el formato compacto).
     """
-    cells = []
+    cells: list[str] = []
+    current: Optional[list[str]] = None
+
     for line in row.split("\n"):
         line = line.strip()
-        if not line:
+        if not line or line.startswith("|-") or line.startswith("|}"):
             continue
-        if (
-            line.startswith("|")
-            and not line.startswith("|-")
-            and not line.startswith("|}")
-        ):
-            # Quita el '|' inicial y los espacios.
-            cells.append(line.lstrip("|").lstrip())
+
+        if line.startswith("|"):
+            # Nueva celda: cierra la anterior si la había.
+            if current is not None:
+                cells.append("\n".join(current))
+            current = [line.lstrip("|").lstrip()]
+        elif current is not None:
+            # Línea sin '|' inicial: continuación de la celda actual.
+            current.append(line)
+        # Si current is None, son líneas antes de la primera celda; ignorar.
+
+    if current is not None:
+        cells.append("\n".join(current))
+
     return cells
 
 
@@ -817,4 +839,155 @@ def _parse_poker_hand_row(
         "description": description,
         "hidden": is_hidden,
         "hand_order": hand_order,
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  6. Parsers de la sub-rama Stakes/Blinds/Tags (reference data)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def parse_stakes_page(wikitext: str) -> list[dict]:
+    """Parsea la wikitable de la página 'Stakes' a una lista de 8 dicts.
+
+    Estructura de la tabla (sección 'List of stakes'):
+        | Nr | Stake(imagen) | Name | Effect | Unlocks Deck on win |
+
+    El campo ``color`` se deriva del nombre quitando " Stake"
+    (p.ej. "Red Stake" -> "Red").
+
+    El campo ``unlocks_deck_name`` se extrae de la plantilla ``{{d|X}}``
+    del último cell; vale ``None`` si dice "None".
+    """
+    section_match = re.search(
+        r"==\s*List of stakes\s*==.*?(\{\|.*?\|\})",
+        wikitext,
+        re.DOTALL,
+    )
+    if not section_match:
+        logger.warning("Could not find 'List of stakes' section")
+        return []
+
+    table = section_match.group(1)
+    rows = table.split("\n|-")
+
+    stakes: list[dict] = []
+    for row in rows:
+        # Salta el header (contiene "Nr" y "Effect" como cabeceras)
+        if "abbr title" in row or ("Effect" in row and "Unlocks" in row):
+            continue
+
+        cells = _split_wikitable_cells(row)
+        if len(cells) < 4:
+            continue
+
+        stake = _parse_stake_row(cells)
+        if stake is not None:
+            stakes.append(stake)
+
+    return stakes
+
+
+def _parse_stake_row(cells: list[str]) -> Optional[dict]:
+    """Extrae datos de una fila de la tabla de stakes."""
+    nr_cell = cells[0]
+    image_cell = cells[1]
+    name_cell = cells[2]
+    effect_cell = cells[3]
+    unlocks_cell = cells[4] if len(cells) > 4 else ""
+
+    # Número de orden (1-8)
+    stake_order = extract_leading_int(nr_cell)
+    if stake_order is None:
+        return None
+
+    # Nombre: preferimos el id="..." de la celda imagen; si falla, usamos
+    # el cell de nombre.
+    id_match = re.search(r'id="([^"]+)"', image_cell)
+    name = id_match.group(1).strip() if id_match else name_cell.strip()
+
+    # Color: derivado del nombre (White Stake -> White)
+    color = name.replace(" Stake", "").strip()
+
+    # Filename de imagen
+    img_match = re.search(r"\[\[File:([^|\]]+)", image_cell)
+    image_filename = img_match.group(1).strip() if img_match else None
+
+    # Efecto: aplanado del texto
+    effect_description = render_wikitext(effect_cell)
+
+    # Deck desbloqueado: si el cell contiene {{d|X}}, extraemos X.
+    # Si dice "None" o está vacío, queda None.
+    unlocks_deck_name: Optional[str] = None
+    deck_match = re.search(r"\{\{[dD]\|([^}|]+)", unlocks_cell)
+    if deck_match:
+        unlocks_deck_name = deck_match.group(1).strip()
+
+    return {
+        "name": name,
+        "stake_order": stake_order,
+        "color": color,
+        "image_filename": image_filename,
+        "effect_description": effect_description,
+        "unlocks_deck_name": unlocks_deck_name,
+    }
+
+
+def parse_blind(wikitext: str) -> Optional[dict]:
+    """Parsea una página de Blind individual con plantilla ``Blind info``.
+
+    Cubre los tres tipos: Small, Big y Boss. El campo ``type`` del template
+    discrimina. Algunos boss blinds tienen ``score_multiplier`` decimal
+    (0.5, 1.5), por eso se almacena como float.
+    """
+    tpl = _get_template(wikitext, "Blind info")
+    if not tpl:
+        return None
+
+    score_raw = _field(tpl, "score")
+    score_multiplier: Optional[float] = None
+    if score_raw:
+        try:
+            score_multiplier = float(score_raw)
+        except ValueError:
+            logger.warning(
+                "Could not parse score %r for blind %r",
+                score_raw,
+                _field(tpl, "title"),
+            )
+
+    reward_raw = _field(tpl, "reward")
+    reward_money = extract_leading_int(reward_raw) if reward_raw else None
+
+    # compat-matador suele ser "yes"/"no". Cualquier cosa que no sea "no"
+    # se interpreta como compatible (por defecto).
+    matador_raw = (_field(tpl, "compat-matador") or "yes").strip().lower()
+    matador_compatible = matador_raw not in ("no", "0", "false")
+
+    return {
+        "name": _field(tpl, "title"),
+        "image_filename": _field(tpl, "image"),
+        "blind_type": _field(tpl, "type", "Boss"),  # default a Boss
+        "description": render_wikitext(_field(tpl, "description")),
+        "ante": _field(tpl, "ante"),
+        "score_multiplier": score_multiplier,
+        "reward_money": reward_money,
+        "matador_compatible": matador_compatible,
+    }
+
+
+def parse_tag(wikitext: str) -> Optional[dict]:
+    """Parsea una página de Tag individual con plantilla ``Tag info``."""
+    tpl = _get_template(wikitext, "Tag info")
+    if not tpl:
+        return None
+
+    unlock_raw = _field(tpl, "unlock")
+
+    return {
+        "name": _field(tpl, "title"),
+        "image_filename": _field(tpl, "image"),
+        "description": render_wikitext(_field(tpl, "description")),
+        "ante": _field(tpl, "ante"),
+        "unlock_condition": render_wikitext(unlock_raw) if unlock_raw else None,
     }

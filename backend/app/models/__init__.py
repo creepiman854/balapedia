@@ -1,5 +1,7 @@
 """Paquete de modelos. Reexporta todas las clases para registro en SQLAlchemy."""
+
 from app.models.enums import (
+    BlindType,
     BoosterPackSize,
     BoosterPackType,
     JokerRarity,
@@ -19,10 +21,16 @@ from app.models.unlockable import (
 )
 from app.models.achievement import Achievement
 from app.models.progress import UserAchievement, UserUnlock
-from app.models.reference import PokerHand
+from app.models.reference import (
+    Blind,
+    PokerHand,
+    Stake,
+    Tag,
+)
 
 __all__ = [
     # Enums
+    "BlindType",
     "BoosterPackSize",
     "BoosterPackType",
     "JokerRarity",
@@ -41,6 +49,9 @@ __all__ = [
     "UserAchievement",
     "UserUnlock",
     "Voucher",
-        # Modelos de datos de referencia
+    # Modelos de datos de referencia
+    "Blind",
     "PokerHand",
+    "Stake",
+    "Tag",
 ]

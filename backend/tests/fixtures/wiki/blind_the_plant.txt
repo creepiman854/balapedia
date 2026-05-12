@@ -1,0 +1,58 @@
+{{Blind info
+| title = The Plant
+| image = The Plant.png
+| type = Boss
+| description = All face cards are debuffed
+| ante = 4
+| score = 2
+| reward = 5
+| compat-matador = yes
+}}
+'''The Plant''' is a [[Boss Blind]] that debuffs all of the [[face cards]]. This includes cards with a "King", "Queen", or "Jack" rank, and cards affected by {{J|Pareidolia}}.
+
+==Usage notes==
+* The {{D|Mad World}} [[challenge]] bans The Plant.
+
+==Strategies==
+* {{j|Pareidolia}} makes The Plant debuff ''every card'' as every card is considered to be a face card.
+* Jokers that interact with face cards, such as {{j|Photograph}}, {{j|Smiley Face}}, and {{J|Baron}} are completely unusable.
+* For builds that rely on face cards, the only method to "defeat" The Plant is to avoid it entirely.
+** {{J|Luchador}} and {{J|Chicot}} disable Boss Blinds, making face cards usable again.
+** {{V|Director's Cut}} and {{V|Retcon}} allow the player to pay {{money|10}} to reroll the current Boss Blind.
+** {{Tag|Boss}} rerolls the Boss Blind for no cost.
+* On the contrary, {{j|Ride the Bus}} actually benefits from The Plant. Its Mult bonus will not be reset, even if a (debuffed) face card is played.
+
+==Trivia==
+* The icon for The Plant is the Phoenician letter [[w:Tsade_(letter)|''Tsade'']] (𐤑), which represents a papyrus plant or fish Hook in the hieroglyphics from which it is derived.
+* The Plant debuffs face cards because plants do not have faces.<ref>''"You know why the plant debuffs face cards? Because plants don’t have faces That was my logic lmao" - [[LocalThunk]] [https://discord.com/channels/1116389027176787968/1365141081569755187/1365692398683947089 in the Balatro Discord]''</ref>
+* This is the only non-showdown boss blind to be banned in a challenge.
+
+==Score Requirements==
+{{Blind Score|multiplier=2|boss=1|ante=4}}
+
+==In other languages==
+{{Languages
+| internal = bl_plant
+| zhs = 植物
+| zht = 星球
+| zht_note = Literally "Plan''e''t", likely a mistranslation.
+| nl = De plant
+| fr = La plante
+| de = Die Pflanze
+| id = The Plant
+| it = La pianta
+| ja = プラント
+| ko = 행성
+| pl = Roślina
+| pt = A Planta
+| ru = Цветок
+| es-es = La planta
+| es-latam = La planta
+| version = 1.0.0n
+| ru_note = Translates to "a flower".
+}}
+
+==References==
+<references />
+
+{{Navbox Blinds}}

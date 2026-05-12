@@ -1,0 +1,42 @@
+{{Blind info
+| title = Small Blind
+| image = Small Blind.png
+| type = Standard
+| ante = Any
+| score = 1
+| reward = 3
+| compat-matador = no
+}}
+
+The '''Small Blind''' is the first blind of each Ante. It can be skipped to receive a [[Tag]].
+
+On {{Stake|Red}} and above and in 2 Challenge Decks (which are {{D|The Omelette}} and {{D|Cruelty}}), it provides no reward money, rather than the {{Money|3}} from {{Stake|White}}.
+
+==Score Requirements==
+{{Blind Score|multiplier=1}}
+
+==Trivia==
+===In other media===
+*The Small Blind makes an [https://survivors.wiki/w/Small_Blind appearance] as a [https://survivors.wiki/boss boss enemy] in ''[[wikipedia:Vampire Survivors|Vampire Survivors]]''.
+
+==In other languages==
+{{Languages
+|internal = bl_small
+|zhs = 小盲注
+|zht = 小盲注
+|nl = Small blind
+|fr = Petite Blinde
+|de = Small Blind
+|id = Small Blind
+|it = Piccolo buio
+|ja = スモールブラインド
+|ko = 스몰 블라인드
+|pl = Mała w ciemno
+|pt = Small Blind
+|ru = Малый блайнд
+|es-es = Ciega pequeña
+|es-latam = Ciega pequeña
+|version = 1.0.0n
+}}
+
+{{Navbox Blinds}}

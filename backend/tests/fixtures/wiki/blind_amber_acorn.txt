@@ -1,0 +1,59 @@
+{{Blind info
+| title = Amber Acorn
+| image = Amber Acorn.png
+| type = Showdown
+| description = Flips and shuffles all Joker cards
+| ante = 8
+| score = 2
+| reward = 8
+| compat-matador = no
+}}
+
+'''Amber Acorn''' is a [[:Category:Showdown Blinds|showdown blind]] that flips all of the [[Jokers]] in possession so that they are face down and then they are shuffled into random positions in the joker panel.
+
+==Usage notes==
+* The {{D|Jokerless}} [[challenge]] bans Amber Acorn. This is likely because there wouldn't be any Jokers for it to shuffle, meaning its effect would be rendered obsolete, making it just a normal Blind with a 2x base Blind size. 
+
+==Strategies==
+* The player should carefully note as to what Jokers are triggered. If they have a Joker with {{hl|xmult|XMult}} in possession, they should be moved to the right side of the panel to maximize the score. Lowering the game's speed in the settings may help with paying closer attention to the triggered Jokers.
+* There are four Jokers which can still be distinguished while face down due to their unique shape, being the {{J|Square Joker}}, {{J|Half Joker}}, {{J|Wee Joker}} and {{J|Photograph}}.
+* If the player manages to grab and hold one of their Jokers right after they select the blind but before their Jokers are shuffled, said Joker will still be flipped, however it won't be shuffled. This allows the player to begin the blind while already knowing the position of one of their Jokers.
+* Jokers like {{J|DNA}}, {{J|Trading Card}}, and {{J|Loyalty Card}} are easy to locate as they still shake when their respective conditions are met.
+* When a Joker that was made as a copy through {{Spectral|Ankh}} or {{J|Invisible Joker}} gets flipped by '''Amber Acorn''', the back of the card will show as a {{D|Red}} card.
+* The selling prices of Face down Jokers are displayed as "$?", so it's impossible to distinguish them from each other through this. However, on {{Stake|Black}} difficulty or higher (and in some Challenges), flipped {{Sticker|Eternal}} Jokers will have their price tag grayed out when selected. This can help the player narrow down or even pinpoint certain Jokers.
+* During Amber Acorn, {{J|Ceremonial Dagger}} will take effect between flipping and shuffling, so it will still destroy the Joker on the right side (rather than randomly one).
+
+==Score Requirements==
+{{Blind Score|multiplier=2|showdown=1}}
+
+==Trivia==
+* [[wikipedia:Acorns_(suit)|Acorns]] are a suit in [[wikipedia:German-suited_playing_cards|German decks]], replacing {{Suit|Clubs}}.
+* When {{J|Chicot}} is owned, Amber Acorn will first shuffle all cards and then get disabled by Chicot. This is the only boss blind with this feature.
+
+==Update History==
+{{Update history|
+update='''{{patch|1.0.0h}}'''
+* Effect
+** Shuffles Jokers Every Hand (after hand played) -> Flips and shuffles all Joker cards (at start of the round)
+}}
+
+==In other languages==
+{{Languages
+|internal = bl_final_acorn
+|zhs = 琥珀之实
+|zht = 琥珀橡果
+|nl = Amberkleurige eikel
+|fr = Gland ambre
+|de = Bernsteineichel
+|id = Amber Acorn
+|it = Ghianda d'ambra
+|ja = 琥珀色のドングリ
+|ko = 호박색 도토리
+|pl = Bursztynowy żołądź
+|pt = Semente Dourada
+|ru = Янтарный желудь
+|es-es = Bellota ambarina
+|es-latam = Bellota ambarina
+|version = 1.0.0n
+}}
+{{Navbox Blinds}}
