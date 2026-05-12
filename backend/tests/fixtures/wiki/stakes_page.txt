@@ -1,0 +1,342 @@
+[[File:Stakes.png|thumb|200px|All of the stakes (including 2 unreleased ones)]]
+There are 8 '''stakes''' in [[Balatro]], which become cumulatively more difficult. Each new stake modifier is added onto the previous ones, making it more challenging as you progress through the stakes.
+
+In order to unlock the next stake for each unique deck, you must complete a run on the current highest unlocked stake for each specific deck individually. For example, you must complete the White Stake for the {{D|Red}}, before you can unlock the Red Stake for the Red Deck. You will not have unlocked the Red Stake for the {{D|Blue}}, you must first complete the White Stake with the Blue Deck in order to do so.
+
+By finishing a stake with a [[Jokers|Joker]] on the Ante 8 [[Blinds|Showdown Blind]], you will get a {{Sticker|White|name=}} [[Stickers|Stake sticker]] on said Joker, with the corresponding Stake color you completed the run on. This also applies to the [[Deck]] that was used. By turning on the "display stake sticker during run" in the settings, it will display all stake stickers during your run.
+
+[[Challenge Decks]] can only be played on the White Stake.
+
+== List of stakes ==
+The 8 stakes, listed in the order that they are unlocked. Note that each stake applies the modifiers of all previous stakes.
+{| class="sortable wikitable"
+!<abbr title="Number">Nr<abbr>
+! Stake
+! Name
+! Effect
+! Unlocks Deck on win
+|-
+| 1
+| id="White Stake"|[[File:White stake.png|frameless]]
+| White Stake
+| Base difficulty
+| None
+|-
+| 2
+| id="Red Stake"|[[File:Red stake.png|frameless]]
+| Red Stake
+| [[Blinds|Small Blind]] gives no reward money
+|
+{{d|Zodiac}} <!-- these tooltips are put on a newline because otherwise parts of the DPL query get interpreted as table elements -->
+|-
+| 3
+| id="Green Stake"|[[File:Green stake.png|frameless]]
+| Green Stake
+| Required score [[Blinds#Antes|scales faster]] for each [[Blinds|Ante]]
+|
+{{d|Painted}}
+|-
+| 4
+| id="Black Stake"|[[File:Black stake.png|frameless]]
+| Black Stake
+| 30% chance for Jokers in shops or booster packs to have an [[Stickers|Eternal sticker]] (Cannot be sold or destroyed)
+|
+{{d|Anaglyph}}
+|-
+| 5
+| id="Blue Stake"|[[File:Blue stake.png|frameless]]
+| Blue Stake
+| -1 Discard
+|
+{{d|Plasma}}
+|-
+| 6
+| id="Purple Stake"|[[File:Purple stake.png|frameless]]
+| Purple Stake
+| Required score [[Blinds#Antes|scales even faster]] for each [[Blinds|Ante]]
+| None
+|-
+| 7
+| id="Orange Stake"|[[File:Orange stake.png|frameless]]
+| Orange Stake
+| 30% chance for Jokers in shops or booster packs to have a [[Stickers|Perishable sticker]] (Debuffed after 5 Rounds)
+|
+{{d|Erratic}}
+|-
+| 8
+| id="Gold Stake"|[[File:Gold stake.png|frameless]]
+| Gold Stake
+| 30% chance for Jokers in shops or booster packs to have a [[Stickers|Rental sticker]] (Costs {{Money|3}} per round, can be bought for {{Money|1}})
+''The first Soul card in a Gold [[seed]] will give a Legendary Joker that doesn't yet have a Gold Sticker, which will help with the Completionist++ achievement.''
+| None
+|}
+
+== Trivia ==
+* In an interview with Bloomberg, [[LocalThunk]] has confirmed that he plans to change the blue stake in the [[Updates|1.1 Update]].<ref>{{Cite web|last=Schreier|first=Jason|title=Maker of Smash Indie Hit 'Balatro' Talks About What's Next|url=https://www.bloomberg.com/news/newsletters/2025-02-07/maker-of-smash-indie-hit-balatro-talks-about-what-s-next|accessdate=29 March, 2025|archivedate=February 7, 2025|archiveurl=https://archive.is/FwBtY}}</ref>
+*The unused stake in the game files with the joker face may have been named "Jimbo Stake", as that is the name of the [https://steamdb.info/app/2379780/communityitems/#item-class-1 foil badge for Balatro on Steam]. LocalThunk has stated that this stake image was created "just for fun".<ref>''"No that [unused Joker Stake] was just for fun" - LocalThunk [https://discord.com/channels/1116389027176787968/1116389027675906110/1356501286463471737 in the Balatro Discord]''</ref>
+
+== Update History ==
+{{Update_history|update=
+'''{{patch|1.0.1f}}'''
+*Orange Stake
+**Booster Packs cost {{Money|1}} more per [[Blinds|Ante]] -> Jokers have 30% chance to have a [[Stickers|Perishable sticker]]
+*Gold Stake
+**-1 hand size -> Jokers have 30% chance to have a [[Stickers|Rental sticker]]
+
+'''{{patch|1.0.0h}}'''
+* Stakes above White Stake were added to the game: Red, Green, Black, Blue, Purple, Orange, and Gold Stake
+}}
+
+== In other languages ==
+{{Languages
+|zhs = 白注
+|zhs_note = 
+|zht = 白色賭注
+|zht_note = 
+|nl = Witte inzet
+|nl_note = 
+|fr = Mise blanche
+|fr_note = 
+|de = Weißer Einsatz
+|de_note = 
+|id = White Stake
+|id_note = 
+|it = Puntata bianca
+|it_note = 
+|ja = ホワイトステーク
+|ja_note = 
+|ko = 화이트 스테이크
+|ko_note = 
+|pl = Biała stawka
+|pl_note = 
+|pt = Aposta Branca
+|pt_note = 
+|ru = Белая ставка
+|ru_note = 
+|es-es = Pozo blanco
+|es-es_note = 
+|es-latam = Pozo blanco
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Languages
+|zhs = 红注
+|zhs_note = 
+|zht = 紅色賭注
+|zht_note = 
+|nl = Rode inzet
+|nl_note = 
+|fr = Mise rouge
+|fr_note = 
+|de = Roter Einsatz
+|de_note = 
+|id = Red Stake
+|id_note = 
+|it = Puntata rossa
+|it_note = 
+|ja = レッドステーク
+|ja_note = 
+|ko = 레드 스테이크
+|ko_note = 
+|pl = Czerwona stawka
+|pl_note = 
+|pt = Aposta Vermelha
+|pt_note = 
+|ru = Красная ставка
+|ru_note = 
+|es-es = Pozo rojo
+|es-es_note = 
+|es-latam = Pozo rojo
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Languages
+|zhs = 绿注
+|zhs_note = 
+|zht = 綠色賭注
+|zht_note = 
+|nl = Groene inzet
+|nl_note = 
+|fr = Mise verte
+|fr_note = 
+|de = Grüner Einsatz
+|de_note = 
+|id = Green Stake
+|id_note = 
+|it = Puntata verde
+|it_note = 
+|ja = グリーンステーク
+|ja_note = 
+|ko = 그린 스테이크
+|ko_note = 
+|pl = Zielona stawka
+|pl_note = 
+|pt = Aposta Verde
+|pt_note = 
+|ru = Зеленая ставка
+|ru_note = 
+|es-es = Pozo verde
+|es-es_note = 
+|es-latam = Pozo verde
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Languages
+|zhs = 蓝注
+|zhs_note = 
+|zht = 藍色賭注
+|zht_note = 
+|nl = Blauwe inzet
+|nl_note = 
+|fr = Mise bleue
+|fr_note = 
+|de = Blauer Einsatz
+|de_note = 
+|id = Blue Stake
+|id_note = 
+|it = Puntata blu
+|it_note = 
+|ja = ブルーステーク
+|ja_note = 
+|ko = 블루 스테이크
+|ko_note = 
+|pl = Niebieska stawka
+|pl_note = 
+|pt = Aposta Azul
+|pt_note = 
+|ru = Синяя ставка
+|ru_note = 
+|es-es = Pozo azul
+|es-es_note = 
+|es-latam = Pozo azul
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Languages
+|zhs = 黑注
+|zhs_note = 
+|zht = 黑色賭注
+|zht_note = 
+|nl = Zwarte inzet
+|nl_note = 
+|fr = Mise noire
+|fr_note = 
+|de = Schwarzer Einsatz
+|de_note = 
+|id = Black Stake
+|id_note = 
+|it = Puntata {{Not a typo|nera}}
+|it_note = 
+|ja = ブラックステーク
+|ja_note = 
+|ko = 블랙 스테이크
+|ko_note = 
+|pl = Czarna stawka
+|pl_note = 
+|pt = Aposta Preta
+|pt_note = 
+|ru = Черная ставка
+|ru_note = 
+|es-es = Pozo negro
+|es-es_note = 
+|es-latam = Pozo negro
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Languages
+|zhs = 紫注
+|zhs_note = 
+|zht = 紫色賭注
+|zht_note = 
+|nl = Paarse inzet
+|nl_note = 
+|fr = Mise violette
+|fr_note = 
+|de = Lila Einsatz
+|de_note = 
+|id = Purple Stake
+|id_note = 
+|it = Puntata viola
+|it_note = 
+|ja = パープルステーク
+|ja_note = 
+|ko = 퍼플 스테이크
+|ko_note = 
+|pl = Fioletowa stawka
+|pl_note = 
+|pt = Aposta Roxa
+|pt_note = 
+|ru = Фиолетовая ставка
+|ru_note = 
+|es-es = Pozo morado
+|es-es_note = 
+|es-latam = Pozo morado
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Languages
+|zhs = 橙注
+|zhs_note = 
+|zht = 橘色賭注
+|zht_note = 
+|nl = Oranje inzet
+|nl_note = 
+|fr = Mise orange
+|fr_note = 
+|de = Orangener Einsatz
+|de_note = 
+|id = Orange Stake
+|id_note = 
+|it = Puntata arancione
+|it_note = 
+|ja = オレンジステーク
+|ja_note = 
+|ko = 오렌지 스테이크
+|ko_note = 
+|pl = Pomarańczowa stawka
+|pl_note = 
+|pt = Aposta Laranja
+|pt_note = 
+|ru = Оранжевая ставка
+|ru_note = 
+|es-es = Pozo naranja
+|es-es_note = 
+|es-latam = Pozo naranja
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Languages
+|zhs = 金注
+|zhs_note = 
+|zht = 金色賭注
+|zht_note = 
+|nl = Gouden inzet
+|nl_note = 
+|fr = Mise d'or
+|fr_note = 
+|de = Goldener Einsatz
+|de_note = 
+|id = Gold Stake
+|id_note = 
+|it = Puntata dorata
+|it_note = 
+|ja = ゴールドステーク
+|ja_note = 
+|ko = 골드 스테이크
+|ko_note = 
+|pl = Złota stawka
+|pl_note = 
+|pt = Aposta Dourada
+|pt_note = 
+|ru = Золотая ставка
+|ru_note = 
+|es-es = Pozo de oro
+|es-es_note = 
+|es-latam = Pozo de oro
+|es-latam_note = 
+|version = 1.0.0n
+}}
+
+== References ==
+<references/>
+[[Category:Balatro]]

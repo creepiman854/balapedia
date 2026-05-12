@@ -1,0 +1,39 @@
+{{Blind info
+| title = Big Blind
+| image = Big Blind.png
+| type = Standard
+| ante = Any
+| score = 1.5
+| reward = 4
+| compat-matador = no
+}}
+The '''Big Blind''' is the second [[Blind]] of each ante. It can be [[skip]]ped to receive a [[Tag]]. The Big Blind has a base chip requirement multiplier of X1.5. Defeating the Big Blind will always reward {{Money|4}} upon defeating it, unless Blind payouts have been disabled by one of the two [[Challenge Decks]] (which are {{D|The Omelette}} and {{D|Cruelty}}).
+
+==Score Requirements==
+{{Blind Score|multiplier=1.5}}
+
+==Trivia==
+===In other media===
+*The Big Blind makes an [https://survivors.wiki/w/Big_Blind appearance] as a [https://survivors.wiki/boss boss enemy] in ''[[wikipedia:Vampire Survivors|Vampire Survivors]]''.
+
+==In other languages==
+{{Languages
+|internal = bl_big
+|zhs = 大盲注
+|zht = 大盲注
+|nl = Big blind
+|fr = Grosse Blinde
+|de = Big Blind
+|id = Big Blind
+|it = Grande buio
+|ja = ビッグブラインド
+|ko = 빅 블라인드
+|pl = Duża w ciemno
+|pt = Big Blind
+|ru = Большой блайнд
+|es-es = Ciega grande
+|es-latam = Ciega grande
+|version = 1.0.0n
+}}
+
+{{Navbox Blinds}}

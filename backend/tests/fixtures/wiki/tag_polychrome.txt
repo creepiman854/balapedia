@@ -1,0 +1,57 @@
+{{stub}}
+{{Tag info
+| title = Polychrome Tag
+| image = Polychrome tag.png
+| description = Next base edition shop Joker is free and becomes [[Polychrome|{{hl|edition|Polychrome}}]]
+| ante = Any
+| unlock = Discover the {{edition|Polychrome}} edition
+}}
+The '''Polychrome Tag''' is a [[Tag]] that can be acquired either by skipping a {{Blind|Small Blind}} or a {{Blind|Big Blind}}. This tag starts to appear at [[Ante 1]].
+
+Acquiring this tag would make the next base edition [[Jokers|Joker]], found in [[The Shop]], have a {{Edition|Polychrome}} edition instead. It would also cost {{money|0}} instead of its original cost.
+
+==Notes==
+{{trim|{{#lsth:Negative Tag|Notes}}}}
+
+==Update history==
+{{Update_history|
+update='''{{patch|1.0.1f}}'''
+*Changed '''Polychrome tag''' - Now makes the polychrome joker free
+
+'''{{patch|0.9.3b-DEMO}}'''<sup>[verify]</sup> <!-- See Tags page's update history section for more details -->
+*Changed '''Polychrome tag''' - Removed 1/4 chance, is now guaranteed
+}}
+
+==In other languages==
+{{Languages
+|zhs = 多彩标签
+|zhs_note = 
+|zht = 彩色標籤
+|zht_note = 
+|nl = Polychrome tag
+|nl_note = 
+|fr = Badge polychrome
+|fr_note = 
+|de = Polychrom-Tag
+|de_note = 
+|id = Polychrome Tag
+|id_note = 
+|it = Patto policromo
+|it_note = 
+|ja = ポリクロームタグ
+|ja_note = 
+|ko = 폴리크롬 태그
+|ko_note = 
+|pl = Znacznik polichromowany
+|pl_note = 
+|pt = Marca Policromática
+|pt_note = 
+|ru = Полихромный тег
+|ru_note = 
+|es-es = Etiqueta polícroma
+|es-es_note = 
+|es-latam = Etiqueta polícroma
+|es-latam_note = 
+|version = 1.0.1n
+}}
+{{Navbox Tags}}

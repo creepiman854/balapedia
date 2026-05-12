@@ -1,0 +1,51 @@
+{{Tag info
+| title = Double Tag
+| image = Double tag.png
+| description = Gives a copy of the next selected [[Tag|{{hl|orange|Tag}}]] <br> <small>{{hl|orange|<small>Double Tag</small>}} excluded</small>
+| ante = Any
+}}
+The '''Double Tag''' is a [[Tag]] that can be acquired either by skipping a {{Blind|Small Blind}} or a {{Blind|Big Blind}}. This tag starts to appear at [[Blinds and Antes|Ante 1]].
+
+A Double Tag enables you to use it on your next skip, and gain the benefit of the skip multiple times, depending on how many tags you have.
+
+Acquiring this tag would copy the next [[Tags|Tag]]. For example, if you skip both the Small Blind and the Big Blind on Ante has an {{Tag|Uncommon}} and then a Double Tag while holding a Double Tag, the Uncommon Tag would be duplicated by the Double Tag that you already have, while keeping the second Double Tag since it was obtained after the Uncommon Tag.
+
+The Double Tag does not work on itself.
+
+==Notes==
+* Another way of obtaining a Double Tag is by selling the {{j|Diet Cola}}.
+* Using the {{D|Anaglyph}} will give a Double Tag every time a [[Blinds and Antes|Boss Blind]] is defeated.
+
+==In other languages==
+{{Languages
+|zhs = 双倍标签
+|zhs_note = 
+|zht = 雙倍標籤
+|zht_note = 
+|nl = Dubbeltag
+|nl_note = 
+|fr = Badge double
+|fr_note = 
+|de = Doppel-Tag
+|de_note = 
+|id = Double Tag
+|id_note = 
+|it = Patto doppio
+|it_note = 
+|ja = ダブルタグ
+|ja_note = 
+|ko = 더블 태그
+|ko_note = 
+|pl = Znacznik podwójny
+|pl_note = 
+|pt = Marca Dupla
+|pt_note = 
+|ru = Двойной тег
+|ru_note = 
+|es-es = Etiqueta doble
+|es-es_note = 
+|es-latam = Etiqueta doble
+|es-latam_note = 
+|version = 1.0.1n
+}}
+{{Navbox Tags}}

@@ -1,0 +1,57 @@
+{{Blind info
+| title = The Hook
+| image = The Hook.png
+| type = Boss
+| description = Discards 2 random cards per hand played
+| ante = Any
+| score = 2
+| reward = 5
+| compat-matador = no
+}}
+
+'''The Hook''' is a [[:Category:Boss Blinds|boss blind]] that discards two cards held in the player's hand after each played hand.
+
+==Strategies==
+* Playing certain hands such as {{ph|Straight}} or {{ph|Full House}} which can't be guaranteed with discards alone may be significantly affected by The Hook, as the player can't play hands to draw more cards that would fit the hand they already have.
+* All effects from cards held in hand can't be guaranteed, such as {{Seal|Blue}}, {{Enhancement|Steel}} and {{Enhancement|Gold}}, and scoring from Jokers such as {{J|Baron}} or {{J|Shoot the Moon}}.
+** However, unless there are no cards remaining in the hand, cards discarded by The Hook may result in a better {{J|Raised Fist}} score.
+* The Hook may help by triggering effects via discarding, such as discarding cards with {{Seal|Purple|name=Purple Seals}} or activating discard-focused Jokers like {{J|Mail-In Rebate}}, {{J|Hit the Road}}, and {{J|Castle}}.
+** If only one card is held in the player's hand, it can also trigger {{J|Trading Card}}, and it can do so more than once until a normal discard is used.
+** This effect can also decrease {{J|Ramen}} and {{J|Green Joker}}'s Multiplier.
+** However, the Hook's discards will not prevent {{J|Delayed Gratification}} from taking effect, trigger {{J|Burnt Joker}}, or cost {{$|1}} during {{D|Golden Needle}}.
+
+==Score Requirements==
+{{Blind Score|multiplier=2|boss=1}}
+
+==Trivia==
+* The icon for The Hook is the Phoenician letter [[w:Waw (letter)|''Waw'']] (𐤅), which represents a hook in the hieroglyphics from which it is derived.
+* This is the Boss Blind on the "TUTORIAL" [[seed]]'s Ante 1, first given as a tutorial to new players.
+
+==Update History==
+{{Update history|
+update='''{{patch|0.9.3b}}'''
+* Effect
+** Discard 1 random card per hand played -> Discards 2 random cards per hand played
+}}
+
+==In other languages==
+{{Languages
+|internal = bl_hook
+|zhs = 钩子
+|zht = 鉤子
+|nl = De haak
+|fr = L'hameçon
+|de = Der Haken
+|id = The Hook
+|it = L'uncino
+|ja = フック
+|ko = 훅
+|pl = Hak
+|pt = O Gancho
+|ru = Крюк
+|es-es = El garfio
+|es-latam = El garfio
+|version = 1.0.0n
+}}
+
+{{Navbox Blinds}}
