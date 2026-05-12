@@ -1434,28 +1434,65 @@ _HARDCODED_NON_BOSS_BLINDS = [
 ]
 
 
-def seed_blinds(dry_run: bool, limit: int | None) -> int:
-    """Pobla la tabla ``blinds`` desde Category:Boss Blinds + Small/Big hardcoded.
+# Nombres conocidos de Finisher Blinds (los que aparecen solo en Ante 8).
+# Se incluyen explícitamente porque a veces no están en `Category:Boss Blinds`
+# y la wiki los cataloga en una categoría aparte (`Category:Finisher Blinds`)
+# o no los cataloga consistentemente. Añadirlos por nombre garantiza su
+# presencia en la BD aunque la estructura de la wiki cambie.
+_KNOWN_FINISHER_BLINDS = {
+    "Amber Acorn",
+    "Verdant Leaf",
+    "Violet Vessel",
+    "Crimson Heart",
+    "Cerulean Bell",
+}
 
-    Los Small y Big Blinds son conceptos fijos sin variedad: se introducen
-    como datos canónicos hardcoded para garantizar su presencia. Los boss
-    blinds (la parte rica con efectos especiales) se iteran desde la
-    categoría de la wiki.
+
+def seed_blinds(dry_run: bool, limit: int | None) -> int:
+    """Pobla la tabla ``blinds`` desde múltiples fuentes.
+
+    Estrategia (más robusta que la versión inicial):
+      1. Small + Big Blinds desde lista hardcoded (no tienen variedad).
+      2. Boss Blinds desde ``Category:Boss Blinds``.
+      3. Finisher Blinds desde ``Category:Finisher Blinds`` (si existe).
+      4. Los 5 nombres conocidos de finishers (red defensiva por si la
+         wiki no los cataloga en ninguna categoría).
+
+    Los duplicados entre las distintas fuentes se eliminan por nombre
+    antes del procesamiento, así que un blind cubierto por varias fuentes
+    solo se procesa una vez.
     """
-    # Pass 1: Small + Big Blinds hardcoded
-    click.echo("  Seeding Small Blind and Big Blind (hardcoded)...")
+    # Pass 1: hardcoded Small + Big
     blinds_to_process = list(_HARDCODED_NON_BOSS_BLINDS)
 
-    # Pass 2: Boss Blinds desde la wiki
-    click.echo("  Fetching Boss Blinds from Category:Boss Blinds...")
-    titles = wiki.list_pages_in_category("Boss Blinds")
-    titles = _filter_category_index_pages(titles, "Boss Blinds")
-    click.echo(f"  Found {len(titles)} boss blind pages")
+    # Pass 2: recolecta títulos de todas las fuentes posibles
+    click.echo("  Collecting blind page titles from wiki categories...")
+    all_titles: set[str] = set()
 
+    for category in ("Boss Blinds", "Finisher Blinds"):
+        try:
+            titles = wiki.list_pages_in_category(category)
+            count = len(titles)
+            all_titles.update(titles)
+            click.echo(f"    Category:{category} -> {count} pages")
+        except Exception as e:
+            click.secho(f"    Category:{category} -> error: {e}", fg="yellow")
+
+    # Red defensiva: los 5 finishers conocidos siempre se incluyen.
+    all_titles.update(_KNOWN_FINISHER_BLINDS)
+
+    # Filtra páginas índice (overview, list of...)
+    titles = _filter_category_index_pages(list(all_titles), "Boss Blinds")
+    titles = _filter_category_index_pages(titles, "Finisher Blinds")
+
+    click.echo(f"  Total unique blind pages to process: {len(titles)}")
+
+    # Pass 3: fetch + parse cada blind, acumula en blinds_to_process
     for title in titles:
         try:
             wikitext = wiki.fetch_wikitext(title)
             if not wikitext:
+                click.secho(f"  ⚠ No wikitext for {title!r}", fg="yellow")
                 continue
             data = wiki.parse_blind(wikitext)
             if not data:
@@ -1470,6 +1507,7 @@ def seed_blinds(dry_run: bool, limit: int | None) -> int:
     if limit is not None:
         blinds_to_process = blinds_to_process[:limit]
 
+    # Pass 4: upsert
     count = 0
     for data in blinds_to_process:
         try:
