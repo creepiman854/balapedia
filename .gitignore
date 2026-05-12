@@ -447,4 +447,7 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+# Firebase Admin JSON
+backend/firebase-admin.json
+
 # End of https://www.toptal.com/developers/gitignore/api/node,python,vuejs,flask,windows,visualstudiocode
