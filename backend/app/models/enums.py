@@ -69,12 +69,18 @@ class BoosterPackSize(str, Enum):
 
 
 class BlindType(str, Enum):
-    """Tipo de Blind: Small/Big (siempre presentes) o Boss (variable por Ante).
+    """Tipo de Blind. Cuatro categorías en Balatro:
 
-    Los Small y Big Blinds son fijos en cada Ante; los Boss Blinds varían
-    y son los que aportan la dificultad real con sus efectos especiales.
+    - **Small**: primer encuentro de cada Ante. Skippable por Tag.
+    - **Big**: segundo encuentro. Skippable por Tag.
+    - **Boss**: tercer encuentro variable, con efectos especiales.
+      Aparece en cualquier Ante (campo ``ante = Any``).
+    - **Showdown**: boss blind exclusivo del Ante 8 (los 5 "finishers":
+      Amber Acorn, Verdant Leaf, Violet Vessel, Crimson Heart, Cerulean
+      Bell). En la wiki se cataloga en ``Category:Showdown Blinds``
+      separadamente.
     """
-
     SMALL = "Small"
     BIG = "Big"
     BOSS = "Boss"
+    SHOWDOWN = "Showdown"
