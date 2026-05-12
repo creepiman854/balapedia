@@ -782,13 +782,12 @@ class TestParseBlind:
         assert result["matador_compatible"] is False  # compat-matador = no
         assert "Discards 2" in result["description"]
 
-    def test_the_plant_finisher_blind(self, load_wiki_fixture):
-        """The Plant es un finisher (solo aparece en Ante 8+)."""
+    def test_the_plant_boss_with_minimum_ante(self, load_wiki_fixture):
+        """The Plant es un Boss regular con minimum ante=4 (no finisher)."""
         from app.scrapers.wiki import parse_blind
 
         result = parse_blind(load_wiki_fixture("blind_the_plant"))
         assert result["blind_type"] == "Boss"
-        # Probable: ante = "8" porque es finisher
 
     def test_returns_none_for_non_blind_template(self, load_wiki_fixture):
         from app.scrapers.wiki import parse_blind
@@ -811,6 +810,18 @@ class TestParseBlind:
             "matador_compatible",
         }
         assert set(result.keys()) >= required
+
+    def test_amber_acorn_is_showdown_finisher(self, load_wiki_fixture):
+        """Los 5 finisher blinds tienen type=Showdown (no Boss) en la wiki."""
+        from app.scrapers.wiki import parse_blind
+
+        result = parse_blind(load_wiki_fixture("blind_amber_acorn"))
+        assert result["name"] == "Amber Acorn"
+        assert result["blind_type"] == "Showdown"
+        assert result["ante"] == "8"
+        assert result["score_multiplier"] == 2.0
+        assert result["reward_money"] == 8
+        assert result["matador_compatible"] is False
 
 
 # ──────────────────────────────────────────────────────────────────────
