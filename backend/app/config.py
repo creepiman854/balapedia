@@ -14,6 +14,7 @@ class Config:
     }
     STEAM_API_KEY = os.getenv("STEAM_API_KEY")
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+    FIREBASE_ADMIN_CREDENTIALS_PATH = os.environ.get("FIREBASE_ADMIN_CREDENTIALS_PATH", "./firebase-admin.json")
 
 class DevConfig(Config):
     DEBUG = True
