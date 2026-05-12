@@ -273,9 +273,18 @@ def render_wikitext(raw: Any) -> str:
                 return f"{arg(1)} Chips"
             if name == "xmult":
                 return f"x{arg(1).lstrip('+')} Mult"
-            # Highlight: descarta color, mantiene texto
+            # Highlight: descarta color, mantiene texto.
+            # Render recursivo del segundo arg para aplanar templates anidados
+            # (p.ej. {{hl|orange|<small>X</small>}} debe devolver "X", no
+            # "<small>X</small>"). Sin esto, las descripciones complejas de
+            # los Tags conservan HTML crudo.
             if name == "hl":
-                return arg(2)
+                if node.has(2):
+                    inner = node.get(2).value
+                    if hasattr(inner, "nodes"):
+                        return "".join(render_node(n) for n in inner.nodes)
+                    return str(inner)
+                return ""
             # Referencias a entidades del juego donde el primer arg ES el nombre
             if name in (
                 "suit",
@@ -637,22 +646,35 @@ def _split_wikitable_cells(row: str) -> list[str]:
     """Divide una fila de wikitable en sus celdas.
 
     Cada celda comienza en una línea que empieza con ``|`` (excluyendo
-    ``|-`` que es el separador de filas y ``|}`` que cierra la tabla).
-    Las celdas en esta tabla concreta no son multilínea, así que basta
-    con una pasada por las líneas de la fila.
+    ``|-`` que es separador de filas y ``|}`` que cierra la tabla). Las
+    líneas siguientes que NO comienzan con ``|`` se consideran
+    **continuación de la celda anterior**: esto es necesario para celdas
+    multilínea donde el contenido se distribuye en varias líneas (caso
+    detectado en la tabla de Stakes: el campo 'Unlocks Deck' a veces
+    pone la pipe vacía y el ``{{d|X}}`` en la línea siguiente porque la
+    DPL de MediaWiki interpreta mal el formato compacto).
     """
-    cells = []
+    cells: list[str] = []
+    current: Optional[list[str]] = None
+
     for line in row.split("\n"):
         line = line.strip()
-        if not line:
+        if not line or line.startswith("|-") or line.startswith("|}"):
             continue
-        if (
-            line.startswith("|")
-            and not line.startswith("|-")
-            and not line.startswith("|}")
-        ):
-            # Quita el '|' inicial y los espacios.
-            cells.append(line.lstrip("|").lstrip())
+
+        if line.startswith("|"):
+            # Nueva celda: cierra la anterior si la había.
+            if current is not None:
+                cells.append("\n".join(current))
+            current = [line.lstrip("|").lstrip()]
+        elif current is not None:
+            # Línea sin '|' inicial: continuación de la celda actual.
+            current.append(line)
+        # Si current is None, son líneas antes de la primera celda; ignorar.
+
+    if current is not None:
+        cells.append("\n".join(current))
+
     return cells
 
 
