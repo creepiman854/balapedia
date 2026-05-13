@@ -1,0 +1,123 @@
+/**
+ * Store Pinia de autenticación.
+ *
+ * Mantiene dos estados paralelos:
+ *   - `firebaseUser`: el objeto de Firebase Auth (cliente).
+ *   - `user`: el objeto que devuelve nuestra API /api/me (BD de Balapedia,
+ *     con id interno, steam_id si vinculado, etc.).
+ *
+ * El listener `onAuthStateChanged` sincroniza ambos: cada vez que cambia
+ * el estado en Firebase (login, logout, refresco de página), se actualiza
+ * `firebaseUser` y se hace fetch de `/api/me` si hay sesión activa.
+ */
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signOut,
+  onAuthStateChanged,
+} from 'firebase/auth'
+import { firebaseAuth } from '@/services/firebase'
+import { api } from '@/services/api'
+
+export const useAuthStore = defineStore('auth', () => {
+  const firebaseUser = ref(null)
+  const user = ref(null)
+  const loading = ref(true)
+  const error = ref(null)
+
+  const isAuthenticated = computed(() => !!firebaseUser.value)
+
+  /** Llamar una sola vez al arrancar la app (desde main.js). */
+  function init() {
+    onAuthStateChanged(firebaseAuth, async (fbUser) => {
+      firebaseUser.value = fbUser
+      if (fbUser) {
+        await fetchMe()
+      } else {
+        user.value = null
+      }
+      loading.value = false
+    })
+  }
+
+  async function fetchMe() {
+    try {
+      const response = await api.get('/api/me')
+      user.value = response.data
+    } catch (e) {
+      console.error('Error fetching /api/me:', e)
+      user.value = null
+    }
+  }
+
+  async function loginWithEmail(email, password) {
+    error.value = null
+    try {
+      await signInWithEmailAndPassword(firebaseAuth, email, password)
+    } catch (e) {
+      error.value = _translateFirebaseError(e)
+      throw e
+    }
+  }
+
+  async function signupWithEmail(email, password) {
+    error.value = null
+    try {
+      await createUserWithEmailAndPassword(firebaseAuth, email, password)
+    } catch (e) {
+      error.value = _translateFirebaseError(e)
+      throw e
+    }
+  }
+
+  async function loginWithGoogle() {
+    error.value = null
+    try {
+      const provider = new GoogleAuthProvider()
+      await signInWithPopup(firebaseAuth, provider)
+    } catch (e) {
+      error.value = _translateFirebaseError(e)
+      throw e
+    }
+  }
+
+  async function logout() {
+    error.value = null
+    await signOut(firebaseAuth)
+  }
+
+  /** Traduce códigos de error técnicos de Firebase a mensajes legibles. */
+  function _translateFirebaseError(e) {
+    const code = e.code || ''
+    const map = {
+      'auth/invalid-email': 'Email inválido',
+      'auth/user-disabled': 'Cuenta deshabilitada',
+      'auth/user-not-found': 'Usuario no encontrado',
+      'auth/wrong-password': 'Contraseña incorrecta',
+      'auth/invalid-credential': 'Credenciales inválidas',
+      'auth/email-already-in-use': 'El email ya está registrado',
+      'auth/weak-password': 'La contraseña es demasiado débil (mín. 6 caracteres)',
+      'auth/popup-closed-by-user': 'Cancelaste el login con Google',
+      'auth/network-request-failed': 'Error de red. Verifica tu conexión.',
+    }
+    return map[code] || e.message || 'Error desconocido'
+  }
+
+  return {
+    firebaseUser,
+    user,
+    loading,
+    error,
+    isAuthenticated,
+    init,
+    fetchMe,
+    loginWithEmail,
+    signupWithEmail,
+    loginWithGoogle,
+    logout,
+  }
+})
