@@ -2,44 +2,68 @@
   <div class="profile-view">
     <h1>Mi perfil</h1>
 
-    <div v-if="loading">Cargando perfil...</div>
-    <div v-else-if="!user" class="error">
-      No se pudo cargar el perfil. ¿Backend caído?
-    </div>
+    <div v-if="isLoadingProfile" class="loading">Cargando perfil...</div>
+    <div v-else-if="!user" class="error">No se pudo cargar el perfil. ¿Backend caído?</div>
     <table v-else class="profile-table">
-      <tr><th>ID interno</th><td>{{ user.id }}</td></tr>
-      <tr><th>Firebase UID</th><td><code>{{ user.firebase_uid }}</code></td></tr>
-      <tr><th>Email</th><td>{{ user.email || '—' }}</td></tr>
-      <tr><th>Display name</th><td>{{ user.display_name || '—' }}</td></tr>
-      <tr><th>Steam ID</th><td>{{ user.steam_id || 'No vinculada' }}</td></tr>
-      <tr><th>Cuenta creada</th><td>{{ formatDate(user.created_at) }}</td></tr>
+      <tr>
+        <th>ID interno</th>
+        <td>{{ user.id }}</td>
+      </tr>
+      <tr>
+        <th>Firebase UID</th>
+        <td>
+          <code>{{ user.firebase_uid }}</code>
+        </td>
+      </tr>
+      <tr>
+        <th>Email</th>
+        <td>{{ user.email || "—" }}</td>
+      </tr>
+      <tr>
+        <th>Display name</th>
+        <td>{{ user.display_name || "—" }}</td>
+      </tr>
+      <tr>
+        <th>Steam ID</th>
+        <td>{{ user.steam_id || "No vinculada" }}</td>
+      </tr>
+      <tr>
+        <th>Cuenta creada</th>
+        <td>{{ formatDate(user.created_at) }}</td>
+      </tr>
       <tr v-if="user.last_steam_sync">
         <th>Última sync Steam</th>
         <td>{{ formatDate(user.last_steam_sync) }}</td>
       </tr>
     </table>
 
-    <button @click="handleLogout">Cerrar sesión</button>
+    <button v-if="user" @click="handleLogout">Cerrar sesión</button>
   </div>
 </template>
 
 <script setup>
-import { storeToRefs } from 'pinia'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { computed } from "vue";
+import { storeToRefs } from "pinia";
+import { useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
 
-const router = useRouter()
-const authStore = useAuthStore()
-const { user, loading } = storeToRefs(authStore)
+const router = useRouter();
+const authStore = useAuthStore();
+const { user, loading, isAuthenticated } = storeToRefs(authStore);
+
+// Estamos "cargando perfil" mientras:
+//   - Firebase aún determina el estado inicial (loading=true), O
+//   - Ya hay sesión pero el fetch de /api/me aún no ha resuelto.
+const isLoadingProfile = computed(() => loading.value || (isAuthenticated.value && !user.value));
 
 async function handleLogout() {
-  await authStore.logout()
-  router.push({ name: 'home' })
+  await authStore.logout();
+  router.push({ name: "home" });
 }
 
 function formatDate(iso) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleString()
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString();
 }
 </script>
 
@@ -47,6 +71,11 @@ function formatDate(iso) {
 .profile-view {
   max-width: 600px;
   margin: 2rem auto;
+  padding: 2rem;
+}
+.loading {
+  text-align: center;
+  color: #666;
   padding: 2rem;
 }
 .profile-table {
