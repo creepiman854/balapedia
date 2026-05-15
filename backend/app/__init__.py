@@ -28,6 +28,9 @@ def create_app(config_class=DevConfig):
     from app.api.auth import auth_bp
     app.register_blueprint(auth_bp)
 
+    from app.api.steam_auth import steam_auth_bp
+    app.register_blueprint(steam_auth_bp)
+
     # Endpoint de salud (verifica que el server arranca)
     @app.get("/api/health")
     def health():
