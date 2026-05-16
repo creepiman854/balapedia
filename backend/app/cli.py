@@ -43,6 +43,8 @@ from app.models import (
     JokerRarity,
     ModifierType,
     PokerHand,
+    Sticker,
+    StickerType,
     Stake,
     Tag,
     Unlockable,
@@ -132,6 +134,7 @@ def register_commands(app) -> None:
             "blinds",
             "tags",
             "card_modifiers",
+            "stickers",
             "all",
         ]
     ),
@@ -185,6 +188,7 @@ def seed_db(item_type: str, dry_run: bool, limit: int | None) -> None:
         "blinds": seed_blinds,
         "tags": seed_tags,
         "card_modifiers": seed_card_modifiers,
+        "stickers": seed_stickers,
     }
 
     types_to_seed = list(seeders.keys()) if item_type == "all" else [item_type]
@@ -1782,3 +1786,233 @@ def _upsert_card_modifier(data: dict, title: str) -> None:
         )
         db.session.add(mod)
         click.echo(f"  + Created: [{modifier_type.value:>11}] {data['name']}")
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Seeder: stickers (hardcoded data + image URL resolution)
+# ──────────────────────────────────────────────────────────────────────
+
+
+# Datos canónicos de los 11 stickers de Balatro 1.0.1f+.
+# Hardcodeado porque (a) son pocos y estables, (b) la página de wiki
+# mezcla in-run (prosa) y stake (wikitable) en formatos heterogéneos
+# que harían el parser más complejo que el beneficio aportado, y
+# (c) las descripciones son cortas y se traducen mejor a mano.
+_STICKERS_DATA = [
+    # In-Run Stickers (3): efectos mecánicos durante partida
+    {
+        "name": "Eternal",
+        "sticker_type": "InRun",
+        "description": (
+            "Jokers found in shop or booster packs during Black Stake "
+            "and higher have a 30% chance of getting this sticker. "
+            "Eternal Jokers cannot be sold or destroyed."
+        ),
+        "image_filename": "Eternal Sticker Full.png",
+        "sticker_order": 1,
+        "stake_link_order": None,
+    },
+    {
+        "name": "Perishable",
+        "sticker_type": "InRun",
+        "description": (
+            "Jokers found in shop or booster packs during Orange and "
+            "Gold Stake runs have a 30% chance of getting this sticker. "
+            "Perishable Jokers last for 5 rounds, then become debuffed."
+        ),
+        "image_filename": "Perishable Sticker Full.png",
+        "sticker_order": 2,
+        "stake_link_order": None,
+    },
+    {
+        "name": "Rental",
+        "sticker_type": "InRun",
+        "description": (
+            "Jokers found in shop or booster packs during Gold Stake "
+            "runs have a 30% chance of getting this sticker. Rental "
+            "Jokers cost $1 to purchase but deduct $3 at the end of "
+            "every round."
+        ),
+        "image_filename": "Rental Sticker Full.png",
+        "sticker_order": 3,
+        "stake_link_order": None,
+    },
+    # Stake Stickers (8): marcadores de progreso por dificultad ganada.
+    # ``stake_link_order`` se usará para hacer FK a stakes.id buscando
+    # el Stake con ``stake_order`` igual a este valor.
+    {
+        "name": "White Sticker",
+        "sticker_type": "Stake",
+        "description": "Used this Joker/Deck to win on White Stake difficulty.",
+        "image_filename": "White Sticker Full.png",
+        "sticker_order": 1,
+        "stake_link_order": 1,
+    },
+    {
+        "name": "Red Sticker",
+        "sticker_type": "Stake",
+        "description": "Used this Joker/Deck to win on Red Stake difficulty.",
+        "image_filename": "Red Sticker Full.png",
+        "sticker_order": 2,
+        "stake_link_order": 2,
+    },
+    {
+        "name": "Green Sticker",
+        "sticker_type": "Stake",
+        "description": "Used this Joker/Deck to win on Green Stake difficulty.",
+        "image_filename": "Green Sticker Full.png",
+        "sticker_order": 3,
+        "stake_link_order": 3,
+    },
+    {
+        "name": "Black Sticker",
+        "sticker_type": "Stake",
+        "description": "Used this Joker/Deck to win on Black Stake difficulty.",
+        "image_filename": "Black Sticker Full.png",
+        "sticker_order": 4,
+        "stake_link_order": 4,
+    },
+    {
+        "name": "Blue Sticker",
+        "sticker_type": "Stake",
+        "description": "Used this Joker/Deck to win on Blue Stake difficulty.",
+        "image_filename": "Blue Sticker Full.png",
+        "sticker_order": 5,
+        "stake_link_order": 5,
+    },
+    {
+        "name": "Purple Sticker",
+        "sticker_type": "Stake",
+        "description": "Used this Joker/Deck to win on Purple Stake difficulty.",
+        "image_filename": "Purple Sticker Full.png",
+        "sticker_order": 6,
+        "stake_link_order": 6,
+    },
+    {
+        "name": "Orange Sticker",
+        "sticker_type": "Stake",
+        "description": "Used this Joker/Deck to win on Orange Stake difficulty.",
+        "image_filename": "Orange Sticker Full.png",
+        "sticker_order": 7,
+        "stake_link_order": 7,
+    },
+    {
+        "name": "Gold Sticker",
+        "sticker_type": "Stake",
+        "description": (
+            "Used this Joker/Deck to win on Gold Stake difficulty. "
+            "Collecting Gold Stickers on every Joker unlocks the "
+            "Completionist++ achievement."
+        ),
+        "image_filename": "Gold Sticker Full.png",
+        "sticker_order": 8,
+        "stake_link_order": 8,
+    },
+]
+
+
+def seed_stickers(dry_run: bool, limit: int | None) -> int:
+    """Pobla la tabla ``stickers`` con los 11 stickers canónicos del juego.
+
+    A diferencia del resto de seeders, los datos son hardcoded en lugar
+    de extraídos por parser. Razones:
+      - Son pocos (11) y estables entre versiones del juego.
+      - La página wiki mezcla in-run en prosa y stake en wikitable,
+        formatos heterogéneos que requerirían un parser complejo.
+      - Las descripciones son cortas y se redactan mejor a mano.
+
+    Sí se consulta la wiki para **resolver las URLs de las imágenes**,
+    aprovechando la función existente ``resolve_image_url``. Si la wiki
+    cambia el filename de una imagen, el seeder lo detectará (URL=None)
+    y bastará con actualizar el filename hardcoded.
+
+    Para Stake Stickers, se enlaza ``stake_id`` consultando el Stake con
+    ``stake_order`` correspondiente. Requiere que la tabla ``stakes``
+    esté poblada previamente.
+    """
+    click.echo(f"  Seeding {len(_STICKERS_DATA)} stickers (hardcoded data)...")
+
+    # Pre-fetch de stakes para enlazar stake_id eficientemente
+    stakes_by_order = {s.stake_order: s for s in Stake.query.all()}
+    if not stakes_by_order:
+        click.secho(
+            "  ✗ No stakes in DB. Run `seed-db --type=stakes` first.",
+            fg="red",
+        )
+        return 0
+
+    items = _STICKERS_DATA[:limit] if limit else _STICKERS_DATA
+
+    count = 0
+    for data in items:
+        try:
+            _upsert_sticker(data, stakes_by_order)
+
+            if not dry_run:
+                db.session.commit()
+
+            count += 1
+        except Exception as e:
+            db.session.rollback()
+            click.secho(f"  ✗ Error processing {data['name']!r}: {e}", fg="red")
+            logger.exception("Failed processing %s", data["name"])
+            continue
+
+    if dry_run:
+        db.session.rollback()
+        click.secho("  (dry-run: changes rolled back)", fg="yellow")
+
+    return count
+
+
+def _upsert_sticker(data: dict, stakes_by_order: dict[int, "Stake"]) -> None:
+    """Inserta o actualiza un Sticker en la BD."""
+    image_url = (
+        wiki.resolve_image_url(data["image_filename"])
+        if data.get("image_filename")
+        else None
+    )
+
+    sticker_type = StickerType(data["sticker_type"])
+
+    # Para Stake Stickers, busca el Stake correspondiente
+    stake_id = None
+    if data.get("stake_link_order") is not None:
+        stake = stakes_by_order.get(data["stake_link_order"])
+        if stake is None:
+            click.secho(
+                f"  ⚠ Stake with order {data['stake_link_order']} not found "
+                f"for {data['name']!r}",
+                fg="yellow",
+            )
+        else:
+            stake_id = stake.id
+
+    existing = Sticker.query.filter_by(name=data["name"]).first()
+
+    if existing is not None:
+        existing.sticker_type = sticker_type
+        existing.description = data["description"]
+        existing.image_url = image_url
+        existing.stake_id = stake_id
+        existing.sticker_order = data["sticker_order"]
+        existing.wiki_url = wiki.page_url("Stickers")
+        click.echo(
+            f"  ↻ Updated: [{sticker_type.value:>5}] "
+            f"#{data['sticker_order']} {data['name']}"
+        )
+    else:
+        sticker = Sticker(
+            name=data["name"],
+            sticker_type=sticker_type,
+            description=data["description"],
+            image_url=image_url,
+            stake_id=stake_id,
+            sticker_order=data["sticker_order"],
+            wiki_url=wiki.page_url("Stickers"),
+        )
+        db.session.add(sticker)
+        click.echo(
+            f"  + Created: [{sticker_type.value:>5}] "
+            f"#{data['sticker_order']} {data['name']}"
+        )
