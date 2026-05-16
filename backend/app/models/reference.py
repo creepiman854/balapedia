@@ -12,6 +12,12 @@ son referencia consultable en la app a modo de wiki integrada.
 
 from app.extensions import db
 
+from app.models.enums import (
+    BlindType,
+    ModifierType,
+    StickerType,
+)
+
 
 class PokerHand(db.Model):
     """Tipo de jugada de póker en Balatro.
@@ -64,9 +70,6 @@ class PokerHand(db.Model):
 
     def __repr__(self) -> str:
         return f"<PokerHand id={self.id} name={self.name!r}>"
-
-
-from app.models.enums import BlindType
 
 
 class Stake(db.Model):
@@ -176,9 +179,6 @@ class Tag(db.Model):
         return f"<Tag id={self.id} name={self.name!r}>"
 
 
-from app.models.enums import BlindType, ModifierType
-
-
 class CardModifier(db.Model):
     """Modificador de carta de Balatro (Enhancement / Edition / Seal).
 
@@ -208,5 +208,49 @@ class CardModifier(db.Model):
     def __repr__(self) -> str:
         return (
             f"<CardModifier id={self.id} type={self.modifier_type.value} "
+            f"name={self.name!r}>"
+        )
+
+class Sticker(db.Model):
+    """Sticker aplicable a Jokers o Decks en Balatro.
+
+    11 stickers en total:
+      - 3 In-Run: Eternal, Perishable, Rental (efectos mecánicos durante
+        partida; el jugador no los "desbloquea").
+      - 8 Stake: White, Red, Green, Black, Blue, Purple, Orange, Gold
+        (marcadores permanentes que indican haber ganado un Stake con
+        ese Joker/Deck concreto). Los 8 corresponden 1:1 con los 8
+        Stakes existentes; se enlazan vía ``stake_id``.
+
+    El campo ``sticker_order`` da orden canónico de presentación dentro
+    de cada tipo (1-3 para In-Run, 1-8 para Stake), no es único global.
+    """
+
+    __tablename__ = "stickers"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    sticker_type = db.Column(
+        db.Enum(StickerType, name="sticker_type"),
+        nullable=False,
+        index=True,
+    )
+    description = db.Column(db.Text, nullable=True)
+    image_url = db.Column(db.String(500), nullable=True)
+    # Para Stake Stickers: enlace al Stake correspondiente (1:1).
+    # NULL para In-Run Stickers.
+    stake_id = db.Column(
+        db.Integer,
+        db.ForeignKey("stakes.id"),
+        nullable=True,
+    )
+    sticker_order = db.Column(db.SmallInteger, nullable=False, index=True)
+    wiki_url = db.Column(db.String(500), nullable=True)
+
+    stake = db.relationship("Stake")
+
+    def __repr__(self) -> str:
+        return (
+            f"<Sticker id={self.id} type={self.sticker_type.value} "
             f"name={self.name!r}>"
         )
