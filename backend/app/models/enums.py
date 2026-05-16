@@ -100,3 +100,18 @@ class ModifierType(str, Enum):
     ENHANCEMENT = "Enhancement"
     EDITION = "Edition"
     SEAL = "Seal"
+
+
+class StickerType(str, Enum):
+    """Categoría de Sticker en Balatro.
+
+    - IN_RUN: stickers con efecto mecánico durante la partida
+      (Eternal, Perishable, Rental). Se aplican aleatoriamente a Jokers
+      según el Stake en curso. No los desbloquea el usuario.
+    - STAKE: marcadores de progreso permanente que aparecen en Jokers
+      y Decks tras ganar un Stake específico con ellos. Los 8 stickers
+      (White → Gold) corresponden 1:1 con los 8 Stakes.
+    """
+
+    IN_RUN = "InRun"
+    STAKE = "Stake"

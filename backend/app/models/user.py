@@ -1,4 +1,5 @@
 """Modelo User: usuario de Balapedia con autenticación dual Firebase/Steam."""
+
 from datetime import datetime, timezone
 
 from app.extensions import db
@@ -15,6 +16,7 @@ class User(db.Model):
     El CheckConstraint garantiza que al menos uno de los dos identificadores
     esté presente, evitando usuarios "huérfanos" sin manera de iniciar sesión.
     """
+
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -43,6 +45,7 @@ class User(db.Model):
         cascade="all, delete-orphan",
         lazy="dynamic",
     )
+
     achievements = db.relationship(
         "UserAchievement",
         back_populates="user",
@@ -55,6 +58,19 @@ class User(db.Model):
             "firebase_uid IS NOT NULL OR steam_id IS NOT NULL",
             name="ck_user_has_identity",
         ),
+    )
+
+    joker_stickers = db.relationship(
+        "UserJokerSticker",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+    )
+    deck_stickers = db.relationship(
+        "UserDeckSticker",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
     )
 
     def __repr__(self) -> str:
