@@ -174,3 +174,39 @@ class Tag(db.Model):
 
     def __repr__(self) -> str:
         return f"<Tag id={self.id} name={self.name!r}>"
+
+
+from app.models.enums import BlindType, ModifierType
+
+
+class CardModifier(db.Model):
+    """Modificador de carta de Balatro (Enhancement / Edition / Seal).
+
+    Los tres tipos comparten plantilla `{{Modifier info}}` en la wiki y la
+    misma estructura de datos (nombre, descripción del efecto, imagen),
+    por lo que se unifican en una sola tabla discriminada por
+    ``modifier_type`` (análogo a cómo Tarots/Planets/Spectrals comparten
+    la tabla ``consumables``).
+
+    Total esperado en Balatro 1.0.0n: ~17 modificadores
+    (8 Enhancements + 5 Editions + 4 Seals).
+    """
+
+    __tablename__ = "card_modifiers"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    modifier_type = db.Column(
+        db.Enum(ModifierType, name="modifier_type"),
+        nullable=False,
+        index=True,
+    )
+    effect = db.Column(db.Text, nullable=True)
+    image_url = db.Column(db.String(500), nullable=True)
+    wiki_url = db.Column(db.String(500), nullable=True)
+
+    def __repr__(self) -> str:
+        return (
+            f"<CardModifier id={self.id} type={self.modifier_type.value} "
+            f"name={self.name!r}>"
+        )

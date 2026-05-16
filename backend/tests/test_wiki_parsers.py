@@ -876,3 +876,75 @@ class TestParseTag:
         from app.scrapers.wiki import parse_tag
 
         assert parse_tag(load_wiki_fixture("joker")) is None
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  parse_card_modifier
+# ──────────────────────────────────────────────────────────────────────
+
+
+class TestParseCardModifier:
+    """Parser de plantilla Modifier info (3 tipos en una sola plantilla)."""
+
+    def test_foil_is_edition(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_card_modifier
+
+        result = parse_card_modifier(load_wiki_fixture("modifier_foil"))
+        assert result["name"] == "Foil"
+        assert result["modifier_type"] == "Edition"
+        assert "Chips" in result["effect"] or "50" in result["effect"]
+        assert result["image_filename"]
+
+    def test_polychrome_is_edition_with_xmult(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_card_modifier
+
+        result = parse_card_modifier(load_wiki_fixture("modifier_polychrome"))
+        assert result["modifier_type"] == "Edition"
+        # Polychrome típicamente da xMult
+        assert result["effect"]
+
+    def test_gold_seal_is_seal(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_card_modifier
+
+        result = parse_card_modifier(load_wiki_fixture("modifier_gold_seal"))
+        assert result["name"] == "Gold Seal"
+        assert result["modifier_type"] == "Seal"
+        assert "$3" in result["effect"] or "money" in result["effect"].lower()
+
+    def test_red_seal_is_seal(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_card_modifier
+
+        result = parse_card_modifier(load_wiki_fixture("modifier_red_seal"))
+        assert result["modifier_type"] == "Seal"
+
+    def test_bonus_is_enhancement(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_card_modifier
+
+        result = parse_card_modifier(load_wiki_fixture("modifier_bonus_cards"))
+        assert result["modifier_type"] == "Enhancement"
+
+    def test_steel_is_enhancement(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_card_modifier
+
+        result = parse_card_modifier(load_wiki_fixture("modifier_steel_cards"))
+        assert result["modifier_type"] == "Enhancement"
+
+    def test_descriptions_are_flattened(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_card_modifier
+
+        for slug in (
+            "modifier_foil",
+            "modifier_gold_seal",
+            "modifier_bonus_cards",
+            "modifier_steel_cards",
+        ):
+            result = parse_card_modifier(load_wiki_fixture(slug))
+            assert result is not None
+            e = result["effect"]
+            assert "{{" not in e, f"Template crudo en {result['name']}: {e}"
+            assert "[[" not in e
+
+    def test_returns_none_for_non_modifier_template(self, load_wiki_fixture):
+        from app.scrapers.wiki import parse_card_modifier
+
+        assert parse_card_modifier(load_wiki_fixture("joker")) is None

@@ -1,0 +1,72 @@
+{{Modifier info
+| title = Foil
+| image = Joker (Foil).png
+| type = Edition
+| effect = {{chips|+50}}
+}}
+'''Foil''' is an [[Edition|edition card modifier]] that makes a Joker or playing card give {{Chips|+50}}.
+
+Foil adds {{hl|yellow|+{{Money|2}}}} to the [[buy price]] of jokers and playing cards (with {{v|Illusion}}).
+
+==Acquisition==
+===[[Jokers]]===
+*Foil Jokers can naturally appear in the [[Shop]] with a 2% chance.
+** The chance to get a Foil can be increased with {{V|Hone}} & {{V|Glow Up}} by {{hl|orange|2X}} and {{hl|orange|4X}} respectively.
+*{{Spectral|Ankh}} is able to duplicate Foil Jokers.
+*{{J|Invisible Joker}} can copy a Foil Joker, and the copy will keep the edition.
+*{{Tarot|The Wheel of Fortune}} has a 50% chance of applying Foil to a random Joker if it activates.
+*{{Tag|Foil}} applies Foil to the next base edition joker in the shop and makes it free.
+
+===Playing Cards===
+*Foil playing cards can be naturally acquired from [[Standard Packs]] with a 4% chance.
+** The chance to get a Foil can be increased with {{V|Hone}} & {{V|Glow Up}} by {{hl|orange|2X}} and {{hl|orange|4X}} respectively.
+*Foil playing cards are able to be purchased from the Shop if {{V|Illusion}} is owned.
+*{{Spectral|Aura}} has a 50% chance to apply Foil to a selected playing card in your hand.
+*{{Tarot|Death}}, {{Spectral|Cryptid}}, and {{J|DNA}} can duplicate Foil playing cards.
+
+==Synergies==
+===[[Jokers]]===
+*Due to being an edition that is often given to playing cards (through [[Standard Packs]], {{Spectral|Aura}}, etc.), Jokers that can retrigger playing cards that may have Foil like {{J|Hanging Chad}}, {{J|Sock and Buskin}}, and {{J|Hack}} have the ability to indirectly provide hundreds of Chips through retriggers.
+*Nearly all Jokers that give a large amount of Mult (namely, ones that are able to give a high amount of +Mult like {{J|Ceremonial Dagger}} or {{J|Flash Card}}) benefit from Chips increasing often much more significantly than Mult.
+**This is because if a hand is currently at, say, {{Chips|10}} X {{Mult|100}}, {{Chips|+50}} would increase the net score by a much higher amount than {{Mult|+50}} would.
+
+===[[Decks]]===
+*{{d|Plasma}} balances Chips and Mult, with one Foil card yielding up to {{Chips|625}} (25x25). This is often significantly better than {{Edition|Holographic}} or even {{Edition|Polychrome}}, especially in most early to mid-game runs.
+*{{d|Ghost}} makes it much easier to find spectral cards like {{Spectral|Aura}} or {{Spectral|Cryptid}} that are able to either make existing cards Foil or create new Foil cards.
+
+===[[Seals]]===
+*{{Seal|Red|name=Red Seals|image=Ace of Spades (Foil).png}} are able to be applied to Foil playing cards, causing each one to give {{Chips|+100}}.
+
+==Usage notes==
+*Due to the fact that {{Chips|+50}} is a quite large amount of score, obtaining even just two Foil Jokers can often lead the player into not needing a Joker that provides Chips. This is especially the case if Foil playing cards are utilized, as playing cards can be retriggered and are much more easily able to be duplicated compared to Jokers.
+
+==Update History==
+{{Update history|
+update='''{{patch|1.0.0h}}'''
+*Effect
+**{{chips|+30}} -> {{chips|+50}}
+'''{{patch|0.8.7c}}'''
+*Effect
+**{{chips|+50}} -> {{chips|+30}}
+}}
+
+==In other languages==
+{{Languages
+|internal = e_foil
+|zhs = 闪箔
+|zht = 銀箔
+|nl = Folie
+|fr = Brillante
+|de = Foil
+|id = Foil
+|it = Foil
+|ja = フォイル
+|ko = 포일
+|pl = W folii
+|pt = Laminado
+|ru = Фольговый
+|es-es = Laminada
+|es-latam = Laminada
+|version = 1.0.0n
+}}
+{{Navbox Card Modifiers}}
