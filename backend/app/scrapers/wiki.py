@@ -991,3 +991,27 @@ def parse_tag(wikitext: str) -> Optional[dict]:
         "ante": _field(tpl, "ante"),
         "unlock_condition": render_wikitext(unlock_raw) if unlock_raw else None,
     }
+
+
+def parse_card_modifier(wikitext: str) -> Optional[dict]:
+    """Parsea una página de Card Modifier con plantilla ``Modifier info``.
+
+    La misma plantilla cubre los tres tipos (Enhancement, Edition, Seal);
+    el campo ``type`` del template discrimina cuál es. El parser devuelve
+    el tipo tal cual viene en la wiki para que el seeder lo convierta al
+    enum ``ModifierType`` correspondiente.
+
+    Returns:
+        Dict con: ``name``, ``modifier_type``, ``effect``, ``image_filename``.
+        ``None`` si la página no contiene la plantilla esperada.
+    """
+    tpl = _get_template(wikitext, "Modifier info")
+    if not tpl:
+        return None
+
+    return {
+        "name": _field(tpl, "title"),
+        "modifier_type": _field(tpl, "type"),
+        "effect": render_wikitext(_field(tpl, "effect")),
+        "image_filename": _field(tpl, "image"),
+    }
