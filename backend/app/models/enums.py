@@ -80,7 +80,23 @@ class BlindType(str, Enum):
       Bell). En la wiki se cataloga en ``Category:Showdown Blinds``
       separadamente.
     """
+
     SMALL = "Small"
     BIG = "Big"
     BOSS = "Boss"
     SHOWDOWN = "Showdown"
+
+
+class ModifierType(str, Enum):
+    """Categoría de Card Modifier en Balatro.
+
+    Los tres tipos se aplican a cartas pero con mecánicas distintas:
+      - Enhancement: modifica la carta jugadora (chips, mult, dinero...).
+      - Edition: efecto visual + scoring sobre cualquier carta (Joker,
+        consumible, playing card).
+      - Seal: marcador especial en una playing card con efecto al jugarla.
+    """
+
+    ENHANCEMENT = "Enhancement"
+    EDITION = "Edition"
+    SEAL = "Seal"
