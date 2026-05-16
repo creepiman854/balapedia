@@ -35,11 +35,13 @@ from app.models import (
     BoosterPack,
     BoosterPackSize,
     BoosterPackType,
+    CardModifier,
     ChallengeDeck,
     Consumable,
     Deck,
     Joker,
     JokerRarity,
+    ModifierType,
     PokerHand,
     Stake,
     Tag,
@@ -129,6 +131,7 @@ def register_commands(app) -> None:
             "stakes",
             "blinds",
             "tags",
+            "card_modifiers",
             "all",
         ]
     ),
@@ -181,6 +184,7 @@ def seed_db(item_type: str, dry_run: bool, limit: int | None) -> None:
         "stakes": seed_stakes,
         "blinds": seed_blinds,
         "tags": seed_tags,
+        "card_modifiers": seed_card_modifiers,
     }
 
     types_to_seed = list(seeders.keys()) if item_type == "all" else [item_type]
@@ -1656,3 +1660,125 @@ def _upsert_tag(data: dict, title: str) -> None:
         )
         db.session.add(tag)
         click.echo(f"  + Created: {data['name']}")
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Seeder: card_modifiers (Enhancements, Editions, Seals)
+# ──────────────────────────────────────────────────────────────────────
+
+
+# Mapeo categoría wiki → valor esperado en `modifier_type` del template.
+# Sirve como sanity check defensivo: si una página categorizada bajo
+# Editions tiene type=Seal en su template, se reporta como anomalía.
+_MODIFIER_CATEGORIES = [
+    ("Enhancements", "Enhancement"),
+    ("Editions", "Edition"),
+    ("Seals", "Seal"),
+]
+
+
+def seed_card_modifiers(dry_run: bool, limit: int | None) -> int:
+    """Pobla la tabla ``card_modifiers`` iterando 3 categorías wiki.
+
+    Los tres tipos (Enhancement, Edition, Seal) comparten plantilla
+    `{{Modifier info}}` y se unifican en una sola tabla discriminada
+    por ``modifier_type``, replicando el patrón ya usado en consumables.
+
+    Returns:
+        Número total de modifiers procesados (los tres tipos sumados).
+    """
+    total = 0
+
+    for category, expected_type in _MODIFIER_CATEGORIES:
+        try:
+            titles = wiki.list_pages_in_category(category)
+        except Exception as e:
+            click.secho(f"  ✗ Error fetching Category:{category}: {e}", fg="red")
+            continue
+
+        titles = _filter_category_index_pages(titles, category)
+
+        if limit is not None:
+            titles = titles[:limit]
+
+        click.echo(
+            f"  Found {len(titles)} {expected_type} pages " f"in Category:{category}"
+        )
+
+        for title in titles:
+            try:
+                wikitext = wiki.fetch_wikitext(title)
+                if not wikitext:
+                    click.secho(f"  ⚠ No wikitext for {title!r}", fg="yellow")
+                    continue
+
+                data = wiki.parse_card_modifier(wikitext)
+                if not data:
+                    click.secho(
+                        f"  ⚠ Page lacks 'Modifier info' template: {title!r}",
+                        fg="yellow",
+                    )
+                    continue
+
+                # Sanity check: el tipo del template debe coincidir con la
+                # categoría. Si no, avisar y skipear para no contaminar BD.
+                if data["modifier_type"] != expected_type:
+                    click.secho(
+                        f"  ⚠ Type mismatch for {title!r}: "
+                        f"expected {expected_type!r}, got "
+                        f"{data['modifier_type']!r}",
+                        fg="yellow",
+                    )
+                    continue
+
+                _upsert_card_modifier(data, title)
+
+                if not dry_run:
+                    db.session.commit()
+
+                total += 1
+            except Exception as e:
+                db.session.rollback()
+                click.secho(f"  ✗ Error processing {title!r}: {e}", fg="red")
+                logger.exception("Failed processing %s", title)
+                continue
+
+    if dry_run:
+        db.session.rollback()
+        click.secho("  (dry-run: changes rolled back)", fg="yellow")
+
+    return total
+
+
+def _upsert_card_modifier(data: dict, title: str) -> None:
+    """Inserta o actualiza un CardModifier en la BD.
+
+    Búsqueda por ``name`` (clave única semántica). El campo
+    ``modifier_type`` se convierte de string ("Edition") al enum
+    correspondiente (``ModifierType.EDITION``).
+    """
+    image_url = (
+        wiki.resolve_image_url(data["image_filename"])
+        if data.get("image_filename")
+        else None
+    )
+    modifier_type = ModifierType(data["modifier_type"])
+
+    existing = CardModifier.query.filter_by(name=data["name"]).first()
+
+    if existing is not None:
+        existing.modifier_type = modifier_type
+        existing.effect = data["effect"]
+        existing.image_url = image_url
+        existing.wiki_url = wiki.page_url(title)
+        click.echo(f"  ↻ Updated: [{modifier_type.value:>11}] {data['name']}")
+    else:
+        mod = CardModifier(
+            name=data["name"],
+            modifier_type=modifier_type,
+            effect=data["effect"],
+            image_url=image_url,
+            wiki_url=wiki.page_url(title),
+        )
+        db.session.add(mod)
+        click.echo(f"  + Created: [{modifier_type.value:>11}] {data['name']}")
