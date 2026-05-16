@@ -1,0 +1,74 @@
+{{Modifier info
+| title = Red Seal
+| image = Red Seal.png
+| type = Seal
+| effect = Retrigger this card {{hl|orange|1}} time
+}}
+The '''Red Seal''' is a [[Seal]] card modifier that retriggers a playing card with this seal once. The Red Seal retriggers both played and held in hand effects. It is incredibly powerful for Jokers that trigger their effects on playing cards, especially {{xmult|}} effects.
+
+==Acquisition==
+*{{Spectral|Deja Vu}} adds a Red Seal to 1 selected card.
+*{{J|Certificate}} can create a random playing card with a Red Seal when the round starts.
+*[[Standard Packs]] can contain playing cards with Red Seals.
+*More cards with Red Seals can be created with the {{Tarot|Death}} Tarot card and {{J|DNA}} if the player already has at least 1 Red Seal card in their deck.
+
+== Usage notes ==
+*Jokers that retrigger cards like {{J|Hack}}, {{J|Mime}}, or {{J|Sock and Buskin}} will only reactivate the card 1 additional time, and they will not reactivate the Seal a second time. For example, a played {{Seal|Red|image=King of Spades.png|name=Red Seal King}} will only activate 3 times, once for the initial trigger, once for the Red Seal, and then once more for Sock and Buskin.
+*Red Seals work with both played scoring cards and held in hand cards.
+*One of the easiest and most consistent ways to reach ''Balatro's'' de facto high score, [[naneinf]], is to make as many {{Seal|Red|name=Red Seal Steel|image=Steel Card.png|link=Steel Cards}} Kings as possible. This is because with {{J|Baron}}, a Red Seal on a Steel King essentially acts as 2 Steel Kings without a Red Seal. Because each time Baron triggers exponentially increases the score, the player needs to have hundreds of Baron triggers to reach ''naneinf''. While Red Seals are not needed to achieve ''naneinf'' this way, it does make it substantially easier.
+*Face Cards are the most versatile cards to have Red Seals on, even if they don't have any [[Enhancement]] or [[Edition]]. This is because they synergize with {{J|Photograph}}, {{J|Triboulet}}, {{J|Baron}}, {{J|Shoot the Moon}}, {{j|Smiley Face}}, {{j|Scary Face}}, {{J|Reserved Parking}}, and {{J|Business Card}}.
+*{{D|Double or Nothing}} starts with all cards with Red Seals.
+
+==Synergies==
+===[[Decks]]===
+*{{D|Ghost}} makes finding the {{Spectral|Deja Vu}} card significantly easier.
+
+===[[Jokers]]===
+Most Jokers benefit from Red Seals, especially those that trigger when certain cards are played. However, some Jokers benefit more from Red Seals than others, such as:
+*{{J|Baron}} will give {{xmult|2.25}} for each Red Seal King held in hand, and ~{{xmult|5.06}} if that King is a {{Enhancement|Steel|name=Steel Card}}.
+*{{J|Reserved Parking}} will generally give {{$|0.25}} more on average.
+**This can change depending on retriggers and held in hand effects, see the Reserved Parking page for an explanation on the specific interactions and numbers.
+*{{J|Bloodstone}}, {{J|The Idol}}, {{J|Ancient Joker}}, {{J|Photograph}}, and {{J|Triboulet}} all benefit from Red Seals as they give exponentially more Mult the more times their effects are retriggered.
+*{{J|Hiker}} can also permanently add an additional {{Chips|+5}}, for a total of a permanent {{Chips|+10}} for Red Seal cards.
+*{{J|Wee Joker}} can scale even faster with Red Seal 2 cards and gain {{Chips|+16}}, instead of the usual {{Chips|+8}} for each scored 2.
+
+===[[Modifiers]]===
+*{{Seal|Red|name=Steel Cards|image=Steel Card.png|link=Steel Cards}} with a Red Seal give {{XMult|2.25}} when held in hand.
+*{{Seal|Red|name=Gold Cards|image=Gold Card.png|link=Gold Cards}} with a Red Seal give {{$|6}} if held at the end of the round.
+**With a large hand size, copy effects from {{J|Blueprint}} and/or {{J|Brainstorm}}, retrigger effects from {{J|Mime}}, and Red Seals, it's possible to generate thousands of dollars from this method.
+*{{Seal|Red|name=Glass Cards|image=Glass Card.png|link=Glass Cards}} with a Red Seal give {{XMult|4}} when played, and do not increase the chance of breaking.
+*{{Seal|Red|name=Polychrome Cards|image=Ace of Spades (Polychrome).png|link=Polychrome}} with a Red Seal give {{XMult|2.25}} when played.
+
+== In other languages ==
+{{Languages
+|zhs = 红色蜡封
+|zhs_note = 
+|zht = 紅色封蠟章
+|zht_note = 
+|nl = Rood zegel
+|nl_note = 
+|fr = Sceau rouge
+|fr_note = 
+|de = Rotes Siegel
+|de_note = 
+|id = Red Seal
+|id_note = 
+|it = Sigillo rosso
+|it_note = 
+|ja = レッドシール
+|ja_note = 
+|ko = 레드 봉인
+|ko_note = 
+|pl = Czerwona Pieczęć
+|pl_note = 
+|pt = Selo Vermelho
+|pt_note = 
+|ru = Красная печать
+|ru_note = 
+|es-es = Sello rojo
+|es-es_note = 
+|es-latam = Sello rojo
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Navbox Card Modifiers}}

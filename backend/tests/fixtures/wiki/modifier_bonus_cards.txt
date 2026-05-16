@@ -1,0 +1,43 @@
+{{Modifier info
+| title = Bonus Card
+| image = Bonus Card.png
+| type = Enhancement
+| effect = {{hl|blue|+30}} extra chips
+}}
+'''Bonus Cards''' are playing cards that are [[Enhanced]] to give {{Chips|+30}} to a played hand when scored.
+
+*{{Tarot|The Hierophant}} can make up to 2 cards in your hand Bonus Cards.
+*{{spectral|Incantation}}, {{spectral|Familiar}}, and {{spectral|Grim}} can add Bonus {{n|Number}}, {{f|Face}}, and {{a|Ace}} cards, respectively.
+*[[Booster Packs|Standard Packs]] can contain Bonus Cards.
+*{{V|Illusion}} allows for Bonus cards to be purchased in [[The Shop]].
+
+== Usage notes ==
+* Between [[Jokers]] that give {{Mult|}} and {{Chips|}}, ones that give {{Chips|}} are far fewer in number, making {{Tarot|The Hierophant}} a good option in a pinch.
+* Retriggering with a {{Seal|Red|image=Bonus Card.png}} or the Common {{J|Hanging Chad}} can make it particularly strong in {{D|Plasma}}, but also in all decks' early to mid game.
+
+==Synergies==
+===[[Decks]]===
+* Chips are at their absolute strongest on {{D|Plasma}} due to the balancing gimmick, making Bonus cards a worthwhile investment.
+===[[Poker Hands]]===
+All poker hands work with Bonus cards, as they provide Chips for the player's base score. However, during the early game, poker hands with low base Chips like {{ph|High Card}} and {{ph|Pair}} tend to benefit the most from Bonus Cards. Conversely, larger hands like {{ph|Flushes}} and {{ph|Straights}} allow more Bonus cards to be played, increasing the player's score even more.
+
+== In other languages ==
+{{Languages
+|internal = m_bonus
+|zhs = 奖励牌
+|zht = 獎勵牌
+|nl = Bonuskaart
+|fr = Carte bonus
+|de = Bonuskarte
+|id = Bonus Card
+|it = Carta bonus
+|ja = ボーナスカード
+|ko = 보너스 카드
+|pl = Karta Bonusowa
+|pt = Carta Bônus
+|ru = Бонусная карта
+|es-es = Carta adicional
+|es-latam = Carta adicional
+|version = 1.0.0n
+}}
+{{Navbox Card Modifiers}}

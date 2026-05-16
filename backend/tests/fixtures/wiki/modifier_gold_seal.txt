@@ -1,0 +1,70 @@
+{{Modifier info
+| title = Gold Seal
+| image = Gold Seal.png
+| type = Seal
+| effect = Earn {{money|3}} when this card is played and scores
+}}
+The '''Gold Seal''' is a [[Seal]] card modifier that gives {{money|3}} if a playing card with this seal is played and scored. A card with a Gold Seal will give an additional {{money|3}} per retrigger, and {{money|0}} if it is debuffed. This effect is very similar to {{Enhancement|Gold}}, but awarding money when played rather than when held in hand.
+
+==Acquisition==
+*{{Spectral|Talisman}} adds a Gold Seal to 1 selected card.
+*{{J|Certificate}} can create a random playing card with a Gold Seal when the round starts.
+*[[Standard Packs]] can contain playing cards with Gold Seals.
+*More cards with Gold Seals can be created with the {{Tarot|Death}} Tarot card and {{J|DNA}} if the player already has at least 1 Gold Seal card in their deck.
+
+== Strategy ==
+* It is recommended to put Gold Seals on cards intended to be played often, and cards that can naturally be retriggered by certain Jokers, like face cards for {{J|Sock and Buskin}} or 2s, 3s, 4s, 5s for {{J|Hack}}.
+* It is always a good idea to play a Gold Seal card, even if it doesn't contribute much to the score, if the player has spare hands. Losing {{money|1}} for playing a hand and gaining at least {{money|3}} back is almost always a good trade-off.
+
+==Synergies==
+===[[Jokers]]===
+*{{J|Hanging Chad}} can retrigger a Gold Seal 2 additional times, providing an extra {{money|6}}.
+*{{J|Sock and Buskin}} gives an extra {{money|3}} per played face card with a Gold Seal.
+*{{J|Hack}} is similar to Sock and Buskin, but applies to 2s, 3s, 4s, and 5s instead.
+*{{J|Dusk}} gives extra money from all scored Gold Seals on the last hand of the round.
+*{{J|Burglar}} allows for more Gold Seals to be scored in a round.
+* Economy-based scalers, such as {{J|Bull}}, {{J|Bootstraps}}, and {{J|Flash Card}}, appreciate the extra money brought in by Gold Seals.
+
+===[[Vouchers]]===
+*{{V|Grabber}} and {{V|Nacho Tong}} provide more opportunities to score Gold Seals.
+
+===[[Enhancements]]===
+* {{Seal|Gold|image=Stone Card.png|link=Stone Cards|name=Stone Cards}} with a Gold Seal can be added to any less than 5 card hand to easily earn {{$|3}}.
+* {{Seal|Gold|image=Lucky Card.png|link=Lucky Cards|name=Lucky Cards}} with a Gold Seal will give {{$|4.3}} on average when played.
+
+==Anti-Synergies==
+* {{J|Vagabond}} is harder to use as scoring a Gold Seal can bring the player over the {{$|4}} barrier, preventing the player from getting a Tarot card on the next hand.
+
+== In other languages ==
+{{Languages
+|zhs = 金色蜡封
+|zhs_note = 
+|zht = 金色封蠟章
+|zht_note = 
+|nl = Gouden zegel
+|nl_note = 
+|fr = Sceau d'or
+|fr_note = 
+|de = Goldenes Siegel
+|de_note = 
+|id = Gold Seal
+|id_note = 
+|it = Sigillo d'oro
+|it_note = 
+|ja = ゴールドシール
+|ja_note = 
+|ko = 골드 봉인
+|ko_note = 
+|pl = Złota Pieczęć
+|pl_note = 
+|pt = Selo Dourado
+|pt_note = 
+|ru = Золотая печать
+|ru_note = 
+|es-es = Sello de oro
+|es-es_note = 
+|es-latam = Sello de oro
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Navbox Card Modifiers}}

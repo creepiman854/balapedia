@@ -1,0 +1,98 @@
+{{Modifier info
+| title = Steel Card
+| image = Steel Card.png
+| type = Enhancement
+| effect = {{xmult|1.5}} while this card stays in hand
+}}
+'''Steel Cards''' are [[Enhanced]] playing cards that give {{XMult|1.5}} to a played hand while held in hand. This enhancement can be obtained or added to cards a few different ways, including:
+*{{tarot|The Chariot}} adds the Steel enhancement to 1 card in your hand.
+*{{spectral|Incantation}}, {{spectral|Familiar}}, and {{spectral|Grim}} can add Steel {{n|Number}}, {{f|Face}}, and {{a|Ace}} cards, respectively.
+*[[Booster Packs|Standard Packs]] can contain Steel Cards.
+*{{V|Illusion}} allows for Steel Cards to be purchased in [[The Shop]].
+
+== Synergies ==
+=== [[Decks]] ===
+*{{D|Plasma}}, while worse for Steel Cards than other decks in early [[Blinds and Antes|antes]], will eventually far surpass any other deck in terms of scoring. Because of how score is calculated on the Plasma Deck, your {{Mult|}} is essentially raised to the 2nd power if its value before balancing is high enough.
+*{{D|Painted}} starts with {{hl|orange|+2}} hand size, making Steel Cards more powerful.
+=== [[Vouchers]] ===
+*{{V|Paint Brush}} and {{V|Palette}} both increase hand size, allowing for more Steel Cards to be held in hand.
+=== [[Card Modifiers|Seals]] ===
+*{{Seal|Red|image=Steel Card.png|name=Red Seals}} retrigger the effect of Steel Cards, doubling their effect.
+*{{Seal|Blue|image=Steel Card.png|name=Blue Seals}} similarly activate when held in hand, allowing for {{Mult|}} and [[Poker Hands|poker hand]] scaling to be done simultaneously.
+=== [[Poker Hands]] ===
+*{{Ph|High Card}} is the best hand to play when utilizing Steel Cards as it allows for the most Steel Cards to be held in hand.
+=== [[Jokers]] ===
+*{{J|Steel Joker}} directly benefits from Steel Cards, increasing by {{xmult|0.2}} per Steel Card in your full deck. This can easily be your primary scoring Joker, or be used as a temporary source of scoring while you look for more powerful Jokers.
+*{{J|Mime}} retriggers the effect of Steel Cards, essentially '''doubling''' the number of Steel Cards held in hand.
+*{{J|Baron}} has a similar effect to Mime if your Steel Cards are Kings, giving an additional {{xmult|1.5}} per Steel Card.
+*{{J|Shoot the Moon}} can benefit from Steel Cards if Queens are moved ''to the left'' of Steel Cards held in hand.
+*{{J|Raised Fist}} has a similar interaction with Steel Cards, as moving the lowest ranked card in your hand ''to the left'' of any Steel Cards will increase your score.
+*{{J|Juggler}} allows for 1 additional Steel Card to be held in hand.
+*{{J|Troubadour}} allows for 2 additional Steel Cards to be held in hand.
+*{{J|Turtle Bean}} allows for a maximum of 5 additional Steel Cards to be held in hand, although just temporarily.
+
+===[[Tags]]===
+*{{Tag|Juggle}} allows for 3 additional Steel Cards to be held in hand, although just temporarily.
+
+===[[Blinds and Antes|Blinds]]===
+*{{blind|The Serpent}} gives {{hl|orange|+2}} hand size per discard and hand if only 1 card is played or discarded.
+
+== Anti-Synergies ==
+===[[Decks]]===
+*{{D|Five-Card Draw}} does not work well with Steel Cards due to the decreased hand size and banning of hand size-increasing Jokers.
+=== [[Jokers]] ===
+*{{J|Merry Andy}} gives {{hl|red|-1}} hand size, which can drastically reduce the scoring potential of Steel Cards.
+*Similarly, {{J|Stuntman}} gives {{hl|red|-2}} hand size, which can drastically reduce the scoring potential of Steel Cards even more.
+=== [[Consumables]] ===
+*{{spectral|Ectoplasm}} permanently reduces hand size by 1, and this reduction increases by 1 each time it is taken. The downside of this can be somewhat negated by the {{hl|edition|+1}} Joker slot, but Ectoplasm should still be used with caution if going for a build that utilizes Steel Cards.
+*{{spectral|Ouija}} also permanently reduces hand size by 1, though its upside is significantly less helpful than Ectoplasm's. This {{Spectral|}} card should be avoided entirely if utilizing Steel Cards.
+===[[Blinds and Antes|Blinds]]===
+*{{blind|The Manacle}} reduces hand size, therefore allowing fewer Steel Cards to be utilized.
+*{{blind|The Hook}} can discard Steel Cards before scoring.
+*{{blind|The Psychic}} can be devastating if your score is reliant on held in hand effects.
+
+== Strategy ==
+To get the most scoring from Steel Cards, the best strategy is to play a {{ph|High Card}} with a full hand of Steel Cards, ideally all with {{Seal|Red|image=Steel Card.png|name=Red Seals}}. It is also important to increase hand size whenever possible, either with vouchers or Jokers. If going for a deep endless run, {{J|Baron}}, {{J|Mime}}, and {{J|Blueprint}}/{{J|Brainstorm}} are essential. Steel Cards are also an essential element in achieving [[naneinf]], along with the previously mentioned Jokers (see the ''naneinf'' guide [[Guide: naneinf|here]]).
+
+== Usage notes ==
+Card order matters! It's always best to put cards that give flat Mult when held in hand ''before'' any Steel Cards. For example, if you have {{J|Shoot the Moon}} and your hand looks like this:<br>
+[[File:Steel Card.png|frameless|50px]][[File:Queen of Diamonds.png|frameless|50px]]
+[[File:3 of Clubs.png|frameless|50px]][[File:2 of Spades.png|frameless|50px]]
+<br>Then the optimal order could look like this:<br>
+[[File:Queen of Diamonds.png|frameless|50px]][[File:3 of Clubs.png|frameless|50px]]
+[[File:Steel Card.png|frameless|50px]][[File:2 of Spades.png|frameless|50px]]
+<br>The exact order doesn't matter, only that the Queen is ''to the left'' of the Steel Card. That way, the {{Mult|+13}} from the Queen is multiplied by {{xmult|1.5}}, giving {{mult|+19.5}}.
+
+== In other languages ==
+{{Languages
+|zhs = 钢铁牌
+|zhs_note = 
+|zht = 鋼鐵牌
+|zht_note = 
+|nl = Staalkaart
+|nl_note = 
+|fr = Carte Acier
+|fr_note = 
+|de = Stahl-Karte
+|de_note = 
+|id = Steel Card
+|id_note = 
+|it = Carta d'acciaio
+|it_note = 
+|ja = スチールカード
+|ja_note = 
+|ko = 스틸 카드
+|ko_note = 
+|pl = Karta Stalowa
+|pl_note = 
+|pt = Carta de Aço
+|pt_note = 
+|ru = Стальная карта
+|ru_note = 
+|es-es = Carta de acero
+|es-es_note = 
+|es-latam = Carta de acero
+|es-latam_note = 
+|version = 1.0.0n
+}}
+{{Navbox Card Modifiers}}
