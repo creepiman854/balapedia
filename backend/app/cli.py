@@ -25,7 +25,6 @@ from flask.cli import with_appcontext
 from sqlalchemy import func, text
 
 from app.extensions import db
-from app.models import Joker, JokerRarity, Unlockable, UnlockableType
 from app.scrapers import steam, wiki
 
 from app.models import (
@@ -52,6 +51,13 @@ from app.models import (
     Voucher,
     VoucherTier,
 )
+
+from app.services.achievement_sync import (
+    UserNotFoundError,
+    UserNotLinkedError,
+    sync_steam_achievements_for_user,
+)
+from app.services.steam import SteamApiError
 
 # ──────────────────────────────────────────────────────────────────────
 #  Overrides de datos para errores conocidos en la wiki fuente
@@ -103,12 +109,9 @@ logger = logging.getLogger(__name__)
 
 
 def register_commands(app) -> None:
-    """Registra los comandos CLI custom en la app Flask.
-
-    Se invoca desde ``create_app()``. A partir del registro, los comandos
-    están disponibles bajo ``flask --app run.py <command>``.
-    """
+    """Registra los comandos CLI custom en la app Flask."""
     app.cli.add_command(seed_db)
+    app.cli.add_command(steam_sync_command)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -2016,3 +2019,58 @@ def _upsert_sticker(data: dict, stakes_by_order: dict[int, "Stake"]) -> None:
             f"  + Created: [{sticker_type.value:>5}] "
             f"#{data['sticker_order']} {data['name']}"
         )
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Comando: steam-sync
+# ──────────────────────────────────────────────────────────────────────
+
+
+@click.command("steam-sync")
+@click.argument("user_id", type=int)
+@with_appcontext
+def steam_sync_command(user_id: int) -> None:
+    """Sincroniza los achievements de Steam de un usuario contra la BD.
+
+    Útil para debugging del flujo sin pasar por HTTP, batch sync manual
+    desde terminal y verificación rápida durante desarrollo.
+
+    Ejemplo:
+        $ flask --app run.py steam-sync 42
+    """
+    try:
+        result = sync_steam_achievements_for_user(user_id)
+    except UserNotFoundError as e:
+        click.secho(f"  ✗ User not found: {e}", fg="red")
+        raise click.Abort()
+    except UserNotLinkedError as e:
+        click.secho(f"  ✗ User has no Steam account linked: {e}", fg="red")
+        raise click.Abort()
+    except SteamApiError as e:
+        click.secho(
+            f"  ✗ Steam API failure ({type(e).__name__}): {e}",
+            fg="red",
+        )
+        raise click.Abort()
+
+    duration = (result.completed_at - result.started_at).total_seconds()
+
+    click.secho(
+        f"  ✓ Sync completed for user {result.user_id} "
+        f"(Steam ID {result.steam_id})",
+        fg="green",
+        bold=True,
+    )
+    click.echo(f"    Steam achievements received: {result.steam_achievements_received}")
+    click.echo(f"    Steam achievements achieved: {result.steam_achievements_achieved}")
+    click.echo(f"    → Newly unlocked in DB:      {result.newly_unlocked_count}")
+    click.echo(f"    → Already unlocked:          {result.already_unlocked_count}")
+    click.echo(f"    → Items cascaded:            {result.total_items_cascaded}")
+    click.echo(f"    → Sticker applications:      {result.total_sticker_applications}")
+    if result.unknown_apinames:
+        click.secho(
+            f"    ⚠ Unknown apinames (extend seed?): "
+            f"{', '.join(result.unknown_apinames)}",
+            fg="yellow",
+        )
+    click.echo(f"    Sync duration: {duration:.2f}s")
