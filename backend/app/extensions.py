@@ -51,7 +51,8 @@ def init_firebase_admin(app) -> bool:
 
     try:
         cred = credentials.Certificate(cred_path)
-        firebase_admin.initialize_app(cred)
+        if not app.config.get("TESTING"):
+            firebase_admin.initialize_app(cred)
         app.logger.info("Firebase Admin SDK initialized successfully.")
         return True
     except Exception as e:
