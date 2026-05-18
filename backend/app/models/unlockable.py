@@ -96,6 +96,20 @@ class Unlockable(db.Model):
         cascade="all, delete-orphan",
     )
 
+    unlock_factor_id = db.Column(
+        db.Integer,
+        db.ForeignKey("unlock_factors.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    unlock_factor = db.relationship("UnlockFactor", back_populates="unlockables")
+
+    sticker_applications = db.relationship(
+        "UserStickerApplication",
+        back_populates="unlockable",
+        cascade="all, delete-orphan",
+    )
+
     __table_args__ = (
         # Garantiza que cada (tipo, número) sea único: permite upsert idempotente
         # desde el scraper sin riesgo de duplicar items al re-poblar la BD.
