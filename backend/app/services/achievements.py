@@ -30,8 +30,6 @@ Toda operación es idempotente:
   - Los UserUnlock y UserStickerApplication ya existentes no se duplican;
     se actualizan in-place solo si cambia el `highest_stake_order` a uno
     mayor (caso sticker) o el `unlocked` pasa de False a True.
-
-Ubicación: app/services/achievements.py
 """
 
 from __future__ import annotations
