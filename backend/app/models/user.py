@@ -53,24 +53,18 @@ class User(db.Model):
         lazy="dynamic",
     )
 
+    sticker_applications = db.relationship(
+        "UserStickerApplication",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+    )
+
     __table_args__ = (
         db.CheckConstraint(
             "firebase_uid IS NOT NULL OR steam_id IS NOT NULL",
             name="ck_user_has_identity",
         ),
-    )
-
-    joker_stickers = db.relationship(
-        "UserJokerSticker",
-        back_populates="user",
-        cascade="all, delete-orphan",
-        lazy="dynamic",
-    )
-    deck_stickers = db.relationship(
-        "UserDeckSticker",
-        back_populates="user",
-        cascade="all, delete-orphan",
-        lazy="dynamic",
     )
 
     def __repr__(self) -> str:

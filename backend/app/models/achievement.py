@@ -1,4 +1,5 @@
 """Modelo Achievement: los 31 logros oficiales de Balatro en Steam."""
+
 from app.extensions import db
 
 
@@ -11,6 +12,7 @@ class Achievement(db.Model):
     propiedades de meta (nombre interno de Steam, icono, oculto/visible).
     Mezclarlos forzaría columnas NULL y rompería la cohesión semántica.
     """
+
     __tablename__ = "achievements"
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -28,6 +30,14 @@ class Achievement(db.Model):
         back_populates="achievement",
         cascade="all, delete-orphan",
     )
+
+    unlock_factor_id = db.Column(
+        db.Integer,
+        db.ForeignKey("unlock_factors.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    unlock_factor = db.relationship("UnlockFactor", back_populates="achievements")
 
     def __repr__(self) -> str:
         return f"<Achievement id={self.id} name={self.name!r}>"

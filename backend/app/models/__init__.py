@@ -21,11 +21,11 @@ from app.models.unlockable import (
     Unlockable,
     Voucher,
 )
+from app.models.unlock_factor import UnlockFactor
+from .user_sticker_application import UserStickerApplication
 from app.models.achievement import Achievement
 from app.models.progress import (
     UserAchievement,
-    UserDeckSticker,
-    UserJokerSticker,
     UserUnlock,
 )
 from app.models.reference import (
@@ -61,11 +61,11 @@ __all__ = [
     "Stake",
     "Sticker",
     "Tag",
+    "UnlockFactor",
     "Unlockable",
     "User",
     "UserAchievement",
-    "UserDeckSticker",
-    "UserJokerSticker",
+    "UserStickerApplication",
     "UserUnlock",
     "Voucher",
 ]
