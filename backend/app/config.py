@@ -14,6 +14,7 @@ class Config:
         "pool_pre_ping": True,  # detecta conexiones muertas antes de usarlas
     }
     STEAM_API_KEY = os.getenv("STEAM_API_KEY")
+    STEAM_APP_ID = 2379780 # Balatro en Steam
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
     FIREBASE_ADMIN_CREDENTIALS_PATH = os.environ.get(
         "FIREBASE_ADMIN_CREDENTIALS_PATH", "./firebase-admin.json"

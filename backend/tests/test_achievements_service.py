@@ -5,8 +5,6 @@ Cubre los tres caminos del módulo:
   2. Idempotencia + variantes de la API pública (by_id y by_code).
   3. Los 4 resolvers especiales: Rule Breaker, Completionist,
      Completionist+ y Completionist++.
-
-Ubicación: tests/test_achievements_service.py
 """
 from __future__ import annotations
 

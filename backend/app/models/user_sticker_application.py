@@ -3,8 +3,6 @@
 Reemplaza a los modelos UserJokerSticker y UserDeckSticker. Una vez aplicada
 la migración M1, elimina esos dos modelos y todas sus referencias en el
 código y en app/models/__init__.py.
-
-Ubicación: app/models/user_sticker_application.py
 """
 from datetime import datetime, timezone
 

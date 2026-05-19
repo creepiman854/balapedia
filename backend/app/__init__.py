@@ -20,7 +20,7 @@ def create_app(config_class=DevConfig):
     # Registra los modelos para que Flask-Migrate los descubra
     from app import models  # noqa: F401
 
-    # Registra los comandos CLI personalizados (flask seed-db, etc.)
+    # Registra los comandos CLI personalizados (flask seed-db, flask steam-sync, ...)
     from app.cli import register_commands
     register_commands(app)
 
@@ -31,6 +31,9 @@ def create_app(config_class=DevConfig):
     from app.api.steam_auth import steam_auth_bp
     app.register_blueprint(steam_auth_bp)
 
+    from app.api.steam_sync import steam_sync_bp
+    app.register_blueprint(steam_sync_bp)
+    
     # Endpoint de salud (verifica que el server arranca)
     @app.get("/api/health")
     def health():

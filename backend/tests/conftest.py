@@ -9,8 +9,6 @@ Contenido:
   - app / db_session: app Flask + BD SQLite en memoria, aislada por test.
   - sample_user / seeded_achievements / sample_unlockables: datos de dominio
     componibles para los tests del servicio de achievements.
-
-Ubicación: tests/conftest.py
 """
 from __future__ import annotations
 
