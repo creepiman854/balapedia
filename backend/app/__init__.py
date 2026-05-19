@@ -33,6 +33,20 @@ def create_app(config_class=DevConfig):
 
     from app.api.steam_sync import steam_sync_bp
     app.register_blueprint(steam_sync_bp)
+
+    # Blueprints del catálogo público (read-only, sin auth)
+    from app.api.unlockables import unlockables_bp
+    app.register_blueprint(unlockables_bp)
+
+    from app.api.reference import reference_bp
+    app.register_blueprint(reference_bp)
+
+    from app.api.achievements import achievements_catalog_bp
+    app.register_blueprint(achievements_catalog_bp)
+
+    # Manejadores globales de errores (JSON consistente para 4xx/5xx)
+    from app.api.errors import register_error_handlers
+    register_error_handlers(app)
     
     # Endpoint de salud (verifica que el server arranca)
     @app.get("/api/health")
