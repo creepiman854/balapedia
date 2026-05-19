@@ -49,19 +49,19 @@ def upgrade():
     op.create_table('users',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('firebase_uid', sa.String(length=128), nullable=True),
-    sa.Column('steam_id', sa.String(length=32), nullable=True),
+    sa.Column('', sa.String(length=32), nullable=True),
     sa.Column('email', sa.String(length=255), nullable=True),
     sa.Column('display_name', sa.String(length=100), nullable=True),
     sa.Column('avatar_url', sa.String(length=500), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('last_steam_sync', sa.DateTime(timezone=True), nullable=True),
-    sa.CheckConstraint('firebase_uid IS NOT NULL OR steam_id IS NOT NULL', name='ck_user_has_identity'),
+    sa.CheckConstraint('firebase_uid IS NOT NULL OR  IS NOT NULL', name='ck_user_has_identity'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email')
     )
     with op.batch_alter_table('users', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_users_firebase_uid'), ['firebase_uid'], unique=True)
-        batch_op.create_index(batch_op.f('ix_users_steam_id'), ['steam_id'], unique=True)
+        batch_op.create_index(batch_op.f('ix_users_'), [''], unique=True)
 
     op.create_table('consumables',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -162,7 +162,7 @@ def downgrade():
 
     op.drop_table('consumables')
     with op.batch_alter_table('users', schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f('ix_users_steam_id'))
+        batch_op.drop_index(batch_op.f('ix_users_'))
         batch_op.drop_index(batch_op.f('ix_users_firebase_uid'))
 
     op.drop_table('users')
