@@ -73,6 +73,7 @@ class TestConfig(Config):
     STEAM_API_KEY = "test-steam-api-key"
     RATELIMIT_ENABLED = False
     WTF_CSRF_ENABLED = False
+    MAIL_SUPPRESS_SEND = True
 
 
 @pytest.fixture(scope="session")

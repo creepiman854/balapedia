@@ -6,11 +6,13 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import firebase_admin
 from firebase_admin import credentials
+from flask_mail import Mail
 
 db = SQLAlchemy()
 migrate = Migrate()
 cors = CORS()
 limiter = Limiter(key_func=get_remote_address, default_limits=["200 per hour"])
+mail = Mail()
 
 
 def init_firebase_admin(app) -> bool:
