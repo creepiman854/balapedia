@@ -1,6 +1,6 @@
 from flask import Flask, jsonify
 from .config import DevConfig
-from .extensions import db, migrate, cors, limiter
+from app.extensions import db, migrate, cors, limiter, mail
 
 
 def create_app(config_class=DevConfig):
@@ -12,9 +12,11 @@ def create_app(config_class=DevConfig):
     migrate.init_app(app, db)
     cors.init_app(app, origins=app.config["CORS_ORIGINS"])
     limiter.init_app(app)
+    mail.init_app(app)
 
     # Inicializa Firebase Admin SDK (auth verification)
     from app.extensions import init_firebase_admin
+
     init_firebase_admin(app)
 
     # Registra los modelos para que Flask-Migrate los descubra
@@ -22,35 +24,44 @@ def create_app(config_class=DevConfig):
 
     # Registra los comandos CLI personalizados (flask seed-db, flask steam-sync, ...)
     from app.cli import register_commands
+
     register_commands(app)
 
     # Registra los blueprints de la API
     from app.api.auth import auth_bp
+
     app.register_blueprint(auth_bp)
 
     from app.api.steam_auth import steam_auth_bp
+
     app.register_blueprint(steam_auth_bp)
 
     from app.api.steam_sync import steam_sync_bp
+
     app.register_blueprint(steam_sync_bp)
 
     # Blueprints del catálogo público (read-only, sin auth)
     from app.api.unlockables import unlockables_bp
+
     app.register_blueprint(unlockables_bp)
 
     from app.api.reference import reference_bp
+
     app.register_blueprint(reference_bp)
 
     from app.api.achievements import achievements_catalog_bp
+
     app.register_blueprint(achievements_catalog_bp)
 
     # Manejadores globales de errores (JSON consistente para 4xx/5xx)
     from app.api.errors import register_error_handlers
+
     register_error_handlers(app)
 
     from app.api.me import me_progress_bp
+
     app.register_blueprint(me_progress_bp)
-    
+
     # Endpoint de salud (verifica que el server arranca)
     @app.get("/api/health")
     def health():
