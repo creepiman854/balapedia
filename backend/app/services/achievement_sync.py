@@ -34,6 +34,7 @@ from app.services.steam import (
     SteamAchievement,
     get_player_achievements,
 )
+from app.services.email import send_sync_confirmation_email
 
 # =============================================================================
 # Excepciones del servicio
@@ -223,7 +224,7 @@ def sync_steam_achievements_for_user(
 
     completed_at = datetime.now(timezone.utc)
 
-    return SteamSyncResult(
+    result = SteamSyncResult(
         user_id=user_id,
         steam_id=user.steam_id,
         started_at=started_at,
@@ -234,3 +235,23 @@ def sync_steam_achievements_for_user(
         unlock_results=unlock_results,
         unknown_apinames=unknown_apinames,
     )
+
+    # 7. Email de confirmación best-effort: solo si hay achievements
+    # nuevos en este sync (evita spamear al usuario en re-syncs
+    # idempotentes que no encuentran nada). También requiere que el
+    # user tenga email registrado.
+    if result.newly_unlocked_count > 0 and user.email:
+        newly_unlocked_names = [
+            {"name": r.achievement.name}
+            for r in result.unlock_results
+            if not r.achievement_was_already_unlocked
+        ]
+        send_sync_confirmation_email(
+            to=user.email,
+            display_name=user.display_name,
+            newly_unlocked=newly_unlocked_names,
+            total_items_cascaded=result.total_items_cascaded,
+            total_sticker_applications=result.total_sticker_applications,
+        )
+
+    return result

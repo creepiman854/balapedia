@@ -11,6 +11,7 @@ La autenticación dual (Firebase + Steam) se materializa en el modelo
 Esta rama solo cubre la parte Firebase; la Steam se añadirá en una rama
 posterior.
 """
+
 from functools import wraps
 from typing import Optional
 
@@ -20,6 +21,7 @@ from flask import Blueprint, current_app, g, jsonify, request
 from app.extensions import db
 from app.models import User
 
+from app.services.email import send_welcome_email
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api")
 
@@ -39,13 +41,14 @@ def require_auth(f):
     El handler decorado puede acceder al usuario autenticado vía
     ``flask.g.user``.
     """
+
     @wraps(f)
     def wrapper(*args, **kwargs):
         auth_header = request.headers.get("Authorization", "")
         if not auth_header.startswith("Bearer "):
             return jsonify(error="Missing or invalid Authorization header"), 401
 
-        token = auth_header[len("Bearer "):].strip()
+        token = auth_header[len("Bearer ") :].strip()
         if not token:
             return jsonify(error="Empty bearer token"), 401
 
@@ -102,6 +105,12 @@ def _get_or_create_user_from_firebase(decoded: dict) -> User:
             firebase_uid,
             email,
         )
+        # Welcome email best-effort: solo si Firebase nos dio email
+        # (algunos providers como Steam-via-Firebase no lo incluyen).
+        # send_welcome_email captura excepciones internamente: si Mail
+        # falla, logea y devuelve False sin abortar el signup.
+        if email:
+            send_welcome_email(to=email, display_name=name)
     else:
         # Sincroniza campos opcionales si cambiaron
         changed = False
