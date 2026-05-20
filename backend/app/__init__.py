@@ -47,6 +47,9 @@ def create_app(config_class=DevConfig):
     # Manejadores globales de errores (JSON consistente para 4xx/5xx)
     from app.api.errors import register_error_handlers
     register_error_handlers(app)
+
+    from app.api.me import me_progress_bp
+    app.register_blueprint(me_progress_bp)
     
     # Endpoint de salud (verifica que el server arranca)
     @app.get("/api/health")
