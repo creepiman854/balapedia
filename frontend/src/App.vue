@@ -1,54 +1,57 @@
+<!--
+  Shell global de la app.
+
+  Estructura:
+    · CrtEffects: capas de fondo + filtros SVG (cargados siempre, los
+      filtros se activan vía clase .crt-enabled en #app-content).
+    · AppHeader: nav + cuenta + ajustes.
+    · <main> con <router-view>.
+
+  El filtro CRT se aplica al envoltorio #app-content, no a #app, para que
+  el <svg> con los <defs> de los filtros NO sufra el filtro a sí mismo
+  (eso causa un bucle visual feo en algunos navegadores).
+-->
 <template>
-  <header>
-    <nav>
-      <router-link to="/">Inicio</router-link>
-      <router-link v-if="!isAuthenticated" to="/login">Login</router-link>
-      <router-link v-if="isAuthenticated" to="/profile">Perfil</router-link>
-      <span v-if="user" class="user-info">{{ user.email || 'Usuario' }}</span>
-    </nav>
-  </header>
-  <main>
-    <router-view />
-  </main>
+  <CrtEffects :enabled="settings.crt" />
+
+  <div id="app-content" :class="{ 'crt-enabled': settings.crt }">
+    <AppHeader @open-settings="openSettings" />
+
+    <main class="main-area">
+      <router-view />
+    </main>
+  </div>
 </template>
 
 <script setup>
-import { storeToRefs } from 'pinia'
-import { useAuthStore } from '@/stores/auth'
+import { useSettingsStore } from '@/stores/settings'
+import CrtEffects from '@/components/common/CrtEffects.vue'
+import AppHeader from '@/components/common/AppHeader.vue'
 
-const authStore = useAuthStore()
-const { isAuthenticated, user } = storeToRefs(authStore)
+const settings = useSettingsStore()
+
+function openSettings() {
+  // TODO: cuando exista el SettingsModal, abrirlo desde aquí.
+  // Por ahora alterna el CRT para que el botón sea funcional.
+  settings.setCrt(!settings.crt)
+}
 </script>
 
-<style>
-* { box-sizing: border-box; }
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: #f5f5f5;
-}
-header {
-  background: #2c3e50;
-  color: white;
-  padding: 1rem 2rem;
-}
-nav {
+<style lang="scss" scoped>
+#app-content {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  height: 100%;
   display: flex;
-  gap: 1.5rem;
-  align-items: center;
-  max-width: 1200px;
-  margin: 0 auto;
+  flex-direction: column;
 }
-nav a {
-  color: white;
-  text-decoration: none;
-}
-nav a.router-link-active {
-  text-decoration: underline;
-}
-.user-info {
-  margin-left: auto;
-  opacity: 0.8;
-  font-size: 0.9rem;
+
+.main-area {
+  flex: 1;
+  min-height: 0;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
 }
 </style>
