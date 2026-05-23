@@ -2,6 +2,9 @@
   Barra de filtros con búsqueda + selects de rareza / estado / orden.
   Usa v-model con varios campos. El padre solo necesita pasar/recibir el
   objeto `modelValue` (forma: { search, rarity, status, sort }).
+
+  Pase 2: el input de búsqueda incluye una X clear que aparece solo
+  cuando hay texto y resetea el campo al click.
 -->
 <template>
   <div class="filterbar">
@@ -15,6 +18,15 @@
         :value="modelValue.search"
         @input="update('search', $event.target.value)"
       />
+      <button
+        v-if="modelValue.search"
+        type="button"
+        class="filterbar__clear"
+        :aria-label="'Limpiar búsqueda'"
+        @click="update('search', '')"
+      >
+        ✕
+      </button>
     </div>
 
     <select
@@ -108,6 +120,28 @@ function update(field, value) {
       font-size: 18px;
       outline: none;
       width: 100%;
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  &__clear {
+    flex-shrink: 0;
+    background: transparent;
+    border: none;
+    color: $text-3;
+    font-family: 'm6x11plus', monospace;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 2px 6px;
+    transition: color 0.12s, transform 0.12s;
+
+    &:hover {
+      color: $text-1;
+      transform: scale(1.15);
+    }
+    &:active {
+      transform: scale(0.92);
     }
   }
 
