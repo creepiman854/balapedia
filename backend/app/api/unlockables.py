@@ -143,11 +143,12 @@ _CONSUMABLE_VALID_TYPES = {
 }
 
 
+# catalog_unlockables.py, función _parse_consumable_type
 def _parse_consumable_type(raw: str) -> UnlockableType:
     """Acepta solo TAROT/PLANET/SPECTRAL para el filtro ?type=."""
     try:
-        value = UnlockableType(raw)
-    except ValueError:
+        value = UnlockableType[raw]
+    except KeyError:
         raise ValidationError({"type": f"invalid: {raw!r}"})
     if value not in _CONSUMABLE_VALID_TYPES:
         raise ValidationError({"type": "must be TAROT, PLANET or SPECTRAL"})
