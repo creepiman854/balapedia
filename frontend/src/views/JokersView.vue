@@ -1,17 +1,18 @@
 <!--
   Vista de Comodines.
 
-  Flujo de datos:
-    · Sin sesión   → GET /api/jokers              (todos visibles, sin overlay)
-    · Con sesión   → GET /api/me/jokers           (overlay `unlocked_for_me`)
+  Pase 4:
+    · Grid `gap: 0` → cartas pegadas, ocupan el 100% del ancho del
+      .grid-scroll. El número de columnas (5..15) viene del store y se
+      respeta tal cual; la carta dimensiona vía aspect-ratio.
+    · Arco por fila: pasamos colIndex y colCount a cada JokerCard.
+    · "Available from start" → siempre visible aunque el backend diga
+      `unlocked_for_me: false` (caso típico: usuario nuevo que aún no
+      ha sincronizado con Steam — debe ver los jokers de partida).
 
-  El estado de "desbloqueado" NO es manipulable desde el cliente. Procede
-  de UserUnlock en BD, que se actualiza vía sync con Steam (rama
-  feat/steam-sync del backend). El click sobre una carta solo selecciona
-  para mostrar el panel de detalle.
-
-  Si en futuro hay que reaccionar a un re-sync (refrescar el grid), basta
-  con volver a llamar a `loadJokers()`.
+  El estado de desbloqueado real sigue siendo server-side (UserUnlock);
+  el "available from start" es solo una whitelist visual del frontend
+  basada en `unlock_condition` / `unlock_factor`.
 -->
 <template>
   <div class="jokers-view">
@@ -41,18 +42,17 @@
             v-if="!loading && !error"
             class="grid"
             :style="{
-              gridTemplateColumns:
-                settings.jokerColumns > 0
-                  ? `repeat(${settings.jokerColumns}, 1fr)`
-                  : 'repeat(auto-fill, minmax(130px, 1fr))',
+              gridTemplateColumns: `repeat(${settings.gridColumns}, 1fr)`,
             }"
           >
             <JokerCard
-              v-for="joker in filtered"
+              v-for="(joker, idx) in filtered"
               :key="joker.id"
               :joker="joker"
               :is-locked="isLocked(joker)"
               :is-selected="selectedJoker?.id === joker.id"
+              :col-index="idx % settings.gridColumns"
+              :col-count="settings.gridColumns"
               @select="onSelect"
               @hover="onHover"
               @leave="onLeave"
@@ -70,6 +70,7 @@
           <JokerDetailPanel
             :joker="selectedJoker"
             :is-locked="selectedJoker ? isLocked(selectedJoker) : false"
+            @manual-unlock="onManualUnlock"
           />
         </div>
       </div>
@@ -91,8 +92,9 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
-import { fetchAllJokers } from '@/services/jokers'
-import { RARITY_ORDER, getRarity } from '@/constants/rarity'
+import { useBackgroundStore } from '@/stores/background'
+import { fetchAllJokers, unlockJoker } from '@/services/jokers'
+import { RARITY_ORDER } from '@/constants/rarity'
 
 import ProgressBar from '@/components/common/ProgressBar.vue'
 import FilterBar from '@/components/common/FilterBar.vue'
@@ -103,16 +105,13 @@ import JokerTooltip from '@/components/jokers/JokerTooltip.vue'
 const authStore = useAuthStore()
 const { isAuthenticated } = storeToRefs(authStore)
 const settings = useSettingsStore()
+const bgStore = useBackgroundStore()
 
 // ── Datos ─────────────────────────────────────────────────────────────
 const jokers = ref([])
 const loading = ref(false)
 const error = ref('')
 
-/**
- * Carga inicial + recarga cuando cambia el estado de auth (al loguear o
- * desloguear queremos refrescar para incluir/excluir el overlay).
- */
 async function loadJokers() {
   loading.value = true
   error.value = ''
@@ -129,21 +128,62 @@ async function loadJokers() {
   }
 }
 
-onMounted(loadJokers)
+onMounted(() => {
+  // Le decimos al shader que pinte el preset "jokers" — esto es lo que
+  // hará cada vista al montar (Tarot → 'tarot', Planet → 'planet', etc.).
+  // El BalatroBackground interpola suavemente desde el preset anterior.
+  bgStore.setPreset('jokers')
+  loadJokers()
+})
 watch(isAuthenticated, loadJokers)
 
 /**
- * Un joker está "bloqueado" para el usuario actual cuando hay sesión y el
- * backend nos dice explícitamente `unlocked_for_me: false`. Sin sesión
- * (servimos desde /api/jokers) NO marcamos nada como bloqueado — la
- * encyclopedia se ve completa.
+ * Detecta jokers desbloqueados de fábrica ("Available from start").
+ * Esto vive en el frontend como una whitelist visual: cualquier joker
+ * que en su unlock_condition o unlock_factor contenga la frase NO se
+ * marca como locked, aunque /api/me/jokers diga unlocked_for_me=false
+ * (caso típico: usuario nuevo sin UserUnlock todavía).
+ *
+ * Si en el futuro el backend crea las UserUnlock rows automáticamente
+ * para los starter jokers al hacer signup, esta función será un no-op
+ * (todo `unlocked_for_me` ya sería true para esos).
  */
+function isAvailableFromStart(joker) {
+  const condition = String(
+    joker.unlock_condition || joker.unlock_factor?.description || '',
+  ).toLowerCase()
+  if (
+    condition.includes('available from start') ||
+    condition.includes('available from the start') ||
+    condition.includes('disponible desde el inicio')
+  ) {
+    return true
+  }
+  const code = String(joker.unlock_factor?.code || '').toLowerCase()
+  return code === 'available_from_start' || code === 'start'
+}
+
 function isLocked(joker) {
   if (!isAuthenticated.value) return false
-  // El campo solo viene en /api/me/jokers. Si no aparece, fallback a
-  // mostrarlo desbloqueado (mejor que ocultar todo).
+  if (isAvailableFromStart(joker)) return false
   if (!Object.prototype.hasOwnProperty.call(joker, 'unlocked_for_me')) return false
   return !joker.unlocked_for_me
+}
+
+// ── Manual unlock (botón en el panel de detalle) ─────────────────────
+async function onManualUnlock(joker) {
+  if (!joker) return
+  try {
+    await unlockJoker(joker.id)
+    // Refrescamos toda la lista para que `unlocked_for_me` se actualice;
+    // alternativa más fina sería mutar solo el joker afectado.
+    await loadJokers()
+    const fresh = jokers.value.find((j) => j.id === joker.id)
+    if (fresh) selectedJoker.value = fresh
+  } catch (e) {
+    console.error('[JokersView] no se pudo desbloquear manualmente', e)
+    alert('No se pudo marcar como desbloqueado. ¿Endpoint backend listo?')
+  }
 }
 
 // ── Filtros ───────────────────────────────────────────────────────────
@@ -154,12 +194,6 @@ const filters = ref({
   sort: 'id',
 })
 
-/**
- * Los filtros usan los nombres del backend en UPPERCASE para que
- * coincidan con el `rarity` que llega. Si el FilterBar pasa los valores
- * en lowercase del mock viejo ('common'), normalizamos por compatibilidad
- * mientras no se actualice ese componente.
- */
 function normalizeRarity(raw) {
   if (!raw || raw === 'all') return raw
   return String(raw).toUpperCase()
@@ -189,7 +223,6 @@ const filtered = computed(() => {
         const ob = RARITY_ORDER[String(b.rarity).toUpperCase()] ?? 99
         return oa - ob
       }
-      // 'id' usa el item_number del backend si está; si no, id.
       const oa = a.item_number ?? a.id
       const ob = b.item_number ?? b.id
       return oa - ob
@@ -198,7 +231,7 @@ const filtered = computed(() => {
 
 const totalUnlocked = computed(() => {
   if (!isAuthenticated.value) return jokers.value.length
-  return jokers.value.filter((j) => j.unlocked_for_me).length
+  return jokers.value.filter((j) => !isLocked(j)).length
 })
 
 // ── Selección + tooltip ───────────────────────────────────────────────
@@ -228,10 +261,6 @@ function onLeave() {
 }
 
 onBeforeUnmount(() => clearTimeout(hoverTimer))
-
-// Re-exportamos getRarity sólo si la plantilla lo necesita en el futuro;
-// los componentes hijos ya lo importan directamente.
-void getRarity
 </script>
 
 <style lang="scss" scoped>
@@ -245,13 +274,21 @@ void getRarity
   min-height: 0;
 }
 
+/*
+ * Textos que viven SOBRE el shader (fuera de cualquier panel oscuro):
+ *   .view-title  · .count
+ * Blancos con drop-shadow sólido sin desenfoque (text-shadow 0 5px 0 #000),
+ * tamaño aumentado, letterspacing un poco más holgado. Así son legibles
+ * sin importar si el shader detrás tiene rojo, azul o teal oscuro.
+ */
 .view-title {
   font-family: 'm6x11plus', monospace;
-  font-size: 13px;
-  color: $text-3;
+  font-size: 22px;
+  color: #ffffff;
+  text-shadow: 0 2px 0 #00000070;
   letter-spacing: 1px;
-  margin-bottom: 10px;
-  padding-left: 2px;
+  margin-bottom: 14px;
+  padding-left: 4px;
 }
 
 .jokers-layout {
@@ -270,29 +307,46 @@ void getRarity
 
 .count {
   font-family: 'm6x11plus', monospace;
-  font-size: 11px;
-  color: $panel-light;
-  margin-bottom: 8px;
+  font-size: 16px;
+  color: #ffffff;
+  text-shadow: 0 2px 0 #00000070;
+  margin-bottom: 10px;
   padding-left: 4px;
+  letter-spacing: 0.4px;
 }
 
+/*
+ * El grid-scroll ahora actúa como "panel" translúcido: deja ver el
+ * shader detrás pero da contorno y soporte visual a las cartas para
+ * que no se vean tan sueltas sobre el fondo animado.
+ *
+ * - rgba(panel-darkest, 0.6) → transparencia controlada.
+ * - pixel-clip → mismas esquinas de los demás paneles.
+ * - Padding interior generoso para que zoom/tilt no se corte.
+ */
 .grid-scroll {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-right: 4px;
+  padding: 28px 22px 32px;
+  background: rgba(26, 42, 46, 0.6); // = $panel-darkest con alpha
   scrollbar-width: thin;
-  scrollbar-color: $panel-mid $panel-darkest;
+  scrollbar-color: $panel-mid transparent;
+  @include pixel-clip;
 }
 
+/*
+ * gap: 0 → las cartas se tocan (look del juego con cartas pegadas).
+ * row-gap pequeño para que el arco por fila respire.
+ */
 .grid {
   display: grid;
-  gap: 10px;
-  padding-bottom: 20px;
+  gap: 0;
+  row-gap: 16px;
 }
 
 .detail-col {
-  width: 260px;
+  width: 340px;
   flex-shrink: 0;
   background: $panel-darkest;
   overflow: hidden;
@@ -303,13 +357,13 @@ void getRarity
 
   &__head {
     background: $panel-mid;
-    padding: 8px 12px;
+    padding: 10px 14px;
     text-align: center;
     border-bottom: 2px solid $panel-medlight;
 
     span {
       font-family: 'm6x11plus', monospace;
-      font-size: 13px;
+      font-size: 14px;
       color: $text-1;
       letter-spacing: 1px;
     }
