@@ -1,5 +1,10 @@
 <!--
-  Barra de progreso pixelada. Soporta etiqueta opcional con conteo.
+  Barra de progreso pixelada.
+
+  Pase final de jokers: la etiqueta sale del marco oscuro y vive sobre
+  el shader Balatro → tipografía más grande, color blanco y sombra
+  sólida sin desenfoque para garantizar contraste sobre cualquier
+  punto del fondo (rojo, azul, teal oscuro).
 -->
 <template>
   <div class="progress">
@@ -38,15 +43,24 @@ const pct = computed(() => (props.max > 0 ? Math.round((props.value / props.max)
 @use '@/assets/styles/mixins' as *;
 
 .progress {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 
+  /*
+   * Texto sobre el shader: blanco con drop-shadow sólido sin difusión.
+   * Tamaño bumpeado (era 11px → 14px) y peso un poco más alto.
+   * Equivalente al `box-shadow: 0 5px 0 #000` del feedback aplicado a
+   * texto (text-shadow no admite spread, así que ese cuarto parámetro
+   * se omite — el efecto visual es el mismo: ofsset Y de 5px sin blur).
+   */
   &__label {
     display: flex;
     justify-content: space-between;
     font-family: 'm6x11plus', monospace;
-    font-size: 11px;
-    color: $panel-light;
-    margin-bottom: 4px;
+    font-size: 14px;
+    color: #ffffff;
+    text-shadow: 0 2px 0 #00000070;
+    margin-bottom: 6px;
+    letter-spacing: 0.4px;
   }
 
   &__track {
