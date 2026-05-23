@@ -1,18 +1,11 @@
 <!--
   Panel derecho con el detalle del joker seleccionado.
 
-  Si `joker` es null, placeholder. El shape del joker viene del backend
-  (JokerSchema), no del diseño mock:
-    · description       (texto largo del efecto)
-    · effect_type       (categoría: "Mult Aditivo", "Economía"...)
-    · activation        (trigger: "Al Puntuar Carta", "Pasivo"...)
-    · buy_price / sell_price
-    · is_copyable / is_perishable / is_eternal
-    · unlock_condition o unlock_factor.description
-
-  Y si está autenticado, también:
-    · unlocked_for_me   (bool)
-    · highest_stake_order (1..8 — sticker dorado = 8)
+  Pase 5:
+   · Firefox-compat: reemplazado `color-mix(in srgb, ...)` (que falla
+     en versiones antiguas / equivale a `transparent` por error) por
+     rgba() hardcoded calculado a mano por cada tile de COMPATIBILIDAD.
+   · El resto del comportamiento se mantiene.
 -->
 <template>
   <div v-if="!joker" class="empty">
@@ -21,18 +14,32 @@
   </div>
 
   <div v-else class="detail">
-    <!-- Arte de carta grande -->
-    <div class="detail__art" :style="artBgStyle">
-      <div :style="{ filter: `drop-shadow(0 0 18px ${rarity.glow})` }">
-        <JokerCardArt :joker="joker" :width="160" :height="224" :is-locked="isLocked" :show-label="false" />
+    <!-- Arte de carta — suelto, con tilt. -->
+    <div class="detail__art-wrap">
+      <div
+        v-tilt="{ max: 10, scale: 1.04, speed: 400 }"
+        class="detail__art"
+        :style="{ filter: `drop-shadow(0 0 22px ${rarity.glow}) drop-shadow(0 8px 16px rgba(0,0,0,0.65))` }"
+      >
+        <JokerCardArt :joker="joker" :is-locked="isLocked" />
       </div>
     </div>
 
     <div class="detail__body">
+      <!-- Desbloqueo manual -->
+      <button
+        v-if="isLocked"
+        class="manual-unlock"
+        :disabled="busy"
+        @click="onManualUnlock"
+      >
+        {{ busy ? 'Desbloqueando...' : 'Marcar como desbloqueado' }}
+      </button>
+
       <!-- EFECTO -->
       <section class="section">
         <header class="section__head" :style="{ borderLeftColor: rarity.color }">
-          <span style="font-size: 15px">⚡</span>
+          <span class="section__icon">⚡</span>
           <span :style="{ color: rarity.color }">EFECTO</span>
         </header>
         <div class="section__body">
@@ -44,7 +51,7 @@
               color: isLocked ? '#4D6870' : rarity.color,
             }"
           >
-            {{ isLocked ? '???' : (joker.description || '—') }}
+            {{ isLocked ? '???' : safe(joker.description) }}
           </div>
         </div>
       </section>
@@ -52,10 +59,10 @@
       <!-- RAREZA -->
       <section class="section">
         <header class="section__head" :style="{ borderLeftColor: rarity.color }">
-          <span style="font-size: 15px">◆</span>
+          <span class="section__icon">◆</span>
           <span :style="{ color: rarity.color }">RAREZA</span>
         </header>
-        <div class="section__body" style="display: flex; justify-content: center; padding: 4px 0">
+        <div class="section__body section__body--center">
           <div :style="{ filter: `drop-shadow(0 0 8px ${rarity.glow})` }">
             <RarityBadge :rarity="joker.rarity" />
           </div>
@@ -65,7 +72,7 @@
       <!-- DESBLOQUEO -->
       <section v-if="unlockText" class="section">
         <header class="section__head" style="border-left-color: #708387">
-          <span style="font-size: 15px">🔓</span>
+          <span class="section__icon">🔓</span>
           <span>DESBLOQUEO</span>
         </header>
         <div class="section__body section__body--unlock">
@@ -73,19 +80,22 @@
         </div>
       </section>
 
-      <!-- ESTADO DE USUARIO (sólo si está autenticado y backend devuelve overlay) -->
+      <!-- MI PROGRESO -->
       <section v-if="hasOverlay" class="section">
         <header class="section__head" style="border-left-color: #22c55e">
-          <span style="font-size: 15px">{{ joker.unlocked_for_me ? '✓' : '🔒' }}</span>
+          <span class="section__icon">{{ joker.unlocked_for_me ? '✓' : '🔒' }}</span>
           <span style="color: #22c55e">MI PROGRESO</span>
         </header>
         <div class="section__body progress-box">
-          <div v-if="joker.unlocked_for_me" class="progress-row">
-            <span>Desbloqueado</span>
-            <span class="progress-row__val">{{ formatDate(joker.unlocked_at) }}</span>
+          <div class="progress-row">
+            <span>Estado</span>
+            <span class="progress-row__val">
+              {{ joker.unlocked_for_me ? 'Desbloqueado' : 'Bloqueado' }}
+            </span>
           </div>
-          <div v-else class="progress-row">
-            <span>Aún no desbloqueado</span>
+          <div v-if="joker.unlocked_for_me && unlockedAtText" class="progress-row">
+            <span>Desde</span>
+            <span class="progress-row__val">{{ unlockedAtText }}</span>
           </div>
           <div v-if="joker.highest_stake_order" class="progress-row">
             <span>Stake máximo</span>
@@ -99,50 +109,50 @@
       <!-- ESTADÍSTICAS -->
       <section class="section">
         <header class="section__head" style="border-left-color: #c09020">
-          <span style="font-size: 15px">📊</span>
+          <span class="section__icon">📊</span>
           <span style="color: #c09020">ESTADÍSTICAS</span>
         </header>
         <div class="section__body stats">
           <div class="stats__row">
             <div class="stat stat--buy">
               <div class="stat__label">COMPRA</div>
-              <div class="stat__value">{{ joker.buy_price != null ? `$${joker.buy_price}` : '—' }}</div>
+              <div class="stat__value">{{ formatPrice(joker.buy_price) }}</div>
             </div>
             <div class="stat stat--sell">
               <div class="stat__label">VENTA</div>
-              <div class="stat__value">{{ joker.sell_price != null ? `$${joker.sell_price}` : '—' }}</div>
+              <div class="stat__value">{{ formatPrice(joker.sell_price) }}</div>
             </div>
           </div>
-          <div v-if="joker.effect_type || joker.activation" class="stats__row">
-            <div class="stat stat--info">
+          <div v-if="hasEffectMeta" class="stats__row">
+            <div v-if="joker.effect_type" class="stat stat--info">
               <div class="stat__label">TIPO</div>
-              <div class="stat__value stat__value--sm">{{ joker.effect_type || '—' }}</div>
+              <div class="stat__value stat__value--sm">{{ joker.effect_type }}</div>
             </div>
-            <div class="stat stat--info">
+            <div v-if="joker.activation" class="stat stat--info">
               <div class="stat__label">ACTIV.</div>
-              <div class="stat__value stat__value--sm">{{ joker.activation || '—' }}</div>
+              <div class="stat__value stat__value--sm">{{ joker.activation }}</div>
             </div>
           </div>
         </div>
       </section>
 
       <!-- COMPATIBILIDAD -->
-      <section v-if="joker.is_copyable || joker.is_perishable || joker.is_eternal" class="section">
+      <section v-if="hasCompat" class="section">
         <header class="section__head" style="border-left-color: #708387">
-          <span style="font-size: 15px">⚙</span>
+          <span class="section__icon">⚙</span>
           <span>COMPATIBILIDAD</span>
         </header>
         <div class="section__body compat">
-          <div v-if="joker.is_copyable" class="compat__tile" style="--c: #20c050">
-            <div style="font-size: 18px">⎘</div>
+          <div v-if="joker.is_copyable" class="compat__tile compat__tile--copy">
+            <div class="compat__symbol">⎘</div>
             <div class="compat__label">Copiable</div>
           </div>
-          <div v-if="joker.is_perishable" class="compat__tile" style="--c: #e08020">
-            <div style="font-size: 18px">⏳</div>
+          <div v-if="joker.is_perishable" class="compat__tile compat__tile--perish">
+            <div class="compat__symbol">⏳</div>
             <div class="compat__label">Perece</div>
           </div>
-          <div v-if="joker.is_eternal" class="compat__tile" style="--c: #6080e0">
-            <div style="font-size: 18px">∞</div>
+          <div v-if="joker.is_eternal" class="compat__tile compat__tile--eternal">
+            <div class="compat__symbol">∞</div>
             <div class="compat__label">Eterno</div>
           </div>
         </div>
@@ -152,7 +162,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { getRarity } from '@/constants/rarity'
 import JokerCardArt from './JokerCardArt.vue'
 import RarityBadge from '@/components/common/RarityBadge.vue'
@@ -162,37 +172,63 @@ const props = defineProps({
   isLocked: { type: Boolean, default: false },
 })
 
+const emit = defineEmits(['manual-unlock'])
+
+const busy = ref(false)
+
 const rarity = computed(() => (props.joker ? getRarity(props.joker.rarity) : {}))
 
-const artBgStyle = computed(() => ({
-  background: `linear-gradient(180deg, ${rarity.value.dark || '#000'} 0%, #1A2A2E 100%)`,
-}))
+const hasOverlay = computed(
+  () => props.joker && Object.prototype.hasOwnProperty.call(props.joker, 'unlocked_for_me'),
+)
+
+const hasEffectMeta = computed(
+  () => props.joker && (props.joker.effect_type || props.joker.activation),
+)
+
+const hasCompat = computed(
+  () =>
+    props.joker &&
+    (props.joker.is_copyable || props.joker.is_perishable || props.joker.is_eternal),
+)
 
 const unlockText = computed(() => {
   if (!props.joker) return ''
   return props.joker.unlock_condition || props.joker.unlock_factor?.description || ''
 })
 
-// `unlocked_for_me` solo aparece cuando el endpoint es /api/me/jokers
-// (usuario autenticado). Si el campo está literalmente ausente del item,
-// significa que estamos sirviendo desde /api/jokers (público) → no
-// mostramos la sección de progreso.
-const hasOverlay = computed(
-  () => props.joker && Object.prototype.hasOwnProperty.call(props.joker, 'unlocked_for_me'),
-)
-
 const stakeColor = computed(() => {
-  // Sticker dorado (stake 8) = oro; resto = verde suave.
   if (props.joker?.highest_stake_order === 8) return '#f0b030'
   return '#22c55e'
 })
 
-function formatDate(iso) {
-  if (!iso) return ''
+const unlockedAtText = computed(() => {
+  if (!props.joker?.unlocked_at) return ''
   try {
-    return new Date(iso).toLocaleDateString()
+    return new Date(props.joker.unlocked_at).toLocaleDateString()
   } catch {
-    return iso
+    return ''
+  }
+})
+
+function safe(value, fallback = '—') {
+  if (value == null) return fallback
+  if (typeof value === 'string' && !value.trim()) return fallback
+  return value
+}
+
+function formatPrice(v) {
+  if (!Number.isFinite(Number(v))) return '—'
+  return `$${Number(v)}`
+}
+
+async function onManualUnlock() {
+  if (busy.value || !props.joker) return
+  busy.value = true
+  try {
+    emit('manual-unlock', props.joker)
+  } finally {
+    setTimeout(() => (busy.value = false), 800)
   }
 }
 </script>
@@ -211,13 +247,13 @@ function formatDate(iso) {
   opacity: 0.4;
 
   &__icon {
-    font-size: 48px;
+    font-size: 56px;
     font-family: 'm6x11plus', monospace;
     color: $panel-light;
   }
   &__text {
     font-family: 'm6x11plus', monospace;
-    font-size: 13px;
+    font-size: 14px;
     color: $panel-light;
     text-align: center;
     line-height: 1.8;
@@ -230,55 +266,103 @@ function formatDate(iso) {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
 
-  &__art {
-    display: flex;
-    justify-content: center;
-    padding: 16px 0 12px;
+.detail__art-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 18px 30px 14px;
+  flex-shrink: 0;
+}
+
+/*
+ * Card reducida (era 75% / 220px) — el panel completo cabe sin
+ * necesidad de scroll en pantallas razonables.
+ */
+.detail__art {
+  width: 58%;
+  max-width: 170px;
+  transform-style: preserve-3d;
+}
+
+.detail__body {
+  overflow-y: auto;
+  flex: 1;
+  padding: 0 14px 18px;
+  scrollbar-width: thin;
+  scrollbar-color: $panel-mid transparent;
+}
+
+.manual-unlock {
+  width: 100%;
+  margin-bottom: 12px;
+  background: #1a4030;
+  border: 1px solid #22c55e;
+  color: #22c55e;
+  font-family: 'm6x11plus', monospace;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.1s;
+  @include pixel-clip-sm;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.2);
   }
-
-  &__body {
-    overflow-y: auto;
-    flex: 1;
-    padding: 0 10px 16px;
+  &:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 }
 
 .section {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 
   &__head {
     background: $panel-mid;
-    padding: 7px 12px;
+    padding: 8px 14px;
     border-left: 4px solid $panel-light;
     display: flex;
     align-items: center;
     gap: 8px;
     font-family: 'm6x11plus', monospace;
-    font-size: 11px;
+    font-size: 12px;
     color: $text-1;
     letter-spacing: 0.5px;
   }
+  &__icon {
+    font-size: 15px;
+  }
 
   &__body {
-    padding: 8px 10px;
+    padding: 10px 12px;
+  }
+
+  &__body--center {
+    display: flex;
+    justify-content: center;
+    padding: 8px 12px;
   }
 
   &__body--unlock {
     text-align: center;
     font-family: 'm6x11plus', monospace;
-    font-size: 13px;
+    font-size: 14px;
     color: $text-2;
     line-height: 1.6;
   }
 }
 
 .effect-box {
-  padding: 10px 12px;
+  padding: 12px 14px;
   text-align: center;
   font-family: 'm6x11plus', monospace;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.55;
   font-weight: 700;
   @include pixel-clip-sm;
 }
@@ -286,14 +370,14 @@ function formatDate(iso) {
 .progress-box {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 6px 4px;
+  gap: 6px;
+  padding: 4px;
 }
 .progress-row {
   display: flex;
   justify-content: space-between;
   font-family: 'm6x11plus', monospace;
-  font-size: 12px;
+  font-size: 13px;
   color: $text-2;
 
   &__val {
@@ -304,75 +388,102 @@ function formatDate(iso) {
 .stats {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 
   &__row {
     display: flex;
-    gap: 6px;
+    gap: 8px;
   }
 }
 
 .stat {
   flex: 1;
   text-align: center;
-  padding: 8px 0;
+  padding: 10px 4px;
   font-family: 'm6x11plus', monospace;
   @include pixel-clip-sm;
 
   &__label {
-    font-size: 11px;
+    font-size: 12px;
   }
 
   &__value {
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 700;
+
     &--sm {
-      font-size: 12px;
+      font-size: 13px;
       color: $text-1;
       line-height: 1.4;
+      font-weight: normal;
     }
   }
 
   &--buy {
-    background: #c0902018;
-    border: 1px solid #c0902045;
+    background: rgba(192, 144, 32, 0.094);
+    border: 1px solid rgba(192, 144, 32, 0.27);
     color: #c09020;
     .stat__value { color: #f0b030; }
   }
   &--sell {
-    background: #40802018;
-    border: 1px solid #40802045;
+    background: rgba(64, 128, 32, 0.094);
+    border: 1px solid rgba(64, 128, 32, 0.27);
     color: #40a030;
     .stat__value { color: #60c050; }
   }
   &--info {
     background: $panel-dark;
-    padding: 8px 10px;
+    padding: 10px 12px;
     text-align: left;
-    .stat__label { color: $panel-light; margin-bottom: 3px; }
+    .stat__label { color: $panel-light; margin-bottom: 4px; }
   }
 }
 
+/*
+ * COMPATIBILIDAD — fondos y bordes precalculados a rgba() en vez de
+ * color-mix(). Firefox antiguo no parsea color-mix() correctamente y
+ * dejaba los tiles transparentes.
+ */
 .compat {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
+  padding: 4px;
 
   &__tile {
     flex: 1;
-    min-width: 60px;
-    background: color-mix(in srgb, var(--c) 9%, transparent);
-    border: 1px solid color-mix(in srgb, var(--c) 27%, transparent);
-    padding: 8px 6px;
+    min-width: 72px;
+    padding: 10px 6px;
     text-align: center;
+    border: 1px solid;
     @include pixel-clip-sm;
+  }
+
+  &__tile--copy {
+    background: rgba(32, 192, 80, 0.09);
+    border-color: rgba(32, 192, 80, 0.27);
+    .compat__label { color: #20c050; }
+  }
+  &__tile--perish {
+    background: rgba(224, 128, 32, 0.09);
+    border-color: rgba(224, 128, 32, 0.27);
+    .compat__label { color: #e08020; }
+  }
+  &__tile--eternal {
+    background: rgba(96, 128, 224, 0.09);
+    border-color: rgba(96, 128, 224, 0.27);
+    .compat__label { color: #6080e0; }
+  }
+
+  &__symbol {
+    font-size: 22px;
+    line-height: 1;
   }
 
   &__label {
     font-family: 'm6x11plus', monospace;
-    font-size: 11px;
-    margin-top: 4px;
-    color: var(--c);
+    font-size: 12px;
+    margin-top: 6px;
   }
 }
 </style>
