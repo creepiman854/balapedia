@@ -138,9 +138,3 @@ input::placeholder {
 .pixel-clip      { @include pixel-clip; }
 .pixel-clip-sm   { @include pixel-clip-sm; }
 .pixel-circle    { @include pixel-circle-clip; }
-
-// Aplica al elemento principal para activar el efecto CRT (barrel + aberración cromática).
-// El store de settings añade/quita esta clase a #app.
-.crt-enabled {
-  filter: url(#crt-warp) url(#crt-ca);
-}
