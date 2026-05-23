@@ -1,29 +1,59 @@
 /**
- * Store de preferencias de usuario (Pinia).
+ * Store de preferencias visuales (Pinia).
  *
- * Persiste en localStorage bajo `bala_settings` — lectura síncrona en
- * el constructor para evitar parpadeo del efecto CRT entre el primer
- * render y la hidratación del store.
+ * Persiste en localStorage bajo `bala_settings`. Cargamos en el constructor
+ * de forma síncrona para evitar parpadeo entre el primer render y la
+ * hidratación.
  *
- * `crt` controla el filtro SVG aplicado al shell de la app (barrel warp
- * + aberración cromática + líneas de escaneo).
- * `jokerColumns` controla la rejilla de la vista de jokers (0 = auto).
+ * Estado:
+ *   crtIntensity   0..1   Intensidad del efecto CRT (slider del modal).
+ *                         0 = totalmente desactivado, 1 = máximo.
+ *   musicEnabled   bool   Toggle ON/OFF de la música ambiente
+ *                         (la fuente de audio se conectará en otra rama).
+ *   musicVolume    0..1   Volumen cuando música está activa.
+ *   gridColumns    5..15  Columnas del grid de Jokers.
+ *
+ * COLUMNS_MIN / COLUMNS_MAX son constantes a nivel de módulo, NO valores
+ * del store. La razón es importante: si se devuelven dentro del setup
+ * store, `storeToRefs` las envuelve como refs y al destructurar en un
+ * componente quedan como ref objects que `<input :min>` recibe como
+ * objeto en lugar de número — ese era el bug del slider que se "saltaba
+ * al máximo" en el primer cambio.
  */
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
 const STORAGE_KEY = 'bala_settings'
 
+export const COLUMNS_MIN = 5
+export const COLUMNS_MAX = 15
+
 const DEFAULTS = {
-  crt: true,
-  jokerColumns: 0,
+  crtIntensity: 0.5,
+  musicEnabled: false,
+  musicVolume: 0.4,
+  gridColumns: 7,
+}
+
+function clamp(v, min, max) {
+  return Math.min(max, Math.max(min, v))
 }
 
 function loadFromStorage() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return { ...DEFAULTS }
-    return { ...DEFAULTS, ...JSON.parse(raw) }
+    const parsed = JSON.parse(raw)
+    return {
+      crtIntensity: clamp(Number(parsed.crtIntensity ?? DEFAULTS.crtIntensity), 0, 1),
+      musicEnabled: !!parsed.musicEnabled,
+      musicVolume: clamp(Number(parsed.musicVolume ?? DEFAULTS.musicVolume), 0, 1),
+      gridColumns: clamp(
+        Math.round(parsed.gridColumns ?? DEFAULTS.gridColumns),
+        COLUMNS_MIN,
+        COLUMNS_MAX,
+      ),
+    }
   } catch {
     return { ...DEFAULTS }
   }
@@ -32,39 +62,51 @@ function loadFromStorage() {
 export const useSettingsStore = defineStore('settings', () => {
   const initial = loadFromStorage()
 
-  const crt = ref(initial.crt)
-  const jokerColumns = ref(initial.jokerColumns)
+  const crtIntensity = ref(initial.crtIntensity)
+  const musicEnabled = ref(initial.musicEnabled)
+  const musicVolume = ref(initial.musicVolume)
+  const gridColumns = ref(initial.gridColumns)
 
-  // Auto-persistencia
   watch(
-    [crt, jokerColumns],
+    [crtIntensity, musicEnabled, musicVolume, gridColumns],
     () => {
       try {
         localStorage.setItem(
           STORAGE_KEY,
           JSON.stringify({
-            crt: crt.value,
-            jokerColumns: jokerColumns.value,
+            crtIntensity: crtIntensity.value,
+            musicEnabled: musicEnabled.value,
+            musicVolume: musicVolume.value,
+            gridColumns: gridColumns.value,
           }),
         )
       } catch {
         /* almacenamiento no disponible — ignorar */
       }
     },
-    { deep: false },
   )
 
-  function setCrt(value) {
-    crt.value = !!value
+  function setCrtIntensity(v) {
+    crtIntensity.value = clamp(Number(v) || 0, 0, 1)
   }
-  function setJokerColumns(value) {
-    jokerColumns.value = Number(value) || 0
+  function setMusicEnabled(v) {
+    musicEnabled.value = !!v
+  }
+  function setMusicVolume(v) {
+    musicVolume.value = clamp(Number(v) || 0, 0, 1)
+  }
+  function setGridColumns(v) {
+    gridColumns.value = clamp(Math.round(Number(v) || COLUMNS_MIN), COLUMNS_MIN, COLUMNS_MAX)
   }
 
   return {
-    crt,
-    jokerColumns,
-    setCrt,
-    setJokerColumns,
+    crtIntensity,
+    musicEnabled,
+    musicVolume,
+    gridColumns,
+    setCrtIntensity,
+    setMusicEnabled,
+    setMusicVolume,
+    setGridColumns,
   }
 })
