@@ -1,40 +1,44 @@
 <!--
   Shell global de la app.
 
-  Estructura:
-    · CrtEffects: capas de fondo + filtros SVG (cargados siempre, los
-      filtros se activan vía clase .crt-enabled en #app-content).
-    · AppHeader: nav + cuenta + ajustes.
-    · <main> con <router-view>.
+  Pase final de Jokers:
+    · BalatroBackground a z:0 (canvas WebGL, fondo de toda la web).
+    · CrtEffects ya solo aporta scanlines (capa fixed, pointer:none).
+    · #app-content YA NO aplica filter:url() — era el responsable del
+      lag/artifacts en Firefox al scrollear sobre contenido filtrado.
+      Sin él, hitboxes 1:1 en TODOS los navegadores.
+    · SettingsModal vive dentro de #app-content para recibir las
+      scanlines del CRT.
 
-  El filtro CRT se aplica al envoltorio #app-content, no a #app, para que
-  el <svg> con los <defs> de los filtros NO sufra el filtro a sí mismo
-  (eso causa un bucle visual feo en algunos navegadores).
+  Resultado: nada de SVG filters aplicados a HTML, nada de
+  feDisplacementMap, nada de viñetas. Solo capas decorativas fixed con
+  pointer-events:none + el shader WebGL como fondo.
 -->
 <template>
-  <CrtEffects :enabled="settings.crt" />
+  <BalatroBackground />
+  <CrtEffects :intensity="settings.crtIntensity" />
 
-  <div id="app-content" :class="{ 'crt-enabled': settings.crt }">
-    <AppHeader @open-settings="openSettings" />
+  <div id="app-content">
+    <AppHeader @open-settings="showSettings = true" />
 
     <main class="main-area">
       <router-view />
     </main>
+
+    <SettingsModal v-if="showSettings" @close="showSettings = false" />
   </div>
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
+import BalatroBackground from '@/components/common/BalatroBackground.vue'
 import CrtEffects from '@/components/common/CrtEffects.vue'
 import AppHeader from '@/components/common/AppHeader.vue'
+import SettingsModal from '@/components/common/SettingsModal.vue'
 
 const settings = useSettingsStore()
-
-function openSettings() {
-  // TODO: cuando exista el SettingsModal, abrirlo desde aquí.
-  // Por ahora alterna el CRT para que el botón sea funcional.
-  settings.setCrt(!settings.crt)
-}
+const showSettings = ref(false)
 </script>
 
 <style lang="scss" scoped>
