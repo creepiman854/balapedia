@@ -1,0 +1,31 @@
+// Paleta teal del diseño Balatro de Balapedia.
+// Mantén sincronizada con tailwind.config.js — SCSS para usar en mixins
+// y cálculos, Tailwind para clases utilitarias en plantillas.
+
+$shadow:         #1E2E32;
+$panel-darkest:  #1A2A2E;
+$panel-dark:     #253C40;
+$panel-mid:      #3A5055;
+$panel-medlight: #4D6870;
+$panel-light:    #708387;
+
+$text-1: #E8F2F4;
+$text-2: #A8C4C8;
+$text-3: #708387;
+
+$blue:   #3b82f6;
+$orange: #f59e0b;
+$red:    #ef4444;
+$green:  #10b981;
+
+// Rarezas
+$rarity-common:    #4a9fd4;
+$rarity-uncommon:  #3abf5e;
+$rarity-rare:      #e84040;
+$rarity-legendary: #c060e0;
+
+// Tabs principales
+$tab-jokers:       #2563eb;
+$tab-consumibles:  #d97706;
+$tab-achievements: #dc2626;
+$tab-collection:   #059669;

@@ -1,0 +1,140 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+/* ── Configuración Tailwind v4 ── */
+@import "tailwindcss";
+
+@theme {
+  /* Paleta teal del diseño */
+  --color-shadow: #1E2E32;
+  --color-panel-darkest: #1A2A2E;
+  --color-panel-dark: #253C40;
+  --color-panel-mid: #3A5055;
+  --color-panel-medlight: #4D6870;
+  --color-panel-light: #708387;
+  --color-text-1: #E8F2F4;
+  --color-text-2: #A8C4C8;
+  --color-text-3: #708387;
+
+  /* Acentos por rareza */
+  --color-rarity-common: #4a9fd4;
+  --color-rarity-uncommon: #3abf5e;
+  --color-rarity-rare: #e84040;
+  --color-rarity-legendary: #c060e0;
+
+  /* Acentos de tabs */
+  --color-tab-jokers: #2563eb;
+  --color-tab-consumibles: #d97706;
+  --color-tab-achievements: #dc2626;
+  --color-tab-collection: #059669;
+
+  /* Tipografías */
+  --font-pixel: "m6x11plus", monospace;
+
+  /* Sombras personalizadas */
+  --shadow-panel: 0 4px 16px rgba(30, 46, 50, 0.95);
+}
+
+// ── Fuente pixel ──
+// Colocar el archivo TTF en src/assets/fonts/m6x11plus.ttf
+@font-face {
+  font-family: 'm6x11plus';
+  src: url('@/assets/fonts/m6x11plus.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+// ── Variables CSS expuestas para SVGs/inline styles ──
+:root {
+  --shadow:         #{$shadow};
+  --panel-darkest:  #{$panel-darkest};
+  --panel-dark:     #{$panel-dark};
+  --panel-mid:      #{$panel-mid};
+  --panel-medlight: #{$panel-medlight};
+  --panel-light:    #{$panel-light};
+  --text-1:         #{$text-1};
+  --text-2:         #{$text-2};
+  --text-3:         #{$text-3};
+  --blue:           #{$blue};
+  --orange:         #{$orange};
+  --red:            #{$red};
+  --green:          #{$green};
+}
+
+// ── Reset base ──
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0a1214;
+  color: var(--text-1);
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  font-smooth: never;
+  image-rendering: pixelated;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+// ── Scrollbars ──
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0a1214;
+}
+::-webkit-scrollbar-thumb {
+  background: $panel-mid;
+  border-radius: 0;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: $panel-light;
+}
+
+// ── Select options ──
+select option {
+  background: $panel-darkest;
+  color: $text-1;
+}
+
+// ── Animaciones ──
+@keyframes tooltipFadeIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes bgDrift {
+  0%   { transform: translateY(110vh) rotate(0deg); opacity: 0; }
+  5%   { opacity: 1; }
+  90%  { opacity: 0.5; }
+  100% { transform: translateY(-10vh) rotate(720deg); opacity: 0; }
+}
+
+// ── Placeholder de inputs ──
+input::placeholder {
+  color: $panel-medlight;
+  font-family: 'm6x11plus', monospace;
+}
+
+// ── Clases utilitarias auxiliares ──
+.pixel-clip      { @include pixel-clip; }
+.pixel-clip-sm   { @include pixel-clip-sm; }
+.pixel-circle    { @include pixel-circle-clip; }

@@ -1,0 +1,91 @@
+// Tokens visuales globales: paleta, accent colors, clip-paths.
+//
+// Expuesto como CSS Custom Properties (:root) para que cualquier
+// componente lo consuma sin necesidad de @import del SCSS — Vue
+// scoped styles incluidos.
+
+:root {
+  // ── Paleta teal (fondos, paneles, texto) ───────────────────────────
+  --shadow:        #1E2E32;
+  --panel-darkest: #1A2A2E;
+  --panel-dark:    #253C40;
+  --panel-mid:     #3A5055;
+  --panel-medlight:#4D6870;
+  --panel-light:   #708387;
+  --border:        #4D6870;
+
+  --text-1: #E8F2F4; // titulares y texto principal
+  --text-2: #A8C4C8; // texto secundario
+  --text-3: #708387; // texto terciario / placeholders
+
+  // ── Accent colors por categoría ─────────────────────────────────────
+  --accent-jokers:      #2563eb;
+  --accent-consumibles: #d97706;
+  --accent-achievements:#dc2626;
+  --accent-collection:  #059669;
+
+  // ── Rareza de jokers (con variantes glow para drop-shadow) ──────────
+  --rarity-common:     #9090a0;
+  --rarity-uncommon:   #3abf5e;
+  --rarity-rare:       #4a9fd4;
+  --rarity-legendary:  #f0a020;
+  --rarity-common-glow:    rgba(144, 144, 160, 0.5);
+  --rarity-uncommon-glow:  rgba( 58, 191,  94, 0.5);
+  --rarity-rare-glow:      rgba( 74, 159, 212, 0.5);
+  --rarity-legendary-glow: rgba(240, 160,  32, 0.5);
+
+  // ── Colores semánticos ──────────────────────────────────────────────
+  --semantic-success: #22c55e;
+  --semantic-warning: #f59e0b;
+  --semantic-error:   #ef4444;
+  --semantic-info:    #3b82f6;
+
+  // ── Layout ──────────────────────────────────────────────────────────
+  --header-height: 60px;
+  --layout-max-width: 1400px;
+
+  // ── Pixel clip-paths ────────────────────────────────────────────────
+  // 12px de "escalones" en cada esquina — borde dentado retro.
+  --pixel-clip: polygon(
+    0px calc(100% - 12px), 3px calc(100% - 12px), 3px calc(100% - 6px),
+    6px calc(100% - 6px),  6px calc(100% - 3px),  12px calc(100% - 3px),
+    12px 100%, calc(100% - 12px) 100%, calc(100% - 12px) calc(100% - 3px),
+    calc(100% - 6px) calc(100% - 3px), calc(100% - 6px) calc(100% - 6px),
+    calc(100% - 3px) calc(100% - 6px), calc(100% - 3px) calc(100% - 12px),
+    100% calc(100% - 12px), 100% 12px, calc(100% - 3px) 12px,
+    calc(100% - 3px) 6px,  calc(100% - 6px) 6px,  calc(100% - 6px) 3px,
+    calc(100% - 12px) 3px, calc(100% - 12px) 0px, 12px 0px,
+    12px 3px, 6px 3px, 6px 6px, 3px 6px, 3px 12px, 0px 12px
+  );
+
+  // 8px — versión más compacta para botones y badges
+  --pixel-clip-sm: polygon(
+    0px calc(100% - 8px), 2px calc(100% - 8px), 2px calc(100% - 4px),
+    4px calc(100% - 4px), 4px calc(100% - 2px), 8px calc(100% - 2px),
+    8px 100%, calc(100% - 8px) 100%, calc(100% - 8px) calc(100% - 2px),
+    calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) calc(100% - 4px),
+    calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 8px),
+    100% calc(100% - 8px), 100% 8px, calc(100% - 2px) 8px,
+    calc(100% - 2px) 4px, calc(100% - 4px) 4px, calc(100% - 4px) 2px,
+    calc(100% - 8px) 2px, calc(100% - 8px) 0px, 8px 0px,
+    8px 2px, 4px 2px, 4px 4px, 2px 4px, 2px 8px, 0px 8px
+  );
+
+  // Octágono para avatares
+  --pixel-circle-clip: polygon(
+    30% 0%, 70% 0%,
+    100% 30%, 100% 70%,
+    70% 100%, 30% 100%,
+    0% 70%, 0% 30%
+  );
+
+  // ── z-indexes ───────────────────────────────────────────────────────
+  --z-background: 0;
+  --z-bg-cards: 1;
+  --z-content: 10;
+  --z-header: 100;
+  --z-modal: 8000;
+  --z-tooltip: 9000;
+  --z-crt-lens: 9997;
+  --z-crt-overlay: 9998;
+}

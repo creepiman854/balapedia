@@ -1,0 +1,42 @@
+// Tipografía pixel art.
+//
+// `m6x11plus` es la fuente que define toda la identidad visual del
+// proyecto. El archivo .ttf debe vivir en `src/assets/fonts/`.
+//
+// `font-smooth: never` y `image-rendering: pixelated` desactivan el
+// antialiasing global para que las letras se vean nítidas como en una
+// pantalla CRT real.
+
+@font-face {
+  font-family: 'm6x11plus';
+  src: url('@/assets/fonts/m6x11plus.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+// Mixin para aplicar tipografía pixel en cualquier elemento
+@mixin pixel-font($size: 13px, $color: var(--text-1), $letter-spacing: 0.5px) {
+  font-family: 'm6x11plus', 'Courier New', monospace;
+  font-size: $size;
+  color: $color;
+  letter-spacing: $letter-spacing;
+  text-rendering: optimizeSpeed;
+}
+
+html, body {
+  // Anti-aliasing OFF para máxima nitidez pixel
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  font-smooth: never;
+  image-rendering: pixelated;
+}
+
+// Tamaños tipo (usar en componentes via @include o directamente con
+// las clases utility de abajo)
+.t-pixel-xs   { @include pixel-font(11px); }
+.t-pixel-sm   { @include pixel-font(13px); }
+.t-pixel-md   { @include pixel-font(15px); }
+.t-pixel-lg   { @include pixel-font(18px); }
+.t-pixel-xl   { @include pixel-font(22px); }
+.t-pixel-hero { @include pixel-font(28px, var(--text-1), 2px); }
