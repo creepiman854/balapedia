@@ -1,10 +1,15 @@
 <!--
   Etiqueta de rareza pixelada.
 
-  Acepta el campo `rarity` tal y como lo devuelve el backend
-  ('COMMON' | 'UNCOMMON' | 'RARE' | 'LEGENDARY' — UPPERCASE) y resuelve
-  contra el mapa local de constantes. `getRarity` tolera lowercase por si
-  en algún sitio se pasa con cualquier casing.
+  El backend devuelve `rarity` en UPPERCASE (JokerRarity enum). El helper
+  `getRarity` tolera lower/upper-case por defensa, pero el camino feliz
+  es UPPERCASE directo.
+
+  Tamaños:
+    sm  → para listados densos.
+    md  → tamaño por defecto, panel de detalle y tooltip.
+          Subido respecto al pase anterior (era 9px) porque a 9px no
+          se leía bien sobre los fondos del shader.
 -->
 <template>
   <span :style="style">{{ r.label }}</span>
@@ -22,8 +27,9 @@ const props = defineProps({
 const r = computed(() => getRarity(props.rarity))
 
 const style = computed(() => {
-  const pad = props.size === 'sm' ? '2px 10px' : '4px 16px'
-  const fs = props.size === 'sm' ? '8px' : '9px'
+  const isSm = props.size === 'sm'
+  const pad = isSm ? '3px 12px' : '6px 22px'
+  const fs = isSm ? '10px' : '14px'
   return {
     display: 'inline-block',
     background: r.value.color,
@@ -33,8 +39,8 @@ const style = computed(() => {
     padding: pad,
     clipPath:
       'polygon(0px calc(100% - 8px), 2px calc(100% - 8px), 2px calc(100% - 4px), 4px calc(100% - 4px), 4px calc(100% - 2px), 8px calc(100% - 2px), 8px 100%, calc(100% - 8px) 100%, calc(100% - 8px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 8px), 100% calc(100% - 8px), 100% 8px, calc(100% - 2px) 8px, calc(100% - 2px) 4px, calc(100% - 4px) 4px, calc(100% - 4px) 2px, calc(100% - 8px) 2px, calc(100% - 8px) 0px, 8px 0px, 8px 2px, 4px 2px, 4px 4px, 2px 4px, 2px 8px, 0px 8px)',
-    letterSpacing: '0.5px',
-    textShadow: '1px 1px 0 rgba(0,0,0,0.5)',
+    letterSpacing: '0.6px',
+    textShadow: '1px 1px 0 rgba(0,0,0,0.55)',
     boxShadow: `0 2px 8px ${r.value.glow}`,
   }
 })
