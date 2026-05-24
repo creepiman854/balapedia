@@ -132,10 +132,25 @@ let paused = false
 const ulocs = {}
 
 // Estados de la transición.
+//   transitionState: 'idle' | 'pending' | 'active'
+//     - idle:    sin transición en curso.
+//     - pending: setPreset ya cambió fromParams/toParams pero todavía
+//                no hemos capturado el `nowMs` de inicio. Lo hacemos
+//                en el PRIMER rAF callback siguiente, así nos
+//                aseguramos de que `transitionStartMs` y los `nowMs`
+//                posteriores vienen del MISMO reloj.
+//     - active:  transición en curso, lerpeando cada frame.
+//
+// Esto evita un bug observado: si `transitionStart` se captura con
+// `performance.now()` desde dentro del watch y `nowMs` viene del
+// rAF callback, en algunas situaciones (tab background, reentrant
+// rAFs en Firefox) el delta crece más rápido de lo esperado y la
+// transición parece "acelerarse" con el tiempo.
 let fromParams = { ...resolvePreset(currentPreset.value) }
 let toParams = { ...resolvePreset(currentPreset.value) }
 let currentParams = { ...resolvePreset(currentPreset.value) }
-let transitionStart = -Infinity
+let transitionState = 'idle'
+let transitionStartMs = 0
 
 function compileShader(type, source) {
   const shader = gl.createShader(type)
@@ -161,10 +176,18 @@ function lerpVec4(a, b, t) {
 }
 
 function tickTransition(nowMs) {
-  // Si no hay transición activa, currentParams ya está en toParams.
-  if (transitionStart < 0) return
-  const elapsed = nowMs - transitionStart
-  const t = Math.min(1, elapsed / TRANSITION_MS)
+  if (transitionState === 'idle') return
+
+  // Primer tick desde startTransition: capturamos el `nowMs` exacto
+  // del rAF callback como inicio. Garantiza que `elapsed` se calcula
+  // sobre el mismo reloj que los siguientes ticks.
+  if (transitionState === 'pending') {
+    transitionStartMs = nowMs
+    transitionState = 'active'
+  }
+
+  const elapsed = nowMs - transitionStartMs
+  const t = Math.min(1, Math.max(0, elapsed / TRANSITION_MS))
   const eased = easeOutCubic(t)
   currentParams = {
     spinRotation: lerp(fromParams.spinRotation, toParams.spinRotation, eased),
@@ -180,8 +203,11 @@ function tickTransition(nowMs) {
     colour3: lerpVec4(fromParams.colour3, toParams.colour3, eased),
   }
   if (t >= 1) {
-    transitionStart = -Infinity
-    fromParams = { ...toParams }
+    // Forzamos coincidencia exacta para evitar drift por errores de
+    // float al final de la transición.
+    currentParams = { ...toParams, colour1: [...toParams.colour1], colour2: [...toParams.colour2], colour3: [...toParams.colour3] }
+    fromParams = { ...toParams, colour1: [...toParams.colour1], colour2: [...toParams.colour2], colour3: [...toParams.colour3] }
+    transitionState = 'idle'
   }
 }
 
@@ -201,10 +227,23 @@ function uploadUniforms(timeSec) {
 }
 
 // Iniciar transición desde currentParams hacia los nuevos.
+// El tiempo de arranque NO se captura aquí: se captura en el
+// primer rAF callback siguiente (ver tickTransition), para garantizar
+// que ambos relojes (start y now) son el mismo.
 function startTransition(newParams) {
-  fromParams = { ...currentParams }
-  toParams = { ...newParams }
-  transitionStart = performance.now()
+  fromParams = {
+    ...currentParams,
+    colour1: [...currentParams.colour1],
+    colour2: [...currentParams.colour2],
+    colour3: [...currentParams.colour3],
+  }
+  toParams = {
+    ...newParams,
+    colour1: [...newParams.colour1],
+    colour2: [...newParams.colour2],
+    colour3: [...newParams.colour3],
+  }
+  transitionState = 'pending'
 }
 
 watch(currentPreset, (name) => {
