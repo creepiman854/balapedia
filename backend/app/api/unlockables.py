@@ -143,6 +143,7 @@ _CONSUMABLE_VALID_TYPES = {
 }
 
 
+# catalog_unlockables.py, función _parse_consumable_type
 def _parse_consumable_type(raw: str) -> UnlockableType:
     """Resuelve TAROT/PLANET/SPECTRAL aceptando cualquier convención de
     naming del enum (UPPERCASE, lowercase, PascalCase, by-name o by-value).
