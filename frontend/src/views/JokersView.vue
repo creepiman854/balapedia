@@ -5,7 +5,7 @@
     · Grid `gap: 0` → cartas pegadas, ocupan el 100% del ancho del
       .grid-scroll. El número de columnas (5..15) viene del store y se
       respeta tal cual; la carta dimensiona vía aspect-ratio.
-    · Arco por fila: pasamos colIndex y colCount a cada JokerCard.
+    · Arco por fila: pasamos colIndex y colCount a cada ItemCard.
     · "Available from start" → siempre visible aunque el backend diga
       `unlocked_for_me: false` (caso típico: usuario nuevo que aún no
       ha sincronizado con Steam — debe ver los jokers de partida).
@@ -45,10 +45,10 @@
               gridTemplateColumns: `repeat(${settings.gridColumns}, 1fr)`,
             }"
           >
-            <JokerCard
+            <ItemCard
               v-for="(joker, idx) in filtered"
               :key="joker.id"
-              :joker="joker"
+              :item="joker"
               :is-locked="isLocked(joker)"
               :is-selected="selectedJoker?.id === joker.id"
               :col-index="idx % settings.gridColumns"
@@ -67,9 +67,10 @@
           <span>{{ selectedJoker ? selectedJoker.name.toUpperCase() : 'COMODÍN' }}</span>
         </div>
         <div class="detail-col__body">
-          <JokerDetailPanel
-            :joker="selectedJoker"
+          <ItemDetailPanel
+            :item="selectedJoker"
             :is-locked="selectedJoker ? isLocked(selectedJoker) : false"
+            :can-unlock="true"
             @manual-unlock="onManualUnlock"
           />
         </div>
@@ -77,10 +78,10 @@
     </div>
 
     <!-- Tooltip global flotante -->
-    <JokerTooltip
+    <ItemTooltip
       v-if="tooltip"
-      :joker="tooltip.joker"
-      :is-locked="isLocked(tooltip.joker)"
+      :item="tooltip.item"
+      :is-locked="isLocked(tooltip.item)"
       :card-center-x="tooltip.cardCenterX"
       :card-top="tooltip.cardTop"
     />
@@ -98,9 +99,13 @@ import { RARITY_ORDER } from '@/constants/rarity'
 
 import ProgressBar from '@/components/common/ProgressBar.vue'
 import FilterBar from '@/components/common/FilterBar.vue'
-import JokerCard from '@/components/jokers/JokerCard.vue'
-import JokerDetailPanel from '@/components/jokers/JokerDetailPanel.vue'
-import JokerTooltip from '@/components/jokers/JokerTooltip.vue'
+// Los componentes Item* sustituyen a los Joker* del pase anterior —
+// son genéricos y los usan también ConsumiblesView, CollectionView…
+// La carpeta src/components/jokers/ queda deprecada (recomendado
+// borrarla en el mismo commit que renombra los imports).
+import ItemCard from '@/components/items/ItemCard.vue'
+import ItemDetailPanel from '@/components/items/ItemDetailPanel.vue'
+import ItemTooltip from '@/components/items/ItemTooltip.vue'
 
 const authStore = useAuthStore()
 const { isAuthenticated } = storeToRefs(authStore)
@@ -243,12 +248,14 @@ function onSelect(joker) {
   selectedJoker.value = joker
 }
 
-function onHover({ joker, target }) {
+function onHover({ item, target }) {
+  // ItemCard emite `{ item, target }` — el payload es genérico aunque
+  // en esta vista el "item" sea un joker.
   clearTimeout(hoverTimer)
   hoverTimer = setTimeout(() => {
     const rect = target.getBoundingClientRect()
     tooltip.value = {
-      joker,
+      item,
       cardCenterX: rect.left + rect.width / 2,
       cardTop: rect.top,
     }
@@ -285,7 +292,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
   font-family: 'm6x11plus', monospace;
   font-size: 22px;
   color: #ffffff;
-  text-shadow: 0 2px 0 #00000070;
+  text-shadow: 0 3px 0 #00000070;
   letter-spacing: 1px;
   margin-bottom: 14px;
   padding-left: 4px;
@@ -309,7 +316,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
   font-family: 'm6x11plus', monospace;
   font-size: 16px;
   color: #ffffff;
-  text-shadow: 0 2px 0 #00000070;
+  text-shadow: 0 3px 0 #00000070;
   margin-bottom: 10px;
   padding-left: 4px;
   letter-spacing: 0.4px;

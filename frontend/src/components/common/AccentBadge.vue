@@ -1,30 +1,27 @@
 <!--
-  Etiqueta de rareza pixelada.
+  Badge pixelado genérico.
 
-  El backend devuelve `rarity` en UPPERCASE (JokerRarity enum). El helper
-  `getRarity` tolera lower/upper-case por defensa, pero el camino feliz
-  es UPPERCASE directo.
+  Sustituye a `RarityBadge` (que estaba acoplado al mapa de rarezas de
+  jokers). Recibe label/color/glow desde el padre, que sabe cómo
+  resolverlos (vía `getItemAccent` o equivalente).
 
-  Tamaños:
-    sm  → para listados densos.
-    md  → tamaño por defecto, panel de detalle y tooltip.
-          Subido respecto al pase anterior (era 9px) porque a 9px no
-          se leía bien sobre los fondos del shader.
+  Para items con rareza el padre pasa el accent de rareza; para
+  consumibles, el accent del type. La presentación visual es la misma:
+  fondo del color del accent, texto blanco con sombra, clip pixel.
 -->
 <template>
-  <span :style="style">{{ r.label }}</span>
+  <span :style="style">{{ label }}</span>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import { getRarity } from '@/constants/rarity'
 
 const props = defineProps({
-  rarity: { type: String, required: true },
+  label: { type: String, required: true },
+  color: { type: String, required: true },
+  glow: { type: String, default: 'transparent' },
   size: { type: String, default: 'md' }, // 'sm' | 'md'
 })
-
-const r = computed(() => getRarity(props.rarity))
 
 const style = computed(() => {
   const isSm = props.size === 'sm'
@@ -32,7 +29,7 @@ const style = computed(() => {
   const fs = isSm ? '10px' : '14px'
   return {
     display: 'inline-block',
-    background: r.value.color,
+    background: props.color,
     color: '#fff',
     fontFamily: "'m6x11plus', monospace",
     fontSize: fs,
@@ -41,7 +38,7 @@ const style = computed(() => {
       'polygon(0px calc(100% - 8px), 2px calc(100% - 8px), 2px calc(100% - 4px), 4px calc(100% - 4px), 4px calc(100% - 2px), 8px calc(100% - 2px), 8px 100%, calc(100% - 8px) 100%, calc(100% - 8px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 8px), 100% calc(100% - 8px), 100% 8px, calc(100% - 2px) 8px, calc(100% - 2px) 4px, calc(100% - 4px) 4px, calc(100% - 4px) 2px, calc(100% - 8px) 2px, calc(100% - 8px) 0px, 8px 0px, 8px 2px, 4px 2px, 4px 4px, 2px 4px, 2px 8px, 0px 8px)',
     letterSpacing: '0.6px',
     textShadow: '1px 1px 0 rgba(0,0,0,0.55)',
-    boxShadow: `0 2px 8px ${r.value.glow}`,
+    boxShadow: `0 2px 8px ${props.glow}`,
   }
 })
 </script>

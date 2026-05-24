@@ -145,14 +145,26 @@ _CONSUMABLE_VALID_TYPES = {
 
 # catalog_unlockables.py, función _parse_consumable_type
 def _parse_consumable_type(raw: str) -> UnlockableType:
-    """Acepta solo TAROT/PLANET/SPECTRAL para el filtro ?type=."""
-    try:
-        value = UnlockableType[raw]
-    except KeyError:
-        raise ValidationError({"type": f"invalid: {raw!r}"})
-    if value not in _CONSUMABLE_VALID_TYPES:
-        raise ValidationError({"type": "must be TAROT, PLANET or SPECTRAL"})
-    return value
+    """Resuelve TAROT/PLANET/SPECTRAL aceptando cualquier convención de
+    naming del enum (UPPERCASE, lowercase, PascalCase, by-name o by-value).
+    """
+    target = raw.strip().upper()
+    # 1) Match por NAME (case-insensitive)
+    for member in UnlockableType:
+        if member.name.upper() == target:
+            if member in _CONSUMABLE_VALID_TYPES:
+                return member
+            raise ValidationError({"type": "must be TAROT, PLANET or SPECTRAL"})
+    # 2) Match por VALUE (case-insensitive str compare)
+    for member in UnlockableType:
+        if str(member.value).upper() == target:
+            if member in _CONSUMABLE_VALID_TYPES:
+                return member
+            raise ValidationError({"type": "must be TAROT, PLANET or SPECTRAL"})
+    # 3) Sin match: incluimos los nombres disponibles en el error para
+    #    diagnosticar de un vistazo si volviera a fallar.
+    available = sorted(m.name for m in _CONSUMABLE_VALID_TYPES)
+    raise ValidationError({"type": f"invalid: {raw!r}; expected one of {available}"})
 
 
 @unlockables_bp.route("/consumables", methods=["GET"])

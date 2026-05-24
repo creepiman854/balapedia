@@ -1,34 +1,44 @@
 <!--
-  Panel derecho con el detalle del joker seleccionado.
+  Panel derecho con el detalle del item seleccionado.
 
-  Pase 5:
-   · Firefox-compat: reemplazado `color-mix(in srgb, ...)` (que falla
-     en versiones antiguas / equivale a `transparent` por error) por
-     rgba() hardcoded calculado a mano por cada tile de COMPATIBILIDAD.
-   · El resto del comportamiento se mantiene.
+  Genérico para joker / consumible / (otros en futuro). Las secciones
+  que no aplican a un tipo concreto se ocultan con v-if:
+    - RAREZA / TIPO → siempre una (rareza si es joker; tipo si es
+      consumible), nunca ambas.
+    - EFECTO → siempre (la descripción).
+    - DESBLOQUEO → si hay unlock_condition o unlock_factor.
+    - MI PROGRESO → si el item tiene overlay (campo unlocked_for_me).
+    - ESTADÍSTICAS → buy/sell siempre; effect_type/activation solo si
+      el shape los trae (jokers).
+    - COMPATIBILIDAD → solo si alguno de is_copyable/perishable/eternal
+      es true (jokers).
 -->
 <template>
-  <div v-if="!joker" class="empty">
+  <div v-if="!item" class="empty">
     <div class="empty__icon">?</div>
-    <p class="empty__text">Selecciona un<br />Comodín para<br />ver los detalles</p>
+    <p class="empty__text">Selecciona una<br />carta para ver<br />los detalles</p>
   </div>
 
   <div v-else class="detail">
-    <!-- Arte de carta — suelto, con tilt. -->
+    <!-- Arte -->
     <div class="detail__art-wrap">
       <div
         v-tilt="{ max: 10, scale: 1.04, speed: 400 }"
         class="detail__art"
-        :style="{ filter: `drop-shadow(0 0 22px ${rarity.glow}) drop-shadow(0 8px 16px rgba(0,0,0,0.65))` }"
       >
-        <JokerCardArt :joker="joker" :is-locked="isLocked" />
+        <ItemCardArt
+          :item="item"
+          :is-locked="isLocked"
+          :is-selected="false"
+          :accent="accent"
+        />
       </div>
     </div>
 
     <div class="detail__body">
-      <!-- Desbloqueo manual -->
+      <!-- Desbloqueo manual (solo si está locked Y el padre admite el evento) -->
       <button
-        v-if="isLocked"
+        v-if="isLocked && canUnlock"
         class="manual-unlock"
         :disabled="busy"
         @click="onManualUnlock"
@@ -38,33 +48,33 @@
 
       <!-- EFECTO -->
       <section class="section">
-        <header class="section__head" :style="{ borderLeftColor: rarity.color }">
+        <header class="section__head" :style="{ borderLeftColor: accent.color }">
           <span class="section__icon">⚡</span>
-          <span :style="{ color: rarity.color }">EFECTO</span>
+          <span :style="{ color: accent.color }">EFECTO</span>
         </header>
         <div class="section__body">
           <div
             class="effect-box"
             :style="{
-              background: `${rarity.color}15`,
-              border: `1px solid ${rarity.color}40`,
-              color: isLocked ? '#4D6870' : rarity.color,
+              background: `${accent.color}15`,
+              border: `1px solid ${accent.color}40`,
+              color: isLocked ? '#4D6870' : accent.color,
             }"
           >
-            {{ isLocked ? '???' : safe(joker.description) }}
+            {{ isLocked ? '???' : safe(item.description) }}
           </div>
         </div>
       </section>
 
-      <!-- RAREZA -->
-      <section class="section">
-        <header class="section__head" :style="{ borderLeftColor: rarity.color }">
+      <!-- RAREZA / TIPO -->
+      <section v-if="badgeLabel" class="section">
+        <header class="section__head" :style="{ borderLeftColor: accent.color }">
           <span class="section__icon">◆</span>
-          <span :style="{ color: rarity.color }">RAREZA</span>
+          <span :style="{ color: accent.color }">{{ item.rarity ? 'RAREZA' : 'TIPO' }}</span>
         </header>
         <div class="section__body section__body--center">
-          <div :style="{ filter: `drop-shadow(0 0 8px ${rarity.glow})` }">
-            <RarityBadge :rarity="joker.rarity" />
+          <div :style="{ filter: `drop-shadow(0 0 8px ${accent.glow})` }">
+            <AccentBadge :label="badgeLabel" :color="accent.color" :glow="accent.glow" />
           </div>
         </div>
       </section>
@@ -83,31 +93,31 @@
       <!-- MI PROGRESO -->
       <section v-if="hasOverlay" class="section">
         <header class="section__head" style="border-left-color: #22c55e">
-          <span class="section__icon">{{ joker.unlocked_for_me ? '✓' : '🔒' }}</span>
+          <span class="section__icon">{{ item.unlocked_for_me ? '✓' : '🔒' }}</span>
           <span style="color: #22c55e">MI PROGRESO</span>
         </header>
         <div class="section__body progress-box">
           <div class="progress-row">
             <span>Estado</span>
             <span class="progress-row__val">
-              {{ joker.unlocked_for_me ? 'Desbloqueado' : 'Bloqueado' }}
+              {{ item.unlocked_for_me ? 'Desbloqueado' : 'Bloqueado' }}
             </span>
           </div>
-          <div v-if="joker.unlocked_for_me && unlockedAtText" class="progress-row">
+          <div v-if="item.unlocked_for_me && unlockedAtText" class="progress-row">
             <span>Desde</span>
             <span class="progress-row__val">{{ unlockedAtText }}</span>
           </div>
-          <div v-if="joker.highest_stake_order" class="progress-row">
+          <div v-if="item.highest_stake_order" class="progress-row">
             <span>Stake máximo</span>
             <span class="progress-row__val" :style="{ color: stakeColor }">
-              {{ joker.highest_stake_order === 8 ? '★ ORO' : `Stake ${joker.highest_stake_order}` }}
+              {{ item.highest_stake_order === 8 ? '★ ORO' : `Stake ${item.highest_stake_order}` }}
             </span>
           </div>
         </div>
       </section>
 
       <!-- ESTADÍSTICAS -->
-      <section class="section">
+      <section v-if="hasStats" class="section">
         <header class="section__head" style="border-left-color: #c09020">
           <span class="section__icon">📊</span>
           <span style="color: #c09020">ESTADÍSTICAS</span>
@@ -116,21 +126,21 @@
           <div class="stats__row">
             <div class="stat stat--buy">
               <div class="stat__label">COMPRA</div>
-              <div class="stat__value">{{ formatPrice(joker.buy_price) }}</div>
+              <div class="stat__value">{{ formatPrice(item.buy_price) }}</div>
             </div>
             <div class="stat stat--sell">
               <div class="stat__label">VENTA</div>
-              <div class="stat__value">{{ formatPrice(joker.sell_price) }}</div>
+              <div class="stat__value">{{ formatPrice(item.sell_price) }}</div>
             </div>
           </div>
           <div v-if="hasEffectMeta" class="stats__row">
-            <div v-if="joker.effect_type" class="stat stat--info">
+            <div v-if="item.effect_type" class="stat stat--info">
               <div class="stat__label">TIPO</div>
-              <div class="stat__value stat__value--sm">{{ joker.effect_type }}</div>
+              <div class="stat__value stat__value--sm">{{ item.effect_type }}</div>
             </div>
-            <div v-if="joker.activation" class="stat stat--info">
+            <div v-if="item.activation" class="stat stat--info">
               <div class="stat__label">ACTIV.</div>
-              <div class="stat__value stat__value--sm">{{ joker.activation }}</div>
+              <div class="stat__value stat__value--sm">{{ item.activation }}</div>
             </div>
           </div>
         </div>
@@ -143,15 +153,15 @@
           <span>COMPATIBILIDAD</span>
         </header>
         <div class="section__body compat">
-          <div v-if="joker.is_copyable" class="compat__tile compat__tile--copy">
+          <div v-if="item.is_copyable" class="compat__tile compat__tile--copy">
             <div class="compat__symbol">⎘</div>
             <div class="compat__label">Copiable</div>
           </div>
-          <div v-if="joker.is_perishable" class="compat__tile compat__tile--perish">
+          <div v-if="item.is_perishable" class="compat__tile compat__tile--perish">
             <div class="compat__symbol">⏳</div>
             <div class="compat__label">Perece</div>
           </div>
-          <div v-if="joker.is_eternal" class="compat__tile compat__tile--eternal">
+          <div v-if="item.is_eternal" class="compat__tile compat__tile--eternal">
             <div class="compat__symbol">∞</div>
             <div class="compat__label">Eterno</div>
           </div>
@@ -163,49 +173,65 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { getRarity } from '@/constants/rarity'
-import JokerCardArt from './JokerCardArt.vue'
-import RarityBadge from '@/components/common/RarityBadge.vue'
+import { getItemAccent, getItemBadgeLabel } from '@/constants/items'
+import ItemCardArt from './ItemCardArt.vue'
+import AccentBadge from '@/components/common/AccentBadge.vue'
 
 const props = defineProps({
-  joker: { type: Object, default: null },
+  item: { type: Object, default: null },
   isLocked: { type: Boolean, default: false },
+  /**
+   * Si true, muestra el botón de "desbloqueo manual" cuando isLocked.
+   * Para jokers va a true; para consumibles, false mientras no exista
+   * el endpoint correspondiente.
+   */
+  canUnlock: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['manual-unlock'])
 
 const busy = ref(false)
 
-const rarity = computed(() => (props.joker ? getRarity(props.joker.rarity) : {}))
+const accent = computed(() => (props.item ? getItemAccent(props.item) : {}))
+const badgeLabel = computed(() => getItemBadgeLabel(props.item))
 
 const hasOverlay = computed(
-  () => props.joker && Object.prototype.hasOwnProperty.call(props.joker, 'unlocked_for_me'),
+  () => props.item && Object.prototype.hasOwnProperty.call(props.item, 'unlocked_for_me'),
+)
+
+const hasStats = computed(
+  () =>
+    props.item &&
+    (props.item.buy_price != null ||
+      props.item.sell_price != null ||
+      props.item.effect_type ||
+      props.item.activation),
 )
 
 const hasEffectMeta = computed(
-  () => props.joker && (props.joker.effect_type || props.joker.activation),
+  () => props.item && (props.item.effect_type || props.item.activation),
 )
 
 const hasCompat = computed(
   () =>
-    props.joker &&
-    (props.joker.is_copyable || props.joker.is_perishable || props.joker.is_eternal),
+    props.item &&
+    (props.item.is_copyable || props.item.is_perishable || props.item.is_eternal),
 )
 
 const unlockText = computed(() => {
-  if (!props.joker) return ''
-  return props.joker.unlock_condition || props.joker.unlock_factor?.description || ''
+  if (!props.item) return ''
+  return props.item.unlock_condition || props.item.unlock_factor?.description || ''
 })
 
 const stakeColor = computed(() => {
-  if (props.joker?.highest_stake_order === 8) return '#f0b030'
+  if (props.item?.highest_stake_order === 8) return '#f0b030'
   return '#22c55e'
 })
 
 const unlockedAtText = computed(() => {
-  if (!props.joker?.unlocked_at) return ''
+  if (!props.item?.unlocked_at) return ''
   try {
-    return new Date(props.joker.unlocked_at).toLocaleDateString()
+    return new Date(props.item.unlocked_at).toLocaleDateString()
   } catch {
     return ''
   }
@@ -223,10 +249,10 @@ function formatPrice(v) {
 }
 
 async function onManualUnlock() {
-  if (busy.value || !props.joker) return
+  if (busy.value || !props.item) return
   busy.value = true
   try {
-    emit('manual-unlock', props.joker)
+    emit('manual-unlock', props.item)
   } finally {
     setTimeout(() => (busy.value = false), 800)
   }
@@ -275,10 +301,6 @@ async function onManualUnlock() {
   flex-shrink: 0;
 }
 
-/*
- * Card reducida (era 75% / 220px) — el panel completo cabe sin
- * necesidad de scroll en pantallas razonables.
- */
 .detail__art {
   width: 58%;
   max-width: 170px;
@@ -439,11 +461,6 @@ async function onManualUnlock() {
   }
 }
 
-/*
- * COMPATIBILIDAD — fondos y bordes precalculados a rgba() en vez de
- * color-mix(). Firefox antiguo no parsea color-mix() correctamente y
- * dejaba los tiles transparentes.
- */
 .compat {
   display: flex;
   gap: 8px;

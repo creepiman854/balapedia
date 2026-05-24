@@ -16,6 +16,12 @@
 -->
 <template>
   <BalatroBackground />
+  <!--
+    SparkleOverlay vive entre el shader (z:0) y el contenido (z:10).
+    Lee el preset actual y solo renderiza destellos para
+    tarot/planet/spectral (jokers y default lo ignoran).
+  -->
+  <SparkleOverlay />
   <CrtEffects :intensity="settings.crtIntensity" />
 
   <div id="app-content">
@@ -33,6 +39,7 @@
 import { ref } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import BalatroBackground from '@/components/common/BalatroBackground.vue'
+import SparkleOverlay from '@/components/common/SparkleOverlay.vue'
 import CrtEffects from '@/components/common/CrtEffects.vue'
 import AppHeader from '@/components/common/AppHeader.vue'
 import SettingsModal from '@/components/common/SettingsModal.vue'

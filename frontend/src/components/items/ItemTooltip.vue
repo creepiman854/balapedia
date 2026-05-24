@@ -1,14 +1,11 @@
 <!--
-  Tooltip flotante sobre una carta. Recibe:
-    · joker (shape del backend: name, description, rarity UPPERCASE,
-      unlock_condition, unlock_factor)
-    · isLocked
-    · cardCenterX, cardTop (en coords de viewport — fixed)
+  Tooltip flotante sobre una carta de item.
 
-  Para jokers bloqueados muestra `unlock_condition` o
-  `unlock_factor.description`, lo que esté disponible.
-  Para los desbloqueados muestra `description` con los fragmentos
-  numéricos coloreados igual que en el juego original.
+  Genérico para joker / consumible. Descripción coloreada por el
+  mismo regex (sirve igual para tarots y planetas: +N Mult, $N, etc.).
+  El badge inferior se resuelve por `getItemBadgeLabel`:
+    - joker         → rareza (Común / Inusual / Raro / Legendario)
+    - consumible    → tipo (Arcano / Planeta / Espectral)
 -->
 <template>
   <div :style="posStyle">
@@ -23,7 +20,7 @@
 
     <div v-else :style="boxStyle">
       <div :style="headerStyle">
-        <span :style="headerTextStyle">{{ joker.name }}</span>
+        <span :style="headerTextStyle">{{ item.name }}</span>
       </div>
       <div :style="bodyStyle">
         <p :style="bodyTextStyle">
@@ -35,8 +32,8 @@
           </template>
         </p>
       </div>
-      <div :style="footerStyle">
-        <RarityBadge :rarity="joker.rarity" />
+      <div v-if="badgeLabel" :style="footerStyle">
+        <AccentBadge :label="badgeLabel" :color="accent.color" :glow="accent.glow" />
       </div>
     </div>
   </div>
@@ -44,11 +41,11 @@
 
 <script setup>
 import { computed } from 'vue'
-import { getRarity } from '@/constants/rarity'
-import RarityBadge from '@/components/common/RarityBadge.vue'
+import { getItemAccent, getItemBadgeLabel } from '@/constants/items'
+import AccentBadge from '@/components/common/AccentBadge.vue'
 
 const props = defineProps({
-  joker: { type: Object, required: true },
+  item: { type: Object, required: true },
   isLocked: { type: Boolean, default: false },
   cardCenterX: { type: Number, required: true },
   cardTop: { type: Number, required: true },
@@ -60,7 +57,6 @@ const TEAL = {
   darkest: '#1A2A2E',
   dark: '#253C40',
   mid: '#3A5055',
-  text1: '#E8F2F4',
   text2: '#A8C4C8',
 }
 
@@ -70,16 +66,17 @@ const PIXEL_CLIP =
 const PIXEL_CLIP_SM =
   'polygon(0px calc(100% - 8px), 2px calc(100% - 8px), 2px calc(100% - 4px), 4px calc(100% - 4px), 4px calc(100% - 2px), 8px calc(100% - 2px), 8px 100%, calc(100% - 8px) 100%, calc(100% - 8px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 8px), 100% calc(100% - 8px), 100% 8px, calc(100% - 2px) 8px, calc(100% - 2px) 4px, calc(100% - 4px) 4px, calc(100% - 4px) 2px, calc(100% - 8px) 2px, calc(100% - 8px) 0px, 8px 0px, 8px 2px, 4px 2px, 4px 4px, 2px 4px, 2px 8px, 0px 8px)'
 
-const rarity = computed(() => getRarity(props.joker.rarity))
+const accent = computed(() => getItemAccent(props.item))
+const badgeLabel = computed(() => getItemBadgeLabel(props.item))
 
 const unlockText = computed(
   () =>
-    props.joker.unlock_condition ||
-    props.joker.unlock_factor?.description ||
+    props.item.unlock_condition ||
+    props.item.unlock_factor?.description ||
     'Compra o usa esta carta en una partida sin códigos para saber lo que hace.',
 )
 
-const description = computed(() => props.joker.description || '—')
+const description = computed(() => props.item.description || '—')
 
 const posStyle = computed(() => {
   const left = Math.max(
@@ -135,21 +132,21 @@ const lockedBodyTextStyle = {
 const boxStyle = computed(() => ({
   background: TEAL.darkest,
   clipPath: PIXEL_CLIP,
-  filter: `drop-shadow(0 6px 20px rgba(0,0,0,0.9)) drop-shadow(0 0 12px ${rarity.value.glow})`,
+  filter: `drop-shadow(0 6px 20px rgba(0,0,0,0.9)) drop-shadow(0 0 12px ${accent.value.glow})`,
   overflow: 'hidden',
 }))
 const headerStyle = computed(() => ({
   background: TEAL.mid,
   padding: '10px 14px',
   textAlign: 'center',
-  borderBottom: `2px solid ${rarity.value.color}30`,
+  borderBottom: `2px solid ${accent.value.color}30`,
 }))
 const headerTextStyle = computed(() => ({
   fontFamily: "'m6x11plus', monospace",
   fontSize: '16px',
   color: '#fff',
   letterSpacing: '0.5px',
-  textShadow: `0 0 10px ${rarity.value.color}`,
+  textShadow: `0 0 10px ${accent.value.color}`,
 }))
 const bodyStyle = {
   background: '#e8e4f0',
@@ -172,9 +169,8 @@ const footerStyle = {
 }
 
 /**
- * Coloriza fragmentos como `+N Mult`, `XN Mult`, `+N Fichas`, `$N` y los
- * iconos de palo en la descripción del joker, igual que el tooltip del
- * juego original.
+ * Coloriza fragmentos típicos del juego (+N Mult, XN Mult, +N Fichas,
+ * $N, palos ♦♥♠♣). Vale igual para jokers, tarots y planetas.
  */
 const coloredParts = computed(() => {
   const parts = description.value.split(
