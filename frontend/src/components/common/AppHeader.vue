@@ -31,54 +31,66 @@
       </router-link>
     </nav>
 
-    <button class="login-btn" title="Ajustes" @click="$emit('open-settings')">⚙</button>
+    <div class="header-btn-wrapper">
+      <button class="login-btn" title="Ajustes" @click="$emit('open-settings')">⚙</button>
+    </div>
 
     <template v-if="isAuthenticated && user">
-      <span class="user-name">{{ user.display_name || user.email || 'Usuario' }}</span>
-      <button class="login-btn logged-in" @click="handleLogout">SALIR</button>
+      <div class="header-btn-wrapper logged-in-wrapper">
+        <button
+          class="login-btn logged-in"
+          @click="authStore.openAuthModal()"
+          title="Gestionar mi cuenta"
+        >
+          {{ user.display_name || user.email || "USUARIO" }}
+        </button>
+      </div>
     </template>
-    <router-link v-else to="/login" custom v-slot="{ navigate }">
-      <button class="login-btn" @click="navigate">👤 CUENTA</button>
-    </router-link>
+
+    <template v-else>
+      <div class="header-btn-wrapper">
+        <button class="login-btn" @click="authStore.openAuthModal()">👤 CUENTA</button>
+      </div>
+    </template>
   </header>
 </template>
 
 <script setup>
-import { storeToRefs } from 'pinia'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { storeToRefs } from "pinia";
+import { useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
 
-defineEmits(['open-settings'])
+defineEmits(["open-settings"]);
 
-const router = useRouter()
-const authStore = useAuthStore()
-const { isAuthenticated, user } = storeToRefs(authStore)
+const router = useRouter();
+const authStore = useAuthStore();
+const { isAuthenticated, user } = storeToRefs(authStore);
 
 const tabs = [
-  { to: '/jokers',       label: 'JOKERS',      cls: 'nav-jokers',       color: '#2563eb' },
-  { to: '/consumibles',  label: 'CONSUMIBLES', cls: 'nav-consumibles',  color: '#d97706' },
-  { to: '/achievements', label: 'LOGROS',      cls: 'nav-achievements', color: '#dc2626' },
-  { to: '/collection',   label: 'COLECCIÓN',   cls: 'nav-collection',   color: '#059669' },
-]
+  { to: "/jokers", label: "JOKERS", cls: "nav-jokers", color: "#2563eb" },
+  { to: "/consumibles", label: "CONSUMIBLES", cls: "nav-consumibles", color: "#d97706" },
+  { to: "/achievements", label: "LOGROS", cls: "nav-achievements", color: "#dc2626" },
+  { to: "/collection", label: "COLECCIÓN", cls: "nav-collection", color: "#059669" },
+];
 
 function navBtnStyle(tab, isActive) {
   if (isActive) {
     return {
       boxShadow: `0 4px 16px ${tab.color}60, inset 0 -2px 0 rgba(0,0,0,0.3)`,
-    }
+    };
   }
-  return { filter: 'brightness(0.75) saturate(0.7)' }
+  return { filter: "brightness(0.75) saturate(0.7)" };
 }
 
 async function handleLogout() {
-  await authStore.logout()
-  router.push('/')
+  await authStore.logout();
+  router.push("/");
 }
 </script>
 
 <style lang="scss" scoped>
-@use '@/assets/styles/variables' as *;
-@use '@/assets/styles/mixins' as *;
+@use "@/assets/styles/variables" as *;
+@use "@/assets/styles/mixins" as *;
 
 .header {
   background: linear-gradient(180deg, $panel-dark 0%, $shadow 100%);
@@ -96,7 +108,7 @@ async function handleLogout() {
 }
 
 .logo {
-  font-family: 'm6x11plus', monospace;
+  font-family: "m6x11plus", monospace;
   font-size: 18px;
   color: #fff;
   letter-spacing: 2px;
@@ -119,7 +131,7 @@ async function handleLogout() {
 }
 
 .nav-btn {
-  font-family: 'm6x11plus', monospace;
+  font-family: "m6x11plus", monospace;
   font-size: 14px;
   color: #fff;
   border: none;
@@ -146,7 +158,7 @@ async function handleLogout() {
     filter: brightness(1.25);
   }
   &.active::after {
-    content: '';
+    content: "";
     position: absolute;
     bottom: -14px;
     left: 50%;
@@ -158,17 +170,35 @@ async function handleLogout() {
   }
 }
 
-.nav-jokers       { background: $tab-jokers; }
-.nav-consumibles  { background: $tab-consumibles; }
-.nav-achievements { background: $tab-achievements; }
-.nav-collection   { background: $tab-collection; }
+.nav-jokers {
+  background: $tab-jokers;
+}
+.nav-consumibles {
+  background: $tab-consumibles;
+}
+.nav-achievements {
+  background: $tab-achievements;
+}
+.nav-collection {
+  background: $tab-collection;
+}
+
+.header-btn-wrapper {
+  display: flex;
+  @include pixel-stroke($panel-mid);
+  transition: filter 0.15s;
+
+  &.logged-in-wrapper {
+    @include pixel-stroke(#22c55e);
+  }
+}
 
 .login-btn {
-  font-family: 'm6x11plus', monospace;
+  font-family: "m6x11plus", monospace;
   font-size: 15px;
   color: $text-2;
   background: $panel-dark;
-  border: 1px solid $panel-mid;
+  border: none; /* ← ¡Importante! Quitamos el borde sólido clásico */
   padding: 8px 12px;
   cursor: pointer;
   letter-spacing: 0.5px;
@@ -180,17 +210,10 @@ async function handleLogout() {
     background: $panel-mid;
     transform: scale(1.04);
   }
+
   &.logged-in {
     background: #1a3a1a;
-    border-color: #22c55e;
     color: #22c55e;
   }
-}
-
-.user-name {
-  font-family: 'm6x11plus', monospace;
-  font-size: 15px;
-  color: #22c55e;
-  letter-spacing: 0.3px;
 }
 </style>

@@ -2,9 +2,9 @@
  * Store Pinia de autenticación.
  *
  * Mantiene dos estados paralelos:
- *   - `firebaseUser`: el objeto de Firebase Auth (cliente).
- *   - `user`: el objeto que devuelve nuestra API /api/me (BD de Balapedia,
- *     con id interno, steam_id si vinculado, etc.).
+ * - `firebaseUser`: el objeto de Firebase Auth (cliente).
+ * - `user`: el objeto que devuelve nuestra API /api/me (BD de Balapedia,
+ * con id interno, steam_id si vinculado, etc.).
  *
  * El listener `onAuthStateChanged` sincroniza ambos: cada vez que cambia
  * el estado en Firebase (login, logout, refresco de página), se actualiza
@@ -29,7 +29,19 @@ export const useAuthStore = defineStore("auth", () => {
   const loading = ref(true);
   const error = ref(null);
 
+  // Estado del Modal Unificado (Login / Profile)
+  const isAuthModalOpen = ref(false);
+
   const isAuthenticated = computed(() => !!firebaseUser.value);
+
+  // ── Helpers UI ──
+  function openAuthModal() {
+    isAuthModalOpen.value = true;
+  }
+
+  function closeAuthModal() {
+    isAuthModalOpen.value = false;
+  }
 
   /** Llamar una sola vez al arrancar la app (desde main.js). */
   function init() {
@@ -136,6 +148,9 @@ export const useAuthStore = defineStore("auth", () => {
     loading,
     error,
     isAuthenticated,
+    isAuthModalOpen,
+    openAuthModal,
+    closeAuthModal,
     init,
     fetchMe,
     loginWithEmail,

@@ -37,3 +37,13 @@
     0% 70%, 0% 30%
   );
 }
+
+// Dibuja un "borde" exterior de 1px siguiendo perfectamente
+// cualquier silueta recortada por clip-path.
+@mixin pixel-stroke($color) {
+  filter:
+    drop-shadow(1px 0 0 $color)
+    drop-shadow(-1px 0 0 $color)
+    drop-shadow(0 1px 0 $color)
+    drop-shadow(0 -1px 0 $color);
+}
