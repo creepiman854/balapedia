@@ -19,7 +19,6 @@ Patrón común para evitar N+1 al serializar:
   3. `joinedload` para eager-cargar las relaciones que el schema accede
      (`unlockable.X`, `unlockable.unlock_factor`).
 """
-
 from __future__ import annotations
 
 from flask import Blueprint, jsonify
@@ -54,6 +53,7 @@ from app.models import (
 )
 from app.models.enums import BoosterPackSize, BoosterPackType, JokerRarity
 
+
 unlockables_bp = Blueprint("catalog_unlockables", __name__, url_prefix="/api")
 
 
@@ -66,10 +66,14 @@ def _build_subclass_query(subclass_model):
     """Construye una query base para una subclase de Unlockable con
     el JOIN y joinedload necesarios para sort y serialización eficientes.
     """
-    return subclass_model.query.join(
-        Unlockable, subclass_model.id == Unlockable.id
-    ).options(
-        joinedload(subclass_model.unlockable).joinedload(Unlockable.unlock_factor)
+    return (
+        subclass_model.query
+        .join(Unlockable, subclass_model.id == Unlockable.id)
+        .options(
+            joinedload(subclass_model.unlockable).joinedload(
+                Unlockable.unlock_factor
+            )
+        )
     )
 
 
@@ -143,28 +147,70 @@ _CONSUMABLE_VALID_TYPES = {
 }
 
 
-# catalog_unlockables.py, función _parse_consumable_type
-def _parse_consumable_type(raw: str) -> UnlockableType:
-    """Resuelve TAROT/PLANET/SPECTRAL aceptando cualquier convención de
-    naming del enum (UPPERCASE, lowercase, PascalCase, by-name o by-value).
+def _resolve_enum(enum_cls, raw: str):
+    """Resuelve un Enum a partir de un string probando primero por NAME
+    y luego por VALUE.
+
+    El resto de la API (apply_filters en _helpers.py) usa lookup por
+    NAME, que coincide con la convención con la que marshmallow
+    serializa los enums por defecto (fields.Enum → NAME en uppercase).
+    El cliente recibe `"type": "TAROT"` y reenvía exactamente eso al
+    filtrar, así que la NAME es la ruta natural.
+
+    Soportamos VALUE como fallback por dos razones:
+      1. Robustez: si en el futuro alguien cambia la convención de
+         serialización del schema (e.g. by_value=True) o un cliente
+         externo decide enviar el value directamente, el endpoint sigue
+         funcionando sin romper a nadie.
+      2. Diagnóstico: el bug original era exactamente lo contrario
+         (lookup solo por VALUE, NAME no funcionaba) — aceptar ambos
+         elimina la clase entera de bugs por desalineamiento de
+         convenciones entre la capa de filtrado y la de serialización.
+
+    Devuelve el miembro del enum o lanza KeyError si ningún lookup
+    funciona. El caller decide cómo traducirlo a 400 (con o sin la
+    whitelist de valores válidos en el mensaje).
     """
-    target = raw.strip().upper()
-    # 1) Match por NAME (case-insensitive)
-    for member in UnlockableType:
-        if member.name.upper() == target:
-            if member in _CONSUMABLE_VALID_TYPES:
-                return member
-            raise ValidationError({"type": "must be TAROT, PLANET or SPECTRAL"})
-    # 2) Match por VALUE (case-insensitive str compare)
-    for member in UnlockableType:
-        if str(member.value).upper() == target:
-            if member in _CONSUMABLE_VALID_TYPES:
-                return member
-            raise ValidationError({"type": "must be TAROT, PLANET or SPECTRAL"})
-    # 3) Sin match: incluimos los nombres disponibles en el error para
-    #    diagnosticar de un vistazo si volviera a fallar.
-    available = sorted(m.name for m in _CONSUMABLE_VALID_TYPES)
-    raise ValidationError({"type": f"invalid: {raw!r}; expected one of {available}"})
+    # 1) NAME (UPPERCASE, convención del resto del API).
+    try:
+        return enum_cls[raw]
+    except KeyError:
+        pass
+    # 2) VALUE (compatibilidad y robustez).
+    try:
+        return enum_cls(raw)
+    except ValueError:
+        raise KeyError(raw)
+
+
+def _parse_consumable_type(raw: str) -> UnlockableType:
+    """Acepta TAROT / PLANET / SPECTRAL para el filtro ?type=.
+
+    Antes hacíamos `UnlockableType(raw)` (lookup por VALUE), inconsistente
+    con `apply_filters` en `_helpers.py` que usa `Enum[raw]` (lookup por
+    NAME). El frontend envía la NAME (que es lo que marshmallow le
+    serializa de vuelta), así que el filtro estaba roto end-to-end y
+    devolvía 400: invalid: 'TAROT'.
+
+    El parser ahora delega en `_resolve_enum`, que prueba primero NAME
+    (el camino natural) y cae a VALUE como fallback. Y si TODO falla, el
+    400 incluye la lista de valores válidos para que cualquier futura
+    discrepancia entre cliente y servidor se diagnostique en un solo
+    refresh del navegador en vez de tener que adivinar.
+    """
+    try:
+        value = _resolve_enum(UnlockableType, raw)
+    except KeyError:
+        valid_names = sorted(t.name for t in _CONSUMABLE_VALID_TYPES)
+        raise ValidationError(
+            {"type": f"invalid: {raw!r}; must be one of {valid_names}"}
+        )
+    if value not in _CONSUMABLE_VALID_TYPES:
+        valid_names = sorted(t.name for t in _CONSUMABLE_VALID_TYPES)
+        raise ValidationError(
+            {"type": f"{raw!r} not allowed here; must be one of {valid_names}"}
+        )
+    return value
 
 
 @unlockables_bp.route("/consumables", methods=["GET"])
@@ -177,7 +223,6 @@ def list_consumables():
     query = _build_subclass_query(Consumable)
 
     from flask import request
-
     if "type" in request.args:
         type_enum = _parse_consumable_type(request.args["type"])
         query = query.filter(Unlockable.type == type_enum)
