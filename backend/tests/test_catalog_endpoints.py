@@ -17,19 +17,20 @@ Los endpoints de reference data (blinds, tags, stakes, etc.) usan
 exactamente el mismo helper de paginación/filtrado, por lo que verificar
 uno equivale a verificar todos para el comportamiento del helper.
 """
-
 from __future__ import annotations
 
 import pytest
 
 from app.models import (
     ChallengeDeck,
+    Consumable,
     Deck,
     Joker,
     Unlockable,
     UnlockableType,
 )
 from app.models.enums import JokerRarity
+
 
 # =============================================================================
 # Fixtures
@@ -239,6 +240,132 @@ class TestJokerDetailEndpoint:
 
 
 # =============================================================================
+# Tests endpoint /api/consumables (ejercita parser custom de ?type=)
+# =============================================================================
+
+
+@pytest.fixture
+def populated_consumables(db_session):
+    """Crea un consumable de cada tipo válido (TAROT/PLANET/SPECTRAL).
+
+    Fixture aparte de `populated_catalog` para no añadir dependencias
+    cruzadas — los tests de jokers/decks/etc. siguen viendo los mismos
+    totales de siempre.
+    """
+    tarot_u = Unlockable(
+        type=UnlockableType.TAROT,
+        item_number=1,
+        name="The Fool",
+    )
+    tarot_u.consumable = Consumable(buy_price=3, sell_price=1, in_shop=True)
+
+    planet_u = Unlockable(
+        type=UnlockableType.PLANET,
+        item_number=1,
+        name="Mercury",
+    )
+    planet_u.consumable = Consumable(buy_price=3, sell_price=1, in_shop=True)
+
+    spectral_u = Unlockable(
+        type=UnlockableType.SPECTRAL,
+        item_number=1,
+        name="Familiar",
+    )
+    spectral_u.consumable = Consumable(buy_price=4, sell_price=2, in_shop=True)
+
+    for obj in [tarot_u, planet_u, spectral_u]:
+        db_session.add(obj)
+    db_session.commit()
+
+    return {
+        "tarot": tarot_u.consumable,
+        "planet": planet_u.consumable,
+        "spectral": spectral_u.consumable,
+    }
+
+
+class TestConsumablesTypeFilter:
+    """Regression tests para el bug del filtro `?type=` (Mayo 2026).
+
+    Histórico: el parser custom `_parse_consumable_type` usaba
+    `UnlockableType(raw)` (lookup por VALUE) mientras `apply_filters`
+    en `_helpers.py` usa `Enum[raw]` (lookup por NAME). Como marshmallow
+    serializa los enums por NAME por defecto, el frontend reenviaba
+    'TAROT' al filtrar y el endpoint respondía 400.
+
+    Estos tests fijan el contrato: NAME funciona (camino natural),
+    VALUE también funciona (fallback de robustez) y un valor inválido
+    devuelve 400 con la whitelist en el mensaje.
+    """
+
+    def test_filter_by_name_returns_only_that_type(
+        self, client, populated_consumables
+    ):
+        """Camino principal: el frontend envía la NAME del enum."""
+        resp = client.get("/api/consumables?type=TAROT")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["total"] == 1
+        assert data["items"][0]["name"] == "The Fool"
+        assert data["items"][0]["type"] == "TAROT"
+
+    def test_filter_by_value_also_works_as_fallback(
+        self, client, populated_consumables
+    ):
+        """Fallback: si un cliente envía el VALUE en lugar de la NAME,
+        el endpoint NO debe romperse. Garantiza robustez ante cambios
+        futuros en la convención de serialización del schema."""
+        # El VALUE del enum miembro TAROT (cualquier convención de naming
+        # que use el modelo; típicamente lowercase). Pasamos por el
+        # propio enum para no acoplar el test al string concreto.
+        tarot_value = UnlockableType.TAROT.value
+        resp = client.get(f"/api/consumables?type={tarot_value}")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["total"] == 1
+        assert data["items"][0]["name"] == "The Fool"
+
+    def test_filter_with_invalid_type_returns_400_with_allowed_names(
+        self, client, populated_consumables
+    ):
+        """400 + el mensaje incluye la whitelist de tipos válidos para
+        que cualquier discrepancia futura se diagnostique de un vistazo."""
+        resp = client.get("/api/consumables?type=NOT_A_REAL_TYPE")
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert data["error"] == "validation_error"
+        assert "type" in data["details"]
+        # El detalle debe nombrar las opciones válidas.
+        detail_text = str(data["details"]["type"])
+        assert "TAROT" in detail_text
+        assert "PLANET" in detail_text
+        assert "SPECTRAL" in detail_text
+
+    def test_filter_rejects_non_consumable_unlockable_type(
+        self, client, populated_consumables
+    ):
+        """JOKER es un UnlockableType válido a nivel del enum, pero NO
+        es un consumable. El parser debe rechazarlo con 400, no devolver
+        una lista vacía silenciosa."""
+        resp = client.get("/api/consumables?type=JOKER")
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert data["error"] == "validation_error"
+        assert "type" in data["details"]
+
+    def test_no_type_filter_returns_all_consumables(
+        self, client, populated_consumables
+    ):
+        """Sin `?type=` el endpoint devuelve TODOS los consumables sin
+        discriminar. Verifica que el parser solo se invoca cuando el
+        cliente provee el parámetro."""
+        resp = client.get("/api/consumables")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["total"] == 3
+
+
+# =============================================================================
 # Tests endpoint /api/decks (ejercita CTI sin filtros propios)
 # =============================================================================
 
@@ -287,7 +414,9 @@ class TestChallengeDecksEndpoint:
 class TestAchievementsEndpoint:
     """Tests de /api/achievements."""
 
-    def test_list_includes_nested_unlock_factor(self, client, seeded_achievements):
+    def test_list_includes_nested_unlock_factor(
+        self, client, seeded_achievements
+    ):
         """El nested unlock_factor debe venir poblado (no requiere round-trip)."""
         resp = client.get("/api/achievements")
         assert resp.status_code == 200
@@ -298,7 +427,9 @@ class TestAchievementsEndpoint:
             it for it in data["items"] if it.get("unlock_factor") is not None
         ]
         assert len(items_with_factor) == 5
-        assert all("code" in it["unlock_factor"] for it in items_with_factor)
+        assert all(
+            "code" in it["unlock_factor"] for it in items_with_factor
+        )
 
     def test_get_by_id(self, client, seeded_achievements):
         ante_up = seeded_achievements["achievements"]["BAL_01"]
@@ -308,7 +439,9 @@ class TestAchievementsEndpoint:
         assert data["name"] == "Ante Up!"
         assert data["unlock_factor"]["code"] == "REACH_ANTE_4"
 
-    def test_default_sort_is_steam_api_name(self, client, seeded_achievements):
+    def test_default_sort_is_steam_api_name(
+        self, client, seeded_achievements
+    ):
         resp = client.get("/api/achievements")
         names = [it["steam_api_name"] for it in resp.get_json()["items"]]
         assert names == sorted(names)
