@@ -16,7 +16,7 @@
 -->
 <template>
   <div class="jokers-view">
-    <div class="view-title">▸ COMODINES</div>
+    <!-- <div class="view-title">▸ COMODINES</div> -->
 
     <div class="jokers-layout">
       <!-- ── Columna izquierda: grid ── -->
@@ -29,7 +29,7 @@
           label="COMODINES DESBLOQUEADOS"
         />
 
-        <FilterBar v-model="filters" />
+        <FilterBar v-model="filters" :enabled="enabledFilters" />
 
         <div class="count">
           <template v-if="loading">Cargando comodines...</template>
@@ -197,6 +197,17 @@ const filters = ref({
   rarity: 'all',
   status: 'all',
   sort: 'id',
+})
+
+/**
+ * El select de ESTADO (Desbloqueado / Bloqueado) solo aporta valor
+ * cuando hay sesión iniciada — sin auth todos los jokers se ven como
+ * desbloqueados, así que filtrar por estado no haría nada útil. Lo
+ * ocultamos en ese caso. Misma lógica se aplica en CollectionView.
+ */
+const enabledFilters = computed(() => {
+  const base = ['search', 'rarity', 'status', 'sort']
+  return isAuthenticated.value ? base : base.filter((f) => f !== 'status')
 })
 
 function normalizeRarity(raw) {
