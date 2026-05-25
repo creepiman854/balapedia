@@ -22,7 +22,6 @@
 -->
 <template>
   <div class="collection-view">
-    <!-- <div class="view-title">▸ COLECCIÓN</div> -->
 
     <div class="layout">
       <!-- ── Columna izquierda ── -->
@@ -43,9 +42,11 @@
               v-for="sub in SUBTABS"
               :key="sub.id"
               :class="['subtab', `subtab--${sub.id}`, { 'subtab--active': currentSub === sub.id }]"
-              :style="currentSub === sub.id
-                ? { boxShadow: `0 4px 16px ${sub.color}55, inset 0 -2px 0 rgba(0,0,0,0.3)` }
-                : { filter: 'brightness(0.7) saturate(0.65)' }"
+              :style="
+                currentSub === sub.id
+                  ? { boxShadow: `0 4px 16px ${sub.color}55, inset 0 -2px 0 rgba(0,0,0,0.3)` }
+                  : { filter: 'brightness(0.7) saturate(0.65)' }
+              "
               @click="selectSub(sub.id)"
             >
               {{ sub.label }}
@@ -77,6 +78,8 @@
             <ItemCard
               v-for="(item, idx) in filteredDecks"
               :key="item.id"
+              class="card-deal-anim"
+              :style="{ animationDelay: `${Math.min(idx, 50) * 35}ms` }"
               :item="item"
               :is-locked="isLocked(item)"
               :is-selected="selectedItem?.id === item.id && selectedItem?._kind === 'deck'"
@@ -90,20 +93,13 @@
           </div>
 
           <!-- ============ SOBRES (booster packs) ============ -->
-          <div
-            v-else-if="!loading && !error && currentSub === 'booster-packs'"
-            class="packs-rows"
-          >
+          <div v-else-if="!loading && !error && currentSub === 'booster-packs'" class="packs-rows">
             <div
               v-for="(row, ri) in packRows"
               :key="ri"
               :class="['packs-row', { 'packs-row--solo': row.length === 1 }]"
             >
-              <section
-                v-for="group in row"
-                :key="group.packType"
-                class="pack-section"
-              >
+              <section v-for="group in row" :key="group.packType" class="pack-section">
                 <header class="pack-section__head" :style="{ color: group.color }">
                   {{ group.label }}
                 </header>
@@ -114,6 +110,8 @@
                   <ItemCard
                     v-for="(pack, idx) in group.items"
                     :key="pack.id"
+                    class="card-deal-anim"
+                    :style="{ animationDelay: `${Math.min(idx, 50) * 35}ms` }"
                     :item="enrichedPackName(pack)"
                     :is-locked="isLocked(pack)"
                     :is-selected="selectedItem?.id === pack.id && selectedItem?._kind === 'pack'"
@@ -137,6 +135,8 @@
             <ItemCard
               v-for="(item, idx) in filteredVouchers"
               :key="item.id"
+              class="card-deal-anim"
+              :style="{ animationDelay: `${Math.min(idx, 50) * 35}ms` }"
               :item="item"
               :is-locked="isLocked(item)"
               :is-selected="selectedItem?.id === item.id && selectedItem?._kind === 'voucher'"
@@ -149,10 +149,7 @@
           </div>
 
           <!-- ============ MEJORAS (card modifiers) ============ -->
-          <div
-            v-else-if="!loading && !error && currentSub === 'card-modifiers'"
-            class="sectioned"
-          >
+          <div v-else-if="!loading && !error && currentSub === 'card-modifiers'" class="sectioned">
             <section
               v-for="modGroup in filteredModifierGroups"
               :key="modGroup.key"
@@ -170,11 +167,15 @@
                 <ItemCard
                   v-for="(mod, idx) in modGroup.items"
                   :key="`${modGroup.key}-${mod.id}`"
+                  class="card-deal-anim"
+                  :style="{ animationDelay: `${Math.min(idx, 50) * 35}ms` }"
                   :item="mod"
                   :is-locked="isLocked(mod)"
-                  :is-selected="selectedItem?.id === mod.id
-                                && selectedItem?._kind === 'modifier'
-                                && selectedItem?._modKey === modGroup.key"
+                  :is-selected="
+                    selectedItem?.id === mod.id &&
+                    selectedItem?._kind === 'modifier' &&
+                    selectedItem?._modKey === modGroup.key
+                  "
                   :col-index="idx % MOD_COLS"
                   :col-count="MOD_COLS"
                   @select="onSelect($event, 'modifier', modGroup.key)"
@@ -191,7 +192,9 @@
       <!-- ── Columna derecha ── -->
       <div class="detail-col">
         <div class="detail-col__head">
-          <span>{{ selectedItem ? selectedItem.name.toUpperCase() : currentSubLabel.toUpperCase() }}</span>
+          <span>{{
+            selectedItem ? selectedItem.name.toUpperCase() : currentSubLabel.toUpperCase()
+          }}</span>
         </div>
         <div class="detail-col__body">
           <ItemDetailPanel
@@ -215,84 +218,82 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useAuthStore } from '@/stores/auth'
-import { useBackgroundStore } from '@/stores/background'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
+import { storeToRefs } from "pinia";
+import { useAuthStore } from "@/stores/auth";
+import { useBackgroundStore } from "@/stores/background";
 import {
   fetchAllDecks,
   fetchAllVouchers,
   fetchAllBoosterPacks,
   fetchAllCardModifiers,
   unlockItem,
-} from '@/services/collection'
-import { isItemLocked } from '@/constants/items'
+} from "@/services/collection";
+import { isItemLocked } from "@/constants/items";
 
-import FilterBar from '@/components/common/FilterBar.vue'
-import ProgressBar from '@/components/common/ProgressBar.vue'
-import ItemCard from '@/components/items/ItemCard.vue'
-import ItemDetailPanel from '@/components/items/ItemDetailPanel.vue'
-import ItemTooltip from '@/components/items/ItemTooltip.vue'
+import FilterBar from "@/components/common/FilterBar.vue";
+import ProgressBar from "@/components/common/ProgressBar.vue";
+import ItemCard from "@/components/items/ItemCard.vue";
+import ItemDetailPanel from "@/components/items/ItemDetailPanel.vue";
+import ItemTooltip from "@/components/items/ItemTooltip.vue";
 
-const authStore = useAuthStore()
-const { isAuthenticated } = storeToRefs(authStore)
-const bgStore = useBackgroundStore()
+const authStore = useAuthStore();
+const { isAuthenticated } = storeToRefs(authStore);
+const bgStore = useBackgroundStore();
 
 const SUBTABS = [
-  { id: 'decks',          label: 'MAZOS',   color: '#e84040' },
-  { id: 'booster-packs',  label: 'SOBRES',  color: '#f59e0b' },
-  { id: 'vouchers',       label: 'VALES',   color: '#3b82f6' },
-  { id: 'card-modifiers', label: 'MEJORAS', color: '#22c55e' },
-]
+  { id: "decks", label: "MAZOS", color: "#e84040" },
+  { id: "booster-packs", label: "SOBRES", color: "#f59e0b" },
+  { id: "vouchers", label: "VALES", color: "#3b82f6" },
+  { id: "card-modifiers", label: "MEJORAS", color: "#22c55e" },
+];
 
-const DECK_COLS = 6
-const PACK_COLS = 3       // dentro de cada grupo pack_type
-const VOUCHER_COLS = 6
-const MOD_COLS = 8
+const DECK_COLS = 6;
+const PACK_COLS = 3; // dentro de cada grupo pack_type
+const VOUCHER_COLS = 6;
+const MOD_COLS = 8;
 
 const PACK_TYPES = [
-  { id: 'ARCANA',    label: 'ARCANA',    color: '#D8B062' },
-  { id: 'CELESTIAL', label: 'CELESTIAL', color: '#4790A1' },
-  { id: 'STANDARD',  label: 'STANDARD',  color: '#cf3535' },
-  { id: 'BUFFOON',   label: 'BUFFOON',   color: '#8b5cf6' },
-  { id: 'SPECTRAL',  label: 'SPECTRAL',  color: '#5066A5' },
-]
-const PACK_SIZE_ORDER = { NORMAL: 0, JUMBO: 1, MEGA: 2 }
+  { id: "ARCANA", label: "ARCANA", color: "#D8B062" },
+  { id: "CELESTIAL", label: "CELESTIAL", color: "#4790A1" },
+  { id: "STANDARD", label: "STANDARD", color: "#cf3535" },
+  { id: "BUFFOON", label: "BUFFOON", color: "#8b5cf6" },
+  { id: "SPECTRAL", label: "SPECTRAL", color: "#5066A5" },
+];
+const PACK_SIZE_ORDER = { NORMAL: 0, JUMBO: 1, MEGA: 2 };
 
 const MOD_SECTIONS = [
-  { key: 'enhancements', label: 'ENHANCEMENTS', color: '#22c55e' },
-  { key: 'editions',     label: 'EDITIONS',     color: '#a855f7' },
-  { key: 'seals',        label: 'SEALS',        color: '#f59e0b' },
-]
+  { key: "enhancements", label: "ENHANCEMENTS", color: "#22c55e" },
+  { key: "editions", label: "EDITIONS", color: "#a855f7" },
+  { key: "seals", label: "SEALS", color: "#f59e0b" },
+];
 
 // ── Estado ────────────────────────────────────────────────────────
-const currentSub = ref('decks')
-const loading = ref(false)
-const error = ref('')
+const currentSub = ref("decks");
+const loading = ref(false);
+const error = ref("");
 
-const decks = ref([])
-const vouchers = ref([])
-const boosterPacks = ref([])
-const modifiers = ref({ enhancements: [], editions: [], seals: [] })
+const decks = ref([]);
+const vouchers = ref([]);
+const boosterPacks = ref([]);
+const modifiers = ref({ enhancements: [], editions: [], seals: [] });
 
-const currentSubLabel = computed(
-  () => SUBTABS.find((s) => s.id === currentSub.value)?.label || '',
-)
+const currentSubLabel = computed(() => SUBTABS.find((s) => s.id === currentSub.value)?.label || "");
 
 function defaultFilters(sub = currentSub.value) {
   // Vouchers arrancan en 'name' (A-Z) porque su sortOptions no
   // incluye 'id'. El resto usa 'id' como sort por defecto.
-  const defaultSort = sub === 'vouchers' ? 'name' : 'id'
-  return { search: '', sort: defaultSort, status: 'all', type: 'all' }
+  const defaultSort = sub === "vouchers" ? "name" : "id";
+  return { search: "", sort: defaultSort, status: "all", type: "all" };
 }
 
 function selectSub(id) {
-  if (currentSub.value === id) return
-  currentSub.value = id
-  selectedItem.value = null
-  tooltip.value = null
-  filters.value = defaultFilters(id)
-  bgStore.setPreset(id)
+  if (currentSub.value === id) return;
+  currentSub.value = id;
+  selectedItem.value = null;
+  tooltip.value = null;
+  filters.value = defaultFilters(id);
+  bgStore.setPreset(id);
 }
 
 // ── Carga ─────────────────────────────────────────────────────────
@@ -310,36 +311,36 @@ function selectSub(id) {
  * ~400-600 ms más en la primera carga, una sola vez.
  */
 async function loadAll() {
-  loading.value = true
-  error.value = ''
+  loading.value = true;
+  error.value = "";
   try {
-    decks.value = await fetchAllDecks({ authenticated: isAuthenticated.value })
-    vouchers.value = await fetchAllVouchers()
-    boosterPacks.value = await fetchAllBoosterPacks()
-    modifiers.value = await fetchAllCardModifiers()
+    decks.value = await fetchAllDecks({ authenticated: isAuthenticated.value });
+    vouchers.value = await fetchAllVouchers();
+    boosterPacks.value = await fetchAllBoosterPacks();
+    modifiers.value = await fetchAllCardModifiers();
   } catch (e) {
-    console.error('[CollectionView] error completo:', e, e.cause || '')
-    error.value = e.message || 'Error desconocido al cargar la colección.'
+    console.error("[CollectionView] error completo:", e, e.cause || "");
+    error.value = e.message || "Error desconocido al cargar la colección.";
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 onMounted(() => {
-  bgStore.setPreset(currentSub.value)
-  loadAll()
-})
+  bgStore.setPreset(currentSub.value);
+  loadAll();
+});
 // Si la sesión cambia, recargamos para que decks recoja el overlay
 // (/api/me/decks) y los demás se reajusten al nuevo lock state.
-watch(isAuthenticated, loadAll)
+watch(isAuthenticated, loadAll);
 
 // ── Lock state ───────────────────────────────────────────────────
 function isLocked(item) {
-  return isItemLocked(item, isAuthenticated.value)
+  return isItemLocked(item, isAuthenticated.value);
 }
 
 // ── Filtros por sub-tab ──────────────────────────────────────────
-const filters = ref(defaultFilters())
+const filters = ref(defaultFilters());
 
 const enabledFilters = computed(() => {
   // Filtros base por sub-tab.
@@ -349,21 +350,26 @@ const enabledFilters = computed(() => {
   //   sortOptions abajo).
   const base = (() => {
     switch (currentSub.value) {
-      case 'decks':          return ['search', 'status', 'sort']
-      case 'booster-packs':  return ['search', 'type']
-      case 'vouchers':       return ['search', 'status', 'sort']
-      case 'card-modifiers': return ['search', 'type']
-      default:               return ['search', 'sort']
+      case "decks":
+        return ["search", "status", "sort"];
+      case "booster-packs":
+        return ["search", "type"];
+      case "vouchers":
+        return ["search", "status", "sort"];
+      case "card-modifiers":
+        return ["search", "type"];
+      default:
+        return ["search", "sort"];
     }
-  })()
+  })();
   // El filtro 'status' (unlocked/locked) no tiene sentido sin sesión
   // — todo se ve. Lo eliminamos del array para que ni siquiera
   // aparezca el select.
   if (!isAuthenticated.value) {
-    return base.filter((f) => f !== 'status')
+    return base.filter((f) => f !== "status");
   }
-  return base
-})
+  return base;
+});
 
 /**
  * Opciones del select de ORDEN por sub-tab.
@@ -375,73 +381,72 @@ const enabledFilters = computed(() => {
  *   El resto: vacío → FilterBar usa las opciones por defecto.
  */
 const sortOptions = computed(() => {
-  if (currentSub.value === 'vouchers') {
+  if (currentSub.value === "vouchers") {
     return [
-      { value: 'name',     label: 'Orden: A-Z' },
-      { value: 'base',     label: 'Orden: BASE' },
-      { value: 'upgraded', label: 'Orden: UPGRADED' },
-    ]
+      { value: "name", label: "Orden: A-Z" },
+      { value: "base", label: "Orden: BASE" },
+      { value: "upgraded", label: "Orden: UPGRADED" },
+    ];
   }
-  return []
-})
+  return [];
+});
 
 const typeOptions = computed(() => {
-  if (currentSub.value === 'booster-packs') {
+  if (currentSub.value === "booster-packs") {
     return [
-      { value: 'all',       label: 'Tipo: Todos' },
-      { value: 'ARCANA',    label: 'Tipo: Arcana' },
-      { value: 'CELESTIAL', label: 'Tipo: Celestial' },
-      { value: 'STANDARD',  label: 'Tipo: Standard' },
-      { value: 'BUFFOON',   label: 'Tipo: Buffoon' },
-      { value: 'SPECTRAL',  label: 'Tipo: Spectral' },
-    ]
+      { value: "all", label: "Tipo: Todos" },
+      { value: "ARCANA", label: "Tipo: Arcana" },
+      { value: "CELESTIAL", label: "Tipo: Celestial" },
+      { value: "STANDARD", label: "Tipo: Standard" },
+      { value: "BUFFOON", label: "Tipo: Buffoon" },
+      { value: "SPECTRAL", label: "Tipo: Spectral" },
+    ];
   }
-  if (currentSub.value === 'card-modifiers') {
+  if (currentSub.value === "card-modifiers") {
     return [
-      { value: 'all',          label: 'Tipo: Todos' },
-      { value: 'enhancements', label: 'Tipo: Enhancements' },
-      { value: 'editions',     label: 'Tipo: Editions' },
-      { value: 'seals',        label: 'Tipo: Seals' },
-    ]
+      { value: "all", label: "Tipo: Todos" },
+      { value: "enhancements", label: "Tipo: Enhancements" },
+      { value: "editions", label: "Tipo: Editions" },
+      { value: "seals", label: "Tipo: Seals" },
+    ];
   }
-  return []
-})
+  return [];
+});
 
 // ── Filtros (helpers compartidos) ────────────────────────────────
 function statusMatches(item) {
-  if (filters.value.status === 'unlocked') return !isLocked(item)
-  if (filters.value.status === 'locked')   return isLocked(item)
-  return true
+  if (filters.value.status === "unlocked") return !isLocked(item);
+  if (filters.value.status === "locked") return isLocked(item);
+  return true;
 }
 
 function sortItems(arr) {
   return [...arr].sort((a, b) => {
-    if (filters.value.sort === 'name')
-      return (a.name || '').localeCompare(b.name || '')
-    const oa = a.item_number ?? a.id
-    const ob = b.item_number ?? b.id
-    return oa - ob
-  })
+    if (filters.value.sort === "name") return (a.name || "").localeCompare(b.name || "");
+    const oa = a.item_number ?? a.id;
+    const ob = b.item_number ?? b.id;
+    return oa - ob;
+  });
 }
 
 function applyBaseFilters(arr) {
-  const search = filters.value.search.toLowerCase()
+  const search = filters.value.search.toLowerCase();
   return arr.filter((it) => {
     if (search) {
       const match =
-        (it.name || '').toLowerCase().includes(search) ||
-        (it.description || it.effect || '').toLowerCase().includes(search)
-      if (!match) return false
+        (it.name || "").toLowerCase().includes(search) ||
+        (it.description || it.effect || "").toLowerCase().includes(search);
+      if (!match) return false;
     }
-    return true
-  })
+    return true;
+  });
 }
 
 const filteredDecks = computed(() => {
-  let list = applyBaseFilters(decks.value)
-  list = list.filter(statusMatches)
-  return sortItems(list)
-})
+  let list = applyBaseFilters(decks.value);
+  list = list.filter(statusMatches);
+  return sortItems(list);
+});
 
 /**
  * VALES tienen su propia lógica de filtrado/orden:
@@ -454,16 +459,16 @@ const filteredDecks = computed(() => {
  * mostraba pero no afectaba a la lista).
  */
 const filteredVouchers = computed(() => {
-  let list = applyBaseFilters(vouchers.value)
-  list = list.filter(statusMatches)
-  if (filters.value.sort === 'base') {
-    list = list.filter((v) => String(v.voucher_tier).toUpperCase() === 'BASE')
-  } else if (filters.value.sort === 'upgraded') {
-    list = list.filter((v) => String(v.voucher_tier).toUpperCase() === 'UPGRADED')
+  let list = applyBaseFilters(vouchers.value);
+  list = list.filter(statusMatches);
+  if (filters.value.sort === "base") {
+    list = list.filter((v) => String(v.voucher_tier).toUpperCase() === "BASE");
+  } else if (filters.value.sort === "upgraded") {
+    list = list.filter((v) => String(v.voucher_tier).toUpperCase() === "UPGRADED");
   }
   // Cualquier opción (incluido 'name') ordena alfabéticamente.
-  return [...list].sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-})
+  return [...list].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+});
 
 /**
  * Booster packs: tras filtros base y status, agrupar por pack_type
@@ -471,31 +476,27 @@ const filteredVouchers = computed(() => {
  * solo se devuelve el grupo correspondiente.
  */
 const groupedBoosterPacks = computed(() => {
-  let list = applyBaseFilters(boosterPacks.value)
-  list = list.filter(statusMatches)
-  if (filters.value.type && filters.value.type !== 'all') {
-    list = list.filter(
-      (p) => String(p.pack_type).toUpperCase() === filters.value.type,
-    )
+  let list = applyBaseFilters(boosterPacks.value);
+  list = list.filter(statusMatches);
+  if (filters.value.type && filters.value.type !== "all") {
+    list = list.filter((p) => String(p.pack_type).toUpperCase() === filters.value.type);
   }
-  return PACK_TYPES
-    .map((t) => {
-      const items = list
-        .filter((p) => String(p.pack_type).toUpperCase() === t.id)
-        .sort((a, b) => {
-          const oa = PACK_SIZE_ORDER[a.size] ?? 99
-          const ob = PACK_SIZE_ORDER[b.size] ?? 99
-          if (oa !== ob) return oa - ob
-          return (a.item_number ?? a.id) - (b.item_number ?? b.id)
-        })
-      return { packType: t.id, label: t.label, color: t.color, items }
-    })
-    .filter((g) => g.items.length)
-})
+  return PACK_TYPES.map((t) => {
+    const items = list
+      .filter((p) => String(p.pack_type).toUpperCase() === t.id)
+      .sort((a, b) => {
+        const oa = PACK_SIZE_ORDER[a.size] ?? 99;
+        const ob = PACK_SIZE_ORDER[b.size] ?? 99;
+        if (oa !== ob) return oa - ob;
+        return (a.item_number ?? a.id) - (b.item_number ?? b.id);
+      });
+    return { packType: t.id, label: t.label, color: t.color, items };
+  }).filter((g) => g.items.length);
+});
 
 function enrichedPackName(pack) {
-  const sized = pack.size ? `${pack.name} ${pack.size}` : pack.name
-  return { ...pack, name: sized }
+  const sized = pack.size ? `${pack.name} ${pack.size}` : pack.name;
+  return { ...pack, name: sized };
 }
 
 /**
@@ -506,37 +507,35 @@ function enrichedPackName(pack) {
  * IGUAL de grande que ARCANA, CELESTIAL, etc., no más pequeño).
  */
 const packRows = computed(() => {
-  const groups = groupedBoosterPacks.value
-  const rows = []
+  const groups = groupedBoosterPacks.value;
+  const rows = [];
   for (let i = 0; i < groups.length; i += 2) {
-    rows.push(groups.slice(i, i + 2))
+    rows.push(groups.slice(i, i + 2));
   }
-  return rows
-})
+  return rows;
+});
 
 const filteredModifierGroups = computed(() => {
-  return MOD_SECTIONS
-    .filter((sec) => {
-      if (filters.value.type === 'all') return true
-      return sec.key === filters.value.type
-    })
-    .map((sec) => {
-      let list = applyBaseFilters(modifiers.value[sec.key] || [])
-      list = sortItems(list)
-      return { ...sec, items: list }
-    })
-})
+  return MOD_SECTIONS.filter((sec) => {
+    if (filters.value.type === "all") return true;
+    return sec.key === filters.value.type;
+  }).map((sec) => {
+    let list = applyBaseFilters(modifiers.value[sec.key] || []);
+    list = sortItems(list);
+    return { ...sec, items: list };
+  });
+});
 
 // ── Counters ─────────────────────────────────────────────────────
 const subtabCount = computed(() => {
-  if (currentSub.value === 'decks') return filteredDecks.value.length
-  if (currentSub.value === 'vouchers') return filteredVouchers.value.length
-  if (currentSub.value === 'booster-packs')
-    return groupedBoosterPacks.value.reduce((acc, g) => acc + g.items.length, 0)
-  if (currentSub.value === 'card-modifiers')
-    return filteredModifierGroups.value.reduce((acc, g) => acc + g.items.length, 0)
-  return 0
-})
+  if (currentSub.value === "decks") return filteredDecks.value.length;
+  if (currentSub.value === "vouchers") return filteredVouchers.value.length;
+  if (currentSub.value === "booster-packs")
+    return groupedBoosterPacks.value.reduce((acc, g) => acc + g.items.length, 0);
+  if (currentSub.value === "card-modifiers")
+    return filteredModifierGroups.value.reduce((acc, g) => acc + g.items.length, 0);
+  return 0;
+});
 
 /**
  * Total y desbloqueados a través de los 4 sub-tabs — para la
@@ -551,19 +550,17 @@ const allItems = computed(() => [
   ...(modifiers.value.enhancements || []),
   ...(modifiers.value.editions || []),
   ...(modifiers.value.seals || []),
-])
-const globalTotal = computed(() => allItems.value.length)
-const globalUnlocked = computed(
-  () => allItems.value.filter((it) => !isLocked(it)).length,
-)
+]);
+const globalTotal = computed(() => allItems.value.length);
+const globalUnlocked = computed(() => allItems.value.filter((it) => !isLocked(it)).length);
 
 // ── Selección + tooltip ──────────────────────────────────────────
-const selectedItem = ref(null)
-const tooltip = ref(null)
-let hoverTimer = null
+const selectedItem = ref(null);
+const tooltip = ref(null);
+let hoverTimer = null;
 
 function onSelect(item, kind, modKey = null) {
-  const enriched = { ...item, _kind: kind, _modKey: modKey }
+  const enriched = { ...item, _kind: kind, _modKey: modKey };
   // Vouchers BASE: si tienen `next_voucher_id`, adjuntamos un preview
   // del voucher "upgraded" para que el detail panel muestre la
   // sección MEJORA A con miniatura + nombre.
@@ -571,17 +568,17 @@ function onSelect(item, kind, modKey = null) {
   // El backend incluye `next_voucher_id` en VoucherSchema; si en
   // algún momento se renombra o no se serializa, el bloque
   // simplemente no aparece — sin errores.
-  if (kind === 'voucher' && item.next_voucher_id) {
-    const upgrade = vouchers.value.find((v) => v.id === item.next_voucher_id)
+  if (kind === "voucher" && item.next_voucher_id) {
+    const upgrade = vouchers.value.find((v) => v.id === item.next_voucher_id);
     if (upgrade) {
       enriched._nextVoucher = {
         id: upgrade.id,
         name: upgrade.name,
         image_url: upgrade.image_url,
-      }
+      };
     }
   }
-  selectedItem.value = enriched
+  selectedItem.value = enriched;
 }
 
 /**
@@ -602,54 +599,54 @@ function onSelect(item, kind, modKey = null) {
  * /api/me/booster-packs.
  */
 async function onManualUnlock(item) {
-  if (!item) return
+  if (!item) return;
   try {
-    await unlockItem(item.id)
-    mutateLocally(item, { unlocked_for_me: true, unlocked_at: new Date().toISOString() })
+    await unlockItem(item.id);
+    mutateLocally(item, { unlocked_for_me: true, unlocked_at: new Date().toISOString() });
   } catch (e) {
-    console.error('[CollectionView] manual unlock failed', e)
-    alert('No se pudo marcar como desbloqueado. ' + (e.message || ''))
+    console.error("[CollectionView] manual unlock failed", e);
+    alert("No se pudo marcar como desbloqueado. " + (e.message || ""));
   }
 }
 
 function mutateLocally(item, patch) {
-  const kind = selectedItem.value?._kind
-  let arr = null
-  if (kind === 'deck') arr = decks.value
-  else if (kind === 'voucher') arr = vouchers.value
-  else if (kind === 'pack') arr = boosterPacks.value
+  const kind = selectedItem.value?._kind;
+  let arr = null;
+  if (kind === "deck") arr = decks.value;
+  else if (kind === "voucher") arr = vouchers.value;
+  else if (kind === "pack") arr = boosterPacks.value;
   if (arr) {
-    const target = arr.find((x) => x.id === item.id)
-    if (target) Object.assign(target, patch)
+    const target = arr.find((x) => x.id === item.id);
+    if (target) Object.assign(target, patch);
   }
   if (selectedItem.value) {
-    selectedItem.value = { ...selectedItem.value, ...patch }
+    selectedItem.value = { ...selectedItem.value, ...patch };
   }
 }
 
 function onHover({ item, target }) {
-  clearTimeout(hoverTimer)
+  clearTimeout(hoverTimer);
   hoverTimer = setTimeout(() => {
-    const rect = target.getBoundingClientRect()
+    const rect = target.getBoundingClientRect();
     tooltip.value = {
       item,
       cardCenterX: rect.left + rect.width / 2,
       cardTop: rect.top,
-    }
-  }, 120)
+    };
+  }, 120);
 }
 
 function onLeave() {
-  clearTimeout(hoverTimer)
-  tooltip.value = null
+  clearTimeout(hoverTimer);
+  tooltip.value = null;
 }
 
-onBeforeUnmount(() => clearTimeout(hoverTimer))
+onBeforeUnmount(() => clearTimeout(hoverTimer));
 </script>
 
 <style lang="scss" scoped>
-@use '@/assets/styles/variables' as *;
-@use '@/assets/styles/mixins' as *;
+@use "@/assets/styles/variables" as *;
+@use "@/assets/styles/mixins" as *;
 
 .collection-view {
   display: flex;
@@ -659,7 +656,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
 }
 
 .view-title {
-  font-family: 'm6x11plus', monospace;
+  font-family: "m6x11plus", monospace;
   font-size: 22px;
   color: #ffffff;
   text-shadow: 0 3px 0 #00000070;
@@ -690,7 +687,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
 }
 
 .subtab {
-  font-family: 'm6x11plus', monospace;
+  font-family: "m6x11plus", monospace;
   font-size: 13px;
   color: #fff;
   border: none;
@@ -698,18 +695,35 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
   cursor: pointer;
   letter-spacing: 1px;
   text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.6);
-  transition: transform 0.1s, filter 0.1s;
+  transition:
+    transform 0.1s,
+    filter 0.1s;
   white-space: nowrap;
   @include pixel-clip;
 
-  &:hover { transform: scale(1.05); filter: brightness(1.15); }
-  &:active { transform: scale(0.95); }
+  &:hover {
+    transform: scale(1.05);
+    filter: brightness(1.15);
+  }
+  &:active {
+    transform: scale(0.95);
+  }
 }
-.subtab--decks          { background: #e84040; }
-.subtab--booster-packs  { background: #f59e0b; }
-.subtab--vouchers       { background: #3b82f6; }
-.subtab--card-modifiers { background: #22c55e; }
-.subtab--active         { filter: brightness(1.25); }
+.subtab--decks {
+  background: #e84040;
+}
+.subtab--booster-packs {
+  background: #f59e0b;
+}
+.subtab--vouchers {
+  background: #3b82f6;
+}
+.subtab--card-modifiers {
+  background: #22c55e;
+}
+.subtab--active {
+  filter: brightness(1.25);
+}
 
 /* Layout ────────────────────────────────────────────────────── */
 .layout {
@@ -727,7 +741,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
 }
 
 .count {
-  font-family: 'm6x11plus', monospace;
+  font-family: "m6x11plus", monospace;
   font-size: 16px;
   color: #ffffff;
   text-shadow: 0 3px 0 #00000070;
@@ -790,7 +804,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
 .pack-section,
 .mod-section {
   &__head {
-    font-family: 'm6x11plus', monospace;
+    font-family: "m6x11plus", monospace;
     font-size: 18px;
     letter-spacing: 1.5px;
     margin-bottom: 12px;
@@ -810,7 +824,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
   }
 
   &__empty {
-    font-family: 'm6x11plus', monospace;
+    font-family: "m6x11plus", monospace;
     font-size: 13px;
     color: $text-3;
     text-align: center;
@@ -843,7 +857,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
     border-bottom: 2px solid $panel-medlight;
 
     span {
-      font-family: 'm6x11plus', monospace;
+      font-family: "m6x11plus", monospace;
       font-size: 14px;
       color: $text-1;
       letter-spacing: 1px;
@@ -853,6 +867,28 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
   &__body {
     flex: 1;
     overflow: hidden;
+  }
+}
+
+/* ── Animaciones de Entrada ───────────────────────────────────────── */
+/*
+ * Animación estilo "repartir carta" (Deal) para la vista de colección.
+ * Cae verticalmente con escala elástica protegiendo los transforms del arco.
+ */
+.card-deal-anim {
+  animation: dealCard 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.15) backwards;
+}
+
+@keyframes dealCard {
+  0% {
+    opacity: 0;
+    translate: 0 -100px;
+    scale: 1.15;
+  }
+  100% {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
   }
 }
 </style>
