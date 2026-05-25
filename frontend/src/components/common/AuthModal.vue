@@ -56,8 +56,13 @@
             </header>
 
             <div class="modal-body">
-              <div v-if="steamLinkMessage" :class="['notice', steamLinkClass]">
-                {{ steamLinkMessage }}
+              <div
+                v-if="steamLinkMessage"
+                :class="['notice-wrapper', `notice-wrapper--${steamLinkClass}`]"
+              >
+                <div :class="['notice', steamLinkClass]">
+                  {{ steamLinkMessage }}
+                </div>
               </div>
 
               <div class="profile-info">
@@ -80,6 +85,7 @@
               <div class="actions">
                 <div v-if="!user?.steam_id" class="btn-wrapper steam-wrapper">
                   <button class="balatro-btn steam-btn" @click="handleLinkSteam" :disabled="busy">
+                    <iconify-icon icon="pixel:steam" noobserver />
                     VINCULAR STEAM
                   </button>
                 </div>
@@ -165,6 +171,9 @@ async function handleLogout() {
 async function handleLinkSteam() {
   busy.value = true;
   try {
+    // Guardamos la ruta actual antes de abandonar la SPA
+    sessionStorage.setItem("steam_return_path", route.path);
+
     await authStore.startSteamLink();
     // No cerramos busy ni el modal porque window.location.href redirige la página completa
   } catch (e) {
@@ -173,7 +182,7 @@ async function handleLinkSteam() {
 }
 
 async function handleUnlinkSteam() {
-  if (!confirm("¿Seguro que quieres desvincular tu cuenta Steam?")) return;
+  if (!confirm("¿Seguro que quieres desvincular tu cuenta de Steam?")) return;
   busy.value = true;
   try {
     await authStore.unlinkSteam();
@@ -221,10 +230,19 @@ async function checkSteamRedirect() {
     await authStore.fetchMe();
   }
 
-  // Limpiamos la URL sin recargar la página (reemplazando la ruta actual sin el query parameter)
-  const currentQuery = { ...route.query };
-  delete currentQuery.steam_link;
-  router.replace({ query: currentQuery });
+  // Restauramos la ruta previa
+  const returnPath = sessionStorage.getItem("steam_return_path");
+
+  if (returnPath) {
+    // Limpiamos la memoria y volvemos a la ruta original (sin los query params de Steam)
+    sessionStorage.removeItem("steam_return_path");
+    router.replace({ path: returnPath });
+  } else {
+    // Fallback: si por algún motivo no hay ruta guardada, solo limpiamos la URL
+    const currentQuery = { ...route.query };
+    delete currentQuery.steam_link;
+    router.replace({ query: currentQuery });
+  }
 }
 
 onMounted(checkSteamRedirect);
@@ -238,7 +256,7 @@ watch(() => route.query.steam_link, checkSteamRedirect);
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(10, 15, 18, 0.85); // Oscurece el fondo sin tapar el shader por completo
+  background: rgba(10, 15, 18, 0.85);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -306,7 +324,6 @@ watch(() => route.query.steam_link, checkSteamRedirect);
   @include pixel-stroke($panel-mid);
   transition: filter 0.15s;
 
-  /* :focus-within aplica el borde azul si el input interno está seleccionado */
   &:focus-within {
     @include pixel-stroke(#2563eb);
   }
@@ -318,6 +335,20 @@ watch(() => route.query.steam_link, checkSteamRedirect);
 
 .steam-wrapper {
   @include pixel-stroke(#66c0f4);
+}
+
+.notice-wrapper {
+  display: flex;
+
+  &--success {
+    @include pixel-stroke(#22c55e);
+  }
+  &--error {
+    @include pixel-stroke(#dc2626);
+  }
+  &--info {
+    @include pixel-stroke(#3b82f6);
+  }
 }
 
 .balatro-input {
@@ -342,7 +373,7 @@ watch(() => route.query.steam_link, checkSteamRedirect);
   transition:
     transform 0.1s,
     filter 0.1s;
-  width: 100%; /* Añadido para que llene el wrapper */
+  width: 100%;
   @include pixel-clip-sm;
 
   &:hover:not(:disabled) {
@@ -368,10 +399,12 @@ watch(() => route.query.steam_link, checkSteamRedirect);
   }
 
   &.steam-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
     background: #1b2838;
     color: #66c0f4;
-    /* Eliminamos el pixel-stroke de aquí.
-       El hover ahora solo necesita el brightness genérico. */
   }
 
   &.secondary {
@@ -456,27 +489,24 @@ watch(() => route.query.steam_link, checkSteamRedirect);
 }
 
 .notice {
+  width: 100%;
   padding: 12px;
   text-align: center;
   font-family: "m6x11plus", monospace;
   @include pixel-clip-sm;
 }
 .notice.success {
-  background: rgba(34, 197, 94, 0.2);
-  border: 1px solid #22c55e;
+  background: linear-gradient(rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.15)), $panel-darkest;
   color: #22c55e;
 }
 .notice.error {
-  background: rgba(220, 38, 38, 0.2);
-  border: 1px solid #dc2626;
+  background: linear-gradient(rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.15)), $panel-darkest;
   color: #ef4444;
 }
 .notice.info {
-  background: rgba(59, 130, 246, 0.2);
-  border: 1px solid #3b82f6;
+  background: linear-gradient(rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.15)), $panel-darkest;
   color: #60a5fa;
 }
-
 /* Transición del modal */
 .modal-fade-enter-active,
 .modal-fade-leave-active {

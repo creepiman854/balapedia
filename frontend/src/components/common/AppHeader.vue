@@ -32,7 +32,9 @@
     </nav>
 
     <div class="header-btn-wrapper">
-      <button class="login-btn" title="Ajustes" @click="$emit('open-settings')">⚙</button>
+      <button class="login-btn" title="Ajustes" @click="$emit('open-settings')">
+        <iconify-icon icon="pixel:cog" noobserver />
+      </button>
     </div>
 
     <template v-if="isAuthenticated && user">
@@ -49,7 +51,9 @@
 
     <template v-else>
       <div class="header-btn-wrapper">
-        <button class="login-btn" @click="authStore.openAuthModal()">👤 CUENTA</button>
+        <button class="login-btn" @click="authStore.openAuthModal()">
+          <iconify-icon icon="pixel:user" noobserver /> CUENTA
+        </button>
       </div>
     </template>
   </header>
@@ -198,12 +202,29 @@ async function handleLogout() {
   font-size: 15px;
   color: $text-2;
   background: $panel-dark;
-  border: none; /* ← ¡Importante! Quitamos el borde sólido clásico */
+  border: none;
   padding: 8px 12px;
   cursor: pointer;
   letter-spacing: 0.5px;
   transition: all 0.15s;
   flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  height: 36px;
+  box-sizing: border-box;
+
+  iconify-icon {
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   @include pixel-clip;
 
   &:hover {

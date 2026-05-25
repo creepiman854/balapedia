@@ -197,7 +197,7 @@ const PLANET_SHOOTING_STAR = {
   // ~3-4 por minuto = ~1/1000 por frame a 60 fps.
   spawnChancePerFrame: 1 / 1000,
   speedRange: [9, 14],     // px/frame (mucho más rápido que los normales)
-  sizeRange: [3, 5],
+  sizeRange: [8, 16],
   lifetimeMs: 2500,
   trailLength: 14,
   // Las estrellas fugaces toman color de la paleta de planet.
@@ -224,11 +224,11 @@ export const SPARKLE_CONFIGS = {
   // TAROT — destellos medio rápidos, 3 colores.
   tarot: {
     count: 55,
-    sizeRange: [2, 6],
-    speedRange: [0.25, 0.7],          // px/frame
-    rotationSpeedRange: [-0.04, 0.04],
+    sizeRange: [8, 16],
+    speedRange: [0.15, 0.5],          // px/frame
+    rotationSpeedRange: [-0.02, 0.02],
     twinkleSpeedRange: [0.015, 0.04],
-    lifetimeMsRange: [4000, 9000],
+    lifetimeMsRange: [2000, 5000],
     baseAlphaRange: [0.55, 0.95],
     colors: ['#B19AC6', '#FFFFFF', '#F3C667'],
     shootingStar: null,
@@ -237,11 +237,11 @@ export const SPARKLE_CONFIGS = {
   // SPECTRAL — destellos lentos, 2 colores (sin morado).
   spectral: {
     count: 40,
-    sizeRange: [2, 5],
+    sizeRange: [8, 16],
     speedRange: [0.05, 0.2],
     rotationSpeedRange: [-0.015, 0.015],
     twinkleSpeedRange: [0.008, 0.02],
-    lifetimeMsRange: [7000, 14000],
+    lifetimeMsRange: [5000, 10000],
     baseAlphaRange: [0.5, 0.9],
     colors: ['#FFFFFF', '#F3C667'],
     shootingStar: null,
@@ -250,11 +250,11 @@ export const SPARKLE_CONFIGS = {
   // PLANET — destellos lentos (como spectral) + estrellas fugaces.
   planet: {
     count: 40,
-    sizeRange: [2, 5],
+    sizeRange: [8, 16],
     speedRange: [0.05, 0.2],
     rotationSpeedRange: [-0.015, 0.015],
     twinkleSpeedRange: [0.008, 0.02],
-    lifetimeMsRange: [7000, 14000],
+    lifetimeMsRange: [5000, 10000],
     baseAlphaRange: [0.5, 0.9],
     colors: ['#FFDA96', '#9ED4DF', '#FFFFFF'],
     shootingStar: PLANET_SHOOTING_STAR,
