@@ -16,7 +16,6 @@
 -->
 <template>
   <div class="jokers-view">
-    <!-- <div class="view-title">▸ COMODINES</div> -->
 
     <div class="jokers-layout">
       <!-- ── Columna izquierda: grid ── -->
@@ -48,6 +47,8 @@
             <ItemCard
               v-for="(joker, idx) in filtered"
               :key="joker.id"
+              class="card-deal-anim"
+              :style="{ animationDelay: `${Math.min(idx, 50) * 35}ms` }"
               :item="joker"
               :is-locked="isLocked(joker)"
               :is-selected="selectedJoker?.id === joker.id"
@@ -64,7 +65,7 @@
       <!-- ── Columna derecha: detalle ── -->
       <div class="detail-col">
         <div class="detail-col__head">
-          <span>{{ selectedJoker ? selectedJoker.name.toUpperCase() : 'COMODÍN' }}</span>
+          <span>{{ selectedJoker ? selectedJoker.name.toUpperCase() : "COMODÍN" }}</span>
         </div>
         <div class="detail-col__body">
           <ItemDetailPanel
@@ -89,47 +90,47 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useAuthStore } from '@/stores/auth'
-import { useSettingsStore } from '@/stores/settings'
-import { useBackgroundStore } from '@/stores/background'
-import { fetchAllJokers, unlockJoker } from '@/services/jokers'
-import { RARITY_ORDER } from '@/constants/rarity'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
+import { storeToRefs } from "pinia";
+import { useAuthStore } from "@/stores/auth";
+import { useSettingsStore } from "@/stores/settings";
+import { useBackgroundStore } from "@/stores/background";
+import { fetchAllJokers, unlockJoker } from "@/services/jokers";
+import { RARITY_ORDER } from "@/constants/rarity";
 
-import ProgressBar from '@/components/common/ProgressBar.vue'
-import FilterBar from '@/components/common/FilterBar.vue'
+import ProgressBar from "@/components/common/ProgressBar.vue";
+import FilterBar from "@/components/common/FilterBar.vue";
 // Los componentes Item* sustituyen a los Joker* del pase anterior —
 // son genéricos y los usan también ConsumiblesView, CollectionView…
 // La carpeta src/components/jokers/ queda deprecada (recomendado
 // borrarla en el mismo commit que renombra los imports).
-import ItemCard from '@/components/items/ItemCard.vue'
-import ItemDetailPanel from '@/components/items/ItemDetailPanel.vue'
-import ItemTooltip from '@/components/items/ItemTooltip.vue'
+import ItemCard from "@/components/items/ItemCard.vue";
+import ItemDetailPanel from "@/components/items/ItemDetailPanel.vue";
+import ItemTooltip from "@/components/items/ItemTooltip.vue";
 
-const authStore = useAuthStore()
-const { isAuthenticated } = storeToRefs(authStore)
-const settings = useSettingsStore()
-const bgStore = useBackgroundStore()
+const authStore = useAuthStore();
+const { isAuthenticated } = storeToRefs(authStore);
+const settings = useSettingsStore();
+const bgStore = useBackgroundStore();
 
 // ── Datos ─────────────────────────────────────────────────────────────
-const jokers = ref([])
-const loading = ref(false)
-const error = ref('')
+const jokers = ref([]);
+const loading = ref(false);
+const error = ref("");
 
 async function loadJokers() {
-  loading.value = true
-  error.value = ''
+  loading.value = true;
+  error.value = "";
   try {
-    jokers.value = await fetchAllJokers({ authenticated: isAuthenticated.value })
+    jokers.value = await fetchAllJokers({ authenticated: isAuthenticated.value });
     if (!selectedJoker.value && jokers.value.length) {
-      selectedJoker.value = jokers.value[0]
+      selectedJoker.value = jokers.value[0];
     }
   } catch (e) {
-    console.error('[JokersView] no se pudieron cargar los jokers', e)
-    error.value = 'No se pudieron cargar los comodines. ¿Backend caído?'
+    console.error("[JokersView] no se pudieron cargar los jokers", e);
+    error.value = "No se pudieron cargar los comodines. ¿Backend caído?";
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
@@ -137,10 +138,10 @@ onMounted(() => {
   // Le decimos al shader que pinte el preset "jokers" — esto es lo que
   // hará cada vista al montar (Tarot → 'tarot', Planet → 'planet', etc.).
   // El BalatroBackground interpola suavemente desde el preset anterior.
-  bgStore.setPreset('jokers')
-  loadJokers()
-})
-watch(isAuthenticated, loadJokers)
+  bgStore.setPreset("jokers");
+  loadJokers();
+});
+watch(isAuthenticated, loadJokers);
 
 /**
  * Detecta jokers desbloqueados de fábrica ("Available from start").
@@ -155,49 +156,49 @@ watch(isAuthenticated, loadJokers)
  */
 function isAvailableFromStart(joker) {
   const condition = String(
-    joker.unlock_condition || joker.unlock_factor?.description || '',
-  ).toLowerCase()
+    joker.unlock_condition || joker.unlock_factor?.description || "",
+  ).toLowerCase();
   if (
-    condition.includes('available from start') ||
-    condition.includes('available from the start') ||
-    condition.includes('disponible desde el inicio')
+    condition.includes("available from start") ||
+    condition.includes("available from the start") ||
+    condition.includes("disponible desde el inicio")
   ) {
-    return true
+    return true;
   }
-  const code = String(joker.unlock_factor?.code || '').toLowerCase()
-  return code === 'available_from_start' || code === 'start'
+  const code = String(joker.unlock_factor?.code || "").toLowerCase();
+  return code === "available_from_start" || code === "start";
 }
 
 function isLocked(joker) {
-  if (!isAuthenticated.value) return false
-  if (isAvailableFromStart(joker)) return false
-  if (!Object.prototype.hasOwnProperty.call(joker, 'unlocked_for_me')) return false
-  return !joker.unlocked_for_me
+  if (!isAuthenticated.value) return false;
+  if (isAvailableFromStart(joker)) return false;
+  if (!Object.prototype.hasOwnProperty.call(joker, "unlocked_for_me")) return false;
+  return !joker.unlocked_for_me;
 }
 
 // ── Manual unlock (botón en el panel de detalle) ─────────────────────
 async function onManualUnlock(joker) {
-  if (!joker) return
+  if (!joker) return;
   try {
-    await unlockJoker(joker.id)
+    await unlockJoker(joker.id);
     // Refrescamos toda la lista para que `unlocked_for_me` se actualice;
     // alternativa más fina sería mutar solo el joker afectado.
-    await loadJokers()
-    const fresh = jokers.value.find((j) => j.id === joker.id)
-    if (fresh) selectedJoker.value = fresh
+    await loadJokers();
+    const fresh = jokers.value.find((j) => j.id === joker.id);
+    if (fresh) selectedJoker.value = fresh;
   } catch (e) {
-    console.error('[JokersView] no se pudo desbloquear manualmente', e)
-    alert('No se pudo marcar como desbloqueado. ¿Endpoint backend listo?')
+    console.error("[JokersView] no se pudo desbloquear manualmente", e);
+    alert("No se pudo marcar como desbloqueado. ¿Endpoint backend listo?");
   }
 }
 
 // ── Filtros ───────────────────────────────────────────────────────────
 const filters = ref({
-  search: '',
-  rarity: 'all',
-  status: 'all',
-  sort: 'id',
-})
+  search: "",
+  rarity: "all",
+  status: "all",
+  sort: "id",
+});
 
 /**
  * El select de ESTADO (Desbloqueado / Bloqueado) solo aporta valor
@@ -206,84 +207,84 @@ const filters = ref({
  * ocultamos en ese caso. Misma lógica se aplica en CollectionView.
  */
 const enabledFilters = computed(() => {
-  const base = ['search', 'rarity', 'status', 'sort']
-  return isAuthenticated.value ? base : base.filter((f) => f !== 'status')
-})
+  const base = ["search", "rarity", "status", "sort"];
+  return isAuthenticated.value ? base : base.filter((f) => f !== "status");
+});
 
 function normalizeRarity(raw) {
-  if (!raw || raw === 'all') return raw
-  return String(raw).toUpperCase()
+  if (!raw || raw === "all") return raw;
+  return String(raw).toUpperCase();
 }
 
 const filtered = computed(() => {
-  const search = filters.value.search.toLowerCase()
-  const rarityFilter = normalizeRarity(filters.value.rarity)
+  const search = filters.value.search.toLowerCase();
+  const rarityFilter = normalizeRarity(filters.value.rarity);
   return jokers.value
     .filter((j) => {
-      const jr = String(j.rarity || '').toUpperCase()
-      if (rarityFilter !== 'all' && jr !== rarityFilter) return false
-      if (filters.value.status === 'unlocked' && isLocked(j)) return false
-      if (filters.value.status === 'locked' && !isLocked(j)) return false
+      const jr = String(j.rarity || "").toUpperCase();
+      if (rarityFilter !== "all" && jr !== rarityFilter) return false;
+      if (filters.value.status === "unlocked" && isLocked(j)) return false;
+      if (filters.value.status === "locked" && !isLocked(j)) return false;
       if (
         search &&
-        !(j.name || '').toLowerCase().includes(search) &&
-        !(j.description || '').toLowerCase().includes(search)
+        !(j.name || "").toLowerCase().includes(search) &&
+        !(j.description || "").toLowerCase().includes(search)
       )
-        return false
-      return true
+        return false;
+      return true;
     })
     .sort((a, b) => {
-      if (filters.value.sort === 'name') return (a.name || '').localeCompare(b.name || '')
-      if (filters.value.sort === 'rarity') {
-        const oa = RARITY_ORDER[String(a.rarity).toUpperCase()] ?? 99
-        const ob = RARITY_ORDER[String(b.rarity).toUpperCase()] ?? 99
-        return oa - ob
+      if (filters.value.sort === "name") return (a.name || "").localeCompare(b.name || "");
+      if (filters.value.sort === "rarity") {
+        const oa = RARITY_ORDER[String(a.rarity).toUpperCase()] ?? 99;
+        const ob = RARITY_ORDER[String(b.rarity).toUpperCase()] ?? 99;
+        return oa - ob;
       }
-      const oa = a.item_number ?? a.id
-      const ob = b.item_number ?? b.id
-      return oa - ob
-    })
-})
+      const oa = a.item_number ?? a.id;
+      const ob = b.item_number ?? b.id;
+      return oa - ob;
+    });
+});
 
 const totalUnlocked = computed(() => {
-  if (!isAuthenticated.value) return jokers.value.length
-  return jokers.value.filter((j) => !isLocked(j)).length
-})
+  if (!isAuthenticated.value) return jokers.value.length;
+  return jokers.value.filter((j) => !isLocked(j)).length;
+});
 
 // ── Selección + tooltip ───────────────────────────────────────────────
-const selectedJoker = ref(null)
-const tooltip = ref(null)
-let hoverTimer = null
+const selectedJoker = ref(null);
+const tooltip = ref(null);
+let hoverTimer = null;
 
 function onSelect(joker) {
-  selectedJoker.value = joker
+  selectedJoker.value = joker;
 }
 
 function onHover({ item, target }) {
   // ItemCard emite `{ item, target }` — el payload es genérico aunque
   // en esta vista el "item" sea un joker.
-  clearTimeout(hoverTimer)
+  clearTimeout(hoverTimer);
   hoverTimer = setTimeout(() => {
-    const rect = target.getBoundingClientRect()
+    const rect = target.getBoundingClientRect();
     tooltip.value = {
       item,
       cardCenterX: rect.left + rect.width / 2,
       cardTop: rect.top,
-    }
-  }, 120)
+    };
+  }, 120);
 }
 
 function onLeave() {
-  clearTimeout(hoverTimer)
-  tooltip.value = null
+  clearTimeout(hoverTimer);
+  tooltip.value = null;
 }
 
-onBeforeUnmount(() => clearTimeout(hoverTimer))
+onBeforeUnmount(() => clearTimeout(hoverTimer));
 </script>
 
 <style lang="scss" scoped>
-@use '@/assets/styles/variables' as *;
-@use '@/assets/styles/mixins' as *;
+@use "@/assets/styles/variables" as *;
+@use "@/assets/styles/mixins" as *;
 
 .jokers-view {
   display: flex;
@@ -300,7 +301,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
  * sin importar si el shader detrás tiene rojo, azul o teal oscuro.
  */
 .view-title {
-  font-family: 'm6x11plus', monospace;
+  font-family: "m6x11plus", monospace;
   font-size: 22px;
   color: #ffffff;
   text-shadow: 0 3px 0 #00000070;
@@ -324,7 +325,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
 }
 
 .count {
-  font-family: 'm6x11plus', monospace;
+  font-family: "m6x11plus", monospace;
   font-size: 16px;
   color: #ffffff;
   text-shadow: 0 3px 0 #00000070;
@@ -380,7 +381,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
     border-bottom: 2px solid $panel-medlight;
 
     span {
-      font-family: 'm6x11plus', monospace;
+      font-family: "m6x11plus", monospace;
       font-size: 14px;
       color: $text-1;
       letter-spacing: 1px;
@@ -390,6 +391,30 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
   &__body {
     flex: 1;
     overflow: hidden;
+  }
+}
+
+/*
+ * Animación estilo "repartir carta" (Deal).
+ * Entran desde arriba, ligeramente ampliadas y con un rebote final.
+ */
+.card-deal-anim {
+  // El cubic-bezier crea un ligero "overshoot" (rebote) al asentarse
+  animation: dealCard 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.15) backwards;
+}
+
+@keyframes dealCard {
+  0% {
+    opacity: 0;
+    // Usamos 'translate' y 'scale' nativos (propiedades independientes).
+    // Esto es magia negra: NO sobreescribe el 'transform' que genera tu arco.
+    translate: 0 -100px;
+    scale: 1.15;
+  }
+  100% {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
   }
 }
 </style>
