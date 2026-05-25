@@ -19,7 +19,6 @@
 -->
 <template>
   <div class="consumibles-view">
-    <!-- <div class="view-title">▸ CONSUMIBLES</div> -->
 
     <div class="layout">
       <!-- ── Grid izquierda ── -->
@@ -35,9 +34,11 @@
               v-for="sub in SUBTABS"
               :key="sub.id"
               :class="['subtab', `subtab--${sub.id}`, { 'subtab--active': currentSub === sub.id }]"
-              :style="currentSub === sub.id
-                ? { boxShadow: `0 4px 16px ${sub.color}55, inset 0 -2px 0 rgba(0,0,0,0.3)` }
-                : { filter: 'brightness(0.7) saturate(0.65)' }"
+              :style="
+                currentSub === sub.id
+                  ? { boxShadow: `0 4px 16px ${sub.color}55, inset 0 -2px 0 rgba(0,0,0,0.3)` }
+                  : { filter: 'brightness(0.7) saturate(0.65)' }
+              "
               @click="selectSub(sub.id)"
             >
               {{ sub.label }}
@@ -66,6 +67,8 @@
             <ItemCard
               v-for="(item, idx) in filtered"
               :key="item.id"
+              class="card-deal-anim"
+              :style="{ animationDelay: `${Math.min(idx, 50) * 35}ms` }"
               :item="item"
               :is-locked="false"
               :is-selected="selectedItem?.id === item.id"
@@ -82,14 +85,12 @@
       <!-- ── Detalle derecha ── -->
       <div class="detail-col">
         <div class="detail-col__head">
-          <span>{{ selectedItem ? selectedItem.name.toUpperCase() : currentSubLabel.toUpperCase() }}</span>
+          <span>{{
+            selectedItem ? selectedItem.name.toUpperCase() : currentSubLabel.toUpperCase()
+          }}</span>
         </div>
         <div class="detail-col__body">
-          <ItemDetailPanel
-            :item="selectedItem"
-            :is-locked="false"
-            :can-unlock="false"
-          />
+          <ItemDetailPanel :item="selectedItem" :is-locked="false" :can-unlock="false" />
         </div>
       </div>
     </div>
@@ -106,16 +107,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { useBackgroundStore } from '@/stores/background'
-import { fetchConsumablesByType } from '@/services/consumables'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
+import { useBackgroundStore } from "@/stores/background";
+import { fetchConsumablesByType } from "@/services/consumables";
 
-import FilterBar from '@/components/common/FilterBar.vue'
-import ItemCard from '@/components/items/ItemCard.vue'
-import ItemDetailPanel from '@/components/items/ItemDetailPanel.vue'
-import ItemTooltip from '@/components/items/ItemTooltip.vue'
+import FilterBar from "@/components/common/FilterBar.vue";
+import ItemCard from "@/components/items/ItemCard.vue";
+import ItemDetailPanel from "@/components/items/ItemDetailPanel.vue";
+import ItemTooltip from "@/components/items/ItemTooltip.vue";
 
-const bgStore = useBackgroundStore()
+const bgStore = useBackgroundStore();
 
 /* ── Sub-tabs ───────────────────────────────────────────────────────
  * El `id` aquí coincide con:
@@ -125,120 +126,118 @@ const bgStore = useBackgroundStore()
  *     que se pasa toLowerCase().
  */
 const SUBTABS = [
-  { id: 'TAROT',    label: 'TAROT',     color: '#D8B062' },
-  { id: 'PLANET',   label: 'PLANETA',   color: '#4790A1' },
-  { id: 'SPECTRAL', label: 'ESPECTRAL', color: '#5066A5' },
-]
+  { id: "TAROT", label: "TAROT", color: "#D8B062" },
+  { id: "PLANET", label: "PLANETA", color: "#4790A1" },
+  { id: "SPECTRAL", label: "ESPECTRAL", color: "#5066A5" },
+];
 
-const FIXED_COLS = 7
-const currentSub = ref('TAROT')
+const FIXED_COLS = 7;
+const currentSub = ref("TAROT");
 
-const currentSubLabel = computed(
-  () => SUBTABS.find((s) => s.id === currentSub.value)?.label || '',
-)
+const currentSubLabel = computed(() => SUBTABS.find((s) => s.id === currentSub.value)?.label || "");
 
 function selectSub(id) {
-  if (currentSub.value === id) return
-  currentSub.value = id
+  if (currentSub.value === id) return;
+  currentSub.value = id;
   // Reset interno antes de cargar — evita ver datos del subtab anterior.
-  items.value = []
-  selectedItem.value = null
-  tooltip.value = null
-  filters.value = { search: '', sort: 'id' }
-  bgStore.setPreset(id.toLowerCase())
-  loadItems()
+  items.value = [];
+  selectedItem.value = null;
+  tooltip.value = null;
+  filters.value = { search: "", sort: "id" };
+  bgStore.setPreset(id.toLowerCase());
+  loadItems();
 }
 
 // ── Datos ─────────────────────────────────────────────────────────
-const items = ref([])
-const loading = ref(false)
-const error = ref('')
+const items = ref([]);
+const loading = ref(false);
+const error = ref("");
 
 async function loadItems() {
-  loading.value = true
-  error.value = ''
+  loading.value = true;
+  error.value = "";
   try {
-    items.value = await fetchConsumablesByType(currentSub.value)
+    items.value = await fetchConsumablesByType(currentSub.value);
     if (!selectedItem.value && items.value.length) {
-      selectedItem.value = items.value[0]
+      selectedItem.value = items.value[0];
     }
   } catch (e) {
-    console.error('[ConsumiblesView] error completo:', e, e.cause || '')
+    console.error("[ConsumiblesView] error completo:", e, e.cause || "");
     // Mostramos el mensaje real (status + detail) que arma el servicio.
     // Si el backend devuelve 400 "invalid: 'TAROT'" se ve tal cual y
     // podemos diagnosticar al instante.
-    error.value = e.message || 'Error desconocido al cargar las cartas.'
+    error.value = e.message || "Error desconocido al cargar las cartas.";
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 onMounted(() => {
-  bgStore.setPreset(currentSub.value.toLowerCase())
-  loadItems()
-})
+  bgStore.setPreset(currentSub.value.toLowerCase());
+  loadItems();
+});
 
 // Si el usuario cambia de cuenta mientras está en esta vista, el
 // catálogo público no cambia, no recargamos.
 
 // ── Filtros ───────────────────────────────────────────────────────
 const filters = ref({
-  search: '',
-  sort: 'id',
-})
+  search: "",
+  sort: "id",
+});
 
 const filtered = computed(() => {
-  const search = filters.value.search.toLowerCase()
+  const search = filters.value.search.toLowerCase();
   return items.value
     .filter((it) => {
       if (
         search &&
-        !(it.name || '').toLowerCase().includes(search) &&
-        !(it.description || '').toLowerCase().includes(search)
+        !(it.name || "").toLowerCase().includes(search) &&
+        !(it.description || "").toLowerCase().includes(search)
       )
-        return false
-      return true
+        return false;
+      return true;
     })
     .sort((a, b) => {
-      if (filters.value.sort === 'name') return (a.name || '').localeCompare(b.name || '')
-      const oa = a.item_number ?? a.id
-      const ob = b.item_number ?? b.id
-      return oa - ob
-    })
-})
+      if (filters.value.sort === "name") return (a.name || "").localeCompare(b.name || "");
+      const oa = a.item_number ?? a.id;
+      const ob = b.item_number ?? b.id;
+      return oa - ob;
+    });
+});
 
 // ── Selección + tooltip ───────────────────────────────────────────
-const selectedItem = ref(null)
-const tooltip = ref(null)
-let hoverTimer = null
+const selectedItem = ref(null);
+const tooltip = ref(null);
+let hoverTimer = null;
 
 function onSelect(item) {
-  selectedItem.value = item
+  selectedItem.value = item;
 }
 
 function onHover({ item, target }) {
-  clearTimeout(hoverTimer)
+  clearTimeout(hoverTimer);
   hoverTimer = setTimeout(() => {
-    const rect = target.getBoundingClientRect()
+    const rect = target.getBoundingClientRect();
     tooltip.value = {
       item,
       cardCenterX: rect.left + rect.width / 2,
       cardTop: rect.top,
-    }
-  }, 120)
+    };
+  }, 120);
 }
 
 function onLeave() {
-  clearTimeout(hoverTimer)
-  tooltip.value = null
+  clearTimeout(hoverTimer);
+  tooltip.value = null;
 }
 
-onBeforeUnmount(() => clearTimeout(hoverTimer))
+onBeforeUnmount(() => clearTimeout(hoverTimer));
 </script>
 
 <style lang="scss" scoped>
-@use '@/assets/styles/variables' as *;
-@use '@/assets/styles/mixins' as *;
+@use "@/assets/styles/variables" as *;
+@use "@/assets/styles/mixins" as *;
 
 .consumibles-view {
   display: flex;
@@ -248,7 +247,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
 }
 
 .view-title {
-  font-family: 'm6x11plus', monospace;
+  font-family: "m6x11plus", monospace;
   font-size: 22px;
   color: #ffffff;
   text-shadow: 0 3px 0 #00000070;
@@ -280,7 +279,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
 }
 
 .subtab {
-  font-family: 'm6x11plus', monospace;
+  font-family: "m6x11plus", monospace;
   font-size: 13px;
   color: #fff;
   border: none;
@@ -288,17 +287,32 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
   cursor: pointer;
   letter-spacing: 1px;
   text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.6);
-  transition: transform 0.1s, filter 0.1s;
+  transition:
+    transform 0.1s,
+    filter 0.1s;
   white-space: nowrap;
   @include pixel-clip;
 
-  &:hover { transform: scale(1.05); filter: brightness(1.15); }
-  &:active { transform: scale(0.95); }
+  &:hover {
+    transform: scale(1.05);
+    filter: brightness(1.15);
+  }
+  &:active {
+    transform: scale(0.95);
+  }
 }
-.subtab--TAROT    { background: #d97706; }
-.subtab--PLANET   { background: #4790a1; }
-.subtab--SPECTRAL { background: #5066a5; }
-.subtab--active   { filter: brightness(1.25); }
+.subtab--TAROT {
+  background: #d97706;
+}
+.subtab--PLANET {
+  background: #4790a1;
+}
+.subtab--SPECTRAL {
+  background: #5066a5;
+}
+.subtab--active {
+  filter: brightness(1.25);
+}
 
 /* ── Layout ───────────────────────────────────────────────────── */
 .layout {
@@ -316,7 +330,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
 }
 
 .count {
-  font-family: 'm6x11plus', monospace;
+  font-family: "m6x11plus", monospace;
   font-size: 16px;
   color: #ffffff;
   text-shadow: 0 3px 0 #00000070;
@@ -359,7 +373,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
     border-bottom: 2px solid $panel-medlight;
 
     span {
-      font-family: 'm6x11plus', monospace;
+      font-family: "m6x11plus", monospace;
       font-size: 14px;
       color: $text-1;
       letter-spacing: 1px;
@@ -369,6 +383,28 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
   &__body {
     flex: 1;
     overflow: hidden;
+  }
+}
+
+/* ── Animaciones de Entrada ───────────────────────────────────────── */
+/*
+ * Animación estilo "repartir carta" (Deal) para el catálogo de consumibles.
+ * Entran desde arriba con un multiplicador de escala y caen elásticamente.
+ */
+.card-deal-anim {
+  animation: dealCard 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.15) backwards;
+}
+
+@keyframes dealCard {
+  0% {
+    opacity: 0;
+    translate: 0 -100px;
+    scale: 1.15;
+  }
+  100% {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
   }
 }
 </style>
