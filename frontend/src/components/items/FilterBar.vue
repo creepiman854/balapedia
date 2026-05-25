@@ -79,9 +79,21 @@
       :value="modelValue.sort"
       @change="update('sort', $event.target.value)"
     >
-      <option value="id">Orden: #</option>
-      <option value="name">Orden: A-Z</option>
-      <option v-if="show('rarity')" value="rarity">Orden: Rareza</option>
+      <!--
+        Si la vista pasa `sortOptions` no vacío, usamos esas opciones
+        custom (p.ej. vouchers → A-Z / BASE / UPGRADED). Si no, fallback
+        a la lista por defecto (#, A-Z, y Rareza si está activo).
+      -->
+      <template v-if="sortOptions.length">
+        <option v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
+          {{ opt.label }}
+        </option>
+      </template>
+      <template v-else>
+        <option value="id">Orden: #</option>
+        <option value="name">Orden: A-Z</option>
+        <option v-if="show('rarity')" value="rarity">Orden: Rareza</option>
+      </template>
     </select>
   </div>
 </template>
@@ -106,6 +118,15 @@ const props = defineProps({
    * Se ignora si 'type' no está en enabled.
    */
   typeOptions: {
+    type: Array,
+    default: () => [],
+  },
+  /**
+   * Opciones del select 'sort'. Si se pasa, sustituye las opciones
+   * por defecto (#, A-Z, [Rareza]). Útil cuando una vista necesita
+   * un criterio distinto (p.ej. vouchers: A-Z / BASE / UPGRADED).
+   */
+  sortOptions: {
     type: Array,
     default: () => [],
   },

@@ -45,13 +45,6 @@ const pct = computed(() => (props.max > 0 ? Math.round((props.value / props.max)
 .progress {
   margin-bottom: 10px;
 
-  /*
-   * Texto sobre el shader: blanco con drop-shadow sólido sin difusión.
-   * Tamaño bumpeado (era 11px → 14px) y peso un poco más alto.
-   * Equivalente al `box-shadow: 0 5px 0 #000` del feedback aplicado a
-   * texto (text-shadow no admite spread, así que ese cuarto parámetro
-   * se omite — el efecto visual es el mismo: ofsset Y de 5px sin blur).
-   */
   &__label {
     display: flex;
     justify-content: space-between;

@@ -41,7 +41,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { getItemAccent, getItemBadgeLabel } from '@/constants/items'
+import { getItemAccent, getItemBadgeLabel, getItemEffectText } from '@/constants/items'
 import AccentBadge from '@/components/common/AccentBadge.vue'
 
 const props = defineProps({
@@ -76,7 +76,25 @@ const unlockText = computed(
     'Compra o usa esta carta en una partida sin códigos para saber lo que hace.',
 )
 
-const description = computed(() => props.item.description || '—')
+/**
+ * `description` para jokers/decks/vouchers/packs, `effect` para card
+ * modifiers (Enhancement/Edition/Seal). Mismo patrón explícito que
+ * `displayEffect` en ItemDetailPanel:
+ *   - cadena vacía o solo whitespace → "—"
+ *   - cualquier otro caso → el texto resuelto
+ *
+ * Antes hacíamos `getItemEffectText(props.item) || '—'` pero quedaba
+ * frágil: si el helper devolvía un placeholder con whitespace el OR
+ * lógico no lo detectaba como vacío. Con el helper endurecido + este
+ * computed explícito el bug de "el hover de MEJORAS sale como '—'" se
+ * cierra definitivamente.
+ */
+const description = computed(() => {
+  if (!props.item) return '—'
+  const text = getItemEffectText(props.item)
+  if (!text || (typeof text === 'string' && !text.trim())) return '—'
+  return text
+})
 
 const posStyle = computed(() => {
   const left = Math.max(
