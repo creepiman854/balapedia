@@ -7,7 +7,8 @@
       consumible), nunca ambas.
     - EFECTO → siempre (la descripción).
     - DESBLOQUEO → si hay unlock_condition o unlock_factor.
-    - MI PROGRESO → si el item tiene overlay (campo unlocked_for_me).
+    - (MI PROGRESO se eliminó: el estado visual de la carta — imagen
+      vs dorso — ya comunica el unlock state al usuario.)
     - ESTADÍSTICAS → buy/sell siempre; effect_type/activation solo si
       el shape los trae (jokers).
     - COMPATIBILIDAD → solo si alguno de is_copyable/perishable/eternal
@@ -61,7 +62,7 @@
               color: isLocked ? '#4D6870' : accent.color,
             }"
           >
-            {{ isLocked ? '???' : safe(item.description) }}
+            {{ displayEffect }}
           </div>
         </div>
       </section>
@@ -90,29 +91,29 @@
         </div>
       </section>
 
-      <!-- MI PROGRESO -->
-      <section v-if="hasOverlay" class="section">
-        <header class="section__head" style="border-left-color: #22c55e">
-          <span class="section__icon">{{ item.unlocked_for_me ? '✓' : '🔒' }}</span>
-          <span style="color: #22c55e">MI PROGRESO</span>
+      <!--
+        Sección "MI PROGRESO" eliminada: el usuario ya sabe si una
+        carta está desbloqueada o no por su propia imagen — si se ve,
+        está desbloqueada; si aparece el dorso "?", está bloqueada.
+        El bloque sobraba.
+      -->
+
+      <!-- MEJORA A (vouchers base con next_voucher_id) -->
+      <section v-if="item._nextVoucher" class="section">
+        <header class="section__head" style="border-left-color: #3b82f6">
+          <span class="section__icon">⬆</span>
+          <span style="color: #3b82f6">MEJORA A</span>
         </header>
-        <div class="section__body progress-box">
-          <div class="progress-row">
-            <span>Estado</span>
-            <span class="progress-row__val">
-              {{ item.unlocked_for_me ? 'Desbloqueado' : 'Bloqueado' }}
-            </span>
-          </div>
-          <div v-if="item.unlocked_for_me && unlockedAtText" class="progress-row">
-            <span>Desde</span>
-            <span class="progress-row__val">{{ unlockedAtText }}</span>
-          </div>
-          <div v-if="item.highest_stake_order" class="progress-row">
-            <span>Stake máximo</span>
-            <span class="progress-row__val" :style="{ color: stakeColor }">
-              {{ item.highest_stake_order === 8 ? '★ ORO' : `Stake ${item.highest_stake_order}` }}
-            </span>
-          </div>
+        <div class="section__body upgrade-box">
+          <img
+            v-if="item._nextVoucher.image_url"
+            :src="item._nextVoucher.image_url"
+            :alt="item._nextVoucher.name"
+            class="upgrade-box__thumb"
+            draggable="false"
+          />
+          <div v-else class="upgrade-box__thumb upgrade-box__thumb--missing">?</div>
+          <span class="upgrade-box__name">{{ item._nextVoucher.name }}</span>
         </div>
       </section>
 
@@ -173,7 +174,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { getItemAccent, getItemBadgeLabel } from '@/constants/items'
+import { getItemAccent, getItemBadgeLabel, getItemEffectText } from '@/constants/items'
 import ItemCardArt from './ItemCardArt.vue'
 import AccentBadge from '@/components/common/AccentBadge.vue'
 
@@ -194,10 +195,28 @@ const busy = ref(false)
 
 const accent = computed(() => (props.item ? getItemAccent(props.item) : {}))
 const badgeLabel = computed(() => getItemBadgeLabel(props.item))
-
-const hasOverlay = computed(
-  () => props.item && Object.prototype.hasOwnProperty.call(props.item, 'unlocked_for_me'),
-)
+// `description` (jokers, decks, vouchers, packs) o `effect`
+// (card modifiers). El helper centraliza la resolución.
+/**
+ * Texto a mostrar en la sección EFECTO.
+ *
+ * Antes hacíamos `safe(effectText)` en la plantilla pero pasar un
+ * ref (`effectText`) como argumento de función dentro de una
+ * expresión `{{ }}` puede no des-envolverse automáticamente en
+ * todos los escenarios (Vue 3 lo hace en accesos top-level pero
+ * la garantía decae cuando se anida en otras expresiones).
+ *
+ * Lo movemos a un único computed que devuelve directamente la
+ * cadena final ('???' si locked, '—' si vacío, el efecto en
+ * cualquier otro caso). El template solo hace `{{ displayEffect }}`,
+ * top-level → unwrap garantizado.
+ */
+const displayEffect = computed(() => {
+  if (props.isLocked) return '???'
+  const text = getItemEffectText(props.item)
+  if (!text || (typeof text === 'string' && !text.trim())) return '—'
+  return text
+})
 
 const hasStats = computed(
   () =>
@@ -221,20 +240,6 @@ const hasCompat = computed(
 const unlockText = computed(() => {
   if (!props.item) return ''
   return props.item.unlock_condition || props.item.unlock_factor?.description || ''
-})
-
-const stakeColor = computed(() => {
-  if (props.item?.highest_stake_order === 8) return '#f0b030'
-  return '#22c55e'
-})
-
-const unlockedAtText = computed(() => {
-  if (!props.item?.unlocked_at) return ''
-  try {
-    return new Date(props.item.unlocked_at).toLocaleDateString()
-  } catch {
-    return ''
-  }
 })
 
 function safe(value, fallback = '—') {
@@ -389,21 +394,38 @@ async function onManualUnlock() {
   @include pixel-clip-sm;
 }
 
-.progress-box {
+/* MEJORA A — preview compacto del voucher upgraded. */
+.upgrade-box {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 4px;
-}
-.progress-row {
-  display: flex;
-  justify-content: space-between;
-  font-family: 'm6x11plus', monospace;
-  font-size: 13px;
-  color: $text-2;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 4px;
 
-  &__val {
+  &__thumb {
+    width: 60px;
+    aspect-ratio: 71 / 95;
+    object-fit: contain;
+    border-radius: 6px;
+    image-rendering: pixelated;
+    flex-shrink: 0;
+    background: rgba(0, 0, 0, 0.25);
+
+    &--missing {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'm6x11plus', monospace;
+      font-size: 24px;
+      color: $panel-light;
+    }
+  }
+
+  &__name {
+    font-family: 'm6x11plus', monospace;
+    font-size: 14px;
     color: $text-1;
+    letter-spacing: 0.3px;
   }
 }
 
