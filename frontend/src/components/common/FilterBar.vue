@@ -1,12 +1,15 @@
 <!--
   Barra de filtros configurable.
 
-  modelValue: { search, rarity, status, sort }
+  modelValue: { search, rarity, status, sort, type }
   enabled:    array de filtros visibles (los demás se ocultan).
+  typeOptions: array de { value, label } cuando 'type' está habilitado.
+              Cada vista pasa sus propias opciones (pack types, modifier
+              kinds, etc.) — la barra es agnóstica al dominio.
 
-  Por defecto se muestran todos. Para consumibles, el padre pasa
-  enabled=['search','sort'] (no hay rareza ni estado unlocked/locked
-  por ahora).
+  Por defecto se muestran search + rarity + status + sort. La opción
+  'type' SOLO se renderiza si la vista la incluye en enabled Y pasa
+  typeOptions; si no, el select no aparece y el filtro se ignora.
 -->
 <template>
   <div class="filterbar">
@@ -45,6 +48,21 @@
     </select>
 
     <select
+      v-if="show('type') && typeOptions.length"
+      class="filterbar__select"
+      :value="modelValue.type"
+      @change="update('type', $event.target.value)"
+    >
+      <option
+        v-for="opt in typeOptions"
+        :key="opt.value"
+        :value="opt.value"
+      >
+        {{ opt.label }}
+      </option>
+    </select>
+
+    <select
       v-if="show('status')"
       class="filterbar__select"
       :value="modelValue.status"
@@ -72,15 +90,24 @@
 const props = defineProps({
   modelValue: { type: Object, required: true },
   /**
-   * Filtros visibles. Por defecto todos.
+   * Filtros visibles.
    *   - 'search'  → input de búsqueda libre
-   *   - 'rarity'  → solo aplica a jokers
-   *   - 'status'  → unlocked/locked, requiere overlay del backend
+   *   - 'rarity'  → solo aplica a jokers (lista hardcoded)
+   *   - 'status'  → unlocked/locked
+   *   - 'type'    → select dinámico con typeOptions
    *   - 'sort'    → orden ascendente
    */
   enabled: {
     type: Array,
     default: () => ['search', 'rarity', 'status', 'sort'],
+  },
+  /**
+   * Opciones del select 'type' (formato: [{ value, label }, ...]).
+   * Se ignora si 'type' no está en enabled.
+   */
+  typeOptions: {
+    type: Array,
+    default: () => [],
   },
   searchPlaceholder: { type: String, default: 'Buscar...' },
 })
@@ -103,12 +130,18 @@ function update(field, value) {
 .filterbar {
   background: $panel-mid;
   padding: 10px 14px;
-  margin-bottom: 12px;
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
   box-shadow: 0 4px 16px $shadow;
+  /*
+   * NO usamos `flex: 1` aquí: si esto está dentro de un flex-column
+   * (como ocurre en JokersView), `flex: 1` lo estiraría verticalmente
+   * a toda la altura disponible. Cuando el FilterBar vive dentro de
+   * .toolbar (consumibles/colección), el propio .toolbar aplica
+   * `:deep(.filterbar) { flex: 1 }` para que crezca a lo ancho.
+   */
   @include pixel-clip;
 
   &__title {
