@@ -32,20 +32,22 @@
     </main>
 
     <SettingsModal v-if="showSettings" @close="showSettings = false" />
+    <AuthModal />
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useSettingsStore } from '@/stores/settings'
-import BalatroBackground from '@/components/common/BalatroBackground.vue'
-import SparkleOverlay from '@/components/common/SparkleOverlay.vue'
-import CrtEffects from '@/components/common/CrtEffects.vue'
-import AppHeader from '@/components/common/AppHeader.vue'
-import SettingsModal from '@/components/common/SettingsModal.vue'
+import { ref } from "vue";
+import { useSettingsStore } from "@/stores/settings";
+import BalatroBackground from "@/components/common/BalatroBackground.vue";
+import SparkleOverlay from "@/components/common/SparkleOverlay.vue";
+import CrtEffects from "@/components/common/CrtEffects.vue";
+import AppHeader from "@/components/common/AppHeader.vue";
+import SettingsModal from "@/components/common/SettingsModal.vue";
+import AuthModal from "@/components/common/AuthModal.vue";
 
-const settings = useSettingsStore()
-const showSettings = ref(false)
+const settings = useSettingsStore();
+const showSettings = ref(false);
 </script>
 
 <style lang="scss" scoped>
