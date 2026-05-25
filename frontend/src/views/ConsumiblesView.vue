@@ -19,31 +19,37 @@
 -->
 <template>
   <div class="consumibles-view">
-    <div class="view-title">▸ CONSUMIBLES</div>
-
-    <!-- Sub-tabs -->
-    <div class="subtabs">
-      <button
-        v-for="sub in SUBTABS"
-        :key="sub.id"
-        :class="['subtab', `subtab--${sub.id}`, { 'subtab--active': currentSub === sub.id }]"
-        :style="currentSub === sub.id
-          ? { boxShadow: `0 4px 16px ${sub.color}55, inset 0 -2px 0 rgba(0,0,0,0.3)` }
-          : { filter: 'brightness(0.7) saturate(0.65)' }"
-        @click="selectSub(sub.id)"
-      >
-        {{ sub.label }}
-      </button>
-    </div>
+    <!-- <div class="view-title">▸ CONSUMIBLES</div> -->
 
     <div class="layout">
       <!-- ── Grid izquierda ── -->
       <div class="grid-col">
-        <FilterBar
-          v-model="filters"
-          :enabled="['search', 'sort']"
-          search-placeholder="Buscar carta..."
-        />
+        <!--
+          Toolbar: sub-tabs a la IZQUIERDA del FilterBar (mismo
+          patrón que CollectionView). En consumibles no añadimos
+          ProgressBar — todos los items son "Available from start".
+        -->
+        <div class="toolbar">
+          <div class="subtabs">
+            <button
+              v-for="sub in SUBTABS"
+              :key="sub.id"
+              :class="['subtab', `subtab--${sub.id}`, { 'subtab--active': currentSub === sub.id }]"
+              :style="currentSub === sub.id
+                ? { boxShadow: `0 4px 16px ${sub.color}55, inset 0 -2px 0 rgba(0,0,0,0.3)` }
+                : { filter: 'brightness(0.7) saturate(0.65)' }"
+              @click="selectSub(sub.id)"
+            >
+              {{ sub.label }}
+            </button>
+          </div>
+
+          <FilterBar
+            v-model="filters"
+            :enabled="['search', 'sort']"
+            search-placeholder="Buscar carta..."
+          />
+        </div>
 
         <div class="count">
           <template v-if="loading">Cargando {{ currentSubLabel.toLowerCase() }}...</template>
@@ -252,18 +258,33 @@ onBeforeUnmount(() => clearTimeout(hoverTimer))
 }
 
 /* ── Sub-tabs ─────────────────────────────────────────────────── */
+/* Toolbar: subtabs + filter bar en una misma fila. */
+.toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  align-items: stretch;
+
+  /* El FilterBar es un componente hijo — pierce scoped con :deep. */
+  :deep(.filterbar) {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
 .subtabs {
   display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 6px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .subtab {
   font-family: 'm6x11plus', monospace;
-  font-size: 14px;
+  font-size: 13px;
   color: #fff;
   border: none;
-  padding: 10px 22px;
+  padding: 10px 16px;
   cursor: pointer;
   letter-spacing: 1px;
   text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.6);
