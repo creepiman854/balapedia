@@ -27,9 +27,9 @@ export const JOKERS_PRESET = {
   pixelFilter: 745.0,
   isRotate: true,
   colour1: [0.871, 0.267, 0.231, 1.0], // rojo Balatro
-  colour2: [0.0, 0.42, 0.706, 1.0], // azul Balatro
+  colour2: [0.0, 0.42, 0.706, 1.0],    // azul Balatro
   colour3: [0.086, 0.137, 0.145, 1.0], // teal muy oscuro
-};
+}
 
 // Tarot — morados (afinado por el usuario)
 export const TAROT_PRESET = {
@@ -42,9 +42,9 @@ export const TAROT_PRESET = {
   pixelFilter: 745.0,
   isRotate: false,
   colour1: [0.471, 0.341, 0.604, 1.0], // morado claro #78579A
-  colour2: [0.2, 0.149, 0.271, 1.0], // púrpura #332645
+  colour2: [0.2, 0.149, 0.271, 1.0],   // púrpura #332645
   colour3: [0.086, 0.086, 0.137, 1.0], // morado oscuro #161623
-};
+}
 
 // Planet — grises azulados (afinado por el usuario)
 export const PLANET_PRESET = {
@@ -58,8 +58,8 @@ export const PLANET_PRESET = {
   isRotate: false,
   colour1: [0.173, 0.235, 0.243, 1.0], // gris claro #2C3C3E
   colour2: [0.102, 0.145, 0.153, 1.0], // gris normal #1A2527
-  colour3: [0.067, 0.102, 0.11, 1.0], // gris oscuro #111A1C
-};
+  colour3: [0.067, 0.102, 0.11, 1.0],  // gris oscuro #111A1C
+}
 
 // Spectral — azules (afinado por el usuario)
 export const SPECTRAL_PRESET = {
@@ -71,10 +71,10 @@ export const SPECTRAL_PRESET = {
   lighting: 0.5,
   pixelFilter: 745.0,
   isRotate: false,
-  colour1: [0.216, 0.506, 1.0, 1.0], // azul claro #3781FF
+  colour1: [0.216, 0.506, 1.0, 1.0],   // azul claro #3781FF
   colour2: [0.122, 0.333, 0.714, 1.0], // azul oscuro #1F55B6
-  colour3: [0.035, 0.11, 0.212, 1.0], // azul marino #091C36
-};
+  colour3: [0.035, 0.11, 0.212, 1.0],  // azul marino #091C36
+}
 
 // ────────────────────────────────────────────────────────────────
 //  Colección — paletas por sub-tab. Valores iniciales — ajusta a
@@ -94,7 +94,7 @@ export const DECKS_PRESET = {
   colour1: [0.231, 0.435, 0.337, 1.0], // verde mesa #3B6F56
   colour2: [0.118, 0.243, 0.196, 1.0], // verde oscuro #1E3E32
   colour3: [0.039, 0.094, 0.075, 1.0], // casi negro verdoso #0A1813
-};
+}
 
 // Booster Packs — naranja / dorado de la tienda
 export const BOOSTER_PACKS_PRESET = {
@@ -109,7 +109,7 @@ export const BOOSTER_PACKS_PRESET = {
   colour1: [0.851, 0.498, 0.196, 1.0], // naranja #D97F32
   colour2: [0.467, 0.243, 0.063, 1.0], // naranja oscuro #773E10
   colour3: [0.118, 0.063, 0.024, 1.0], // marrón muy oscuro #1E1006
-};
+}
 
 // Vouchers — cian / turquesa "gema"
 export const VOUCHERS_PRESET = {
@@ -122,9 +122,9 @@ export const VOUCHERS_PRESET = {
   pixelFilter: 745.0,
   isRotate: false,
   colour1: [0.318, 0.643, 0.682, 1.0], // turquesa #51A4AE
-  colour2: [0.094, 0.31, 0.353, 1.0], // turquesa oscuro #184F5A
+  colour2: [0.094, 0.31, 0.353, 1.0],  // turquesa oscuro #184F5A
   colour3: [0.024, 0.082, 0.094, 1.0], // azul casi negro #061518
-};
+}
 
 // Card modifiers — violeta apagado (enhancement/edition/seal)
 export const CARD_MODIFIERS_PRESET = {
@@ -136,13 +136,30 @@ export const CARD_MODIFIERS_PRESET = {
   lighting: 0.42,
   pixelFilter: 745.0,
   isRotate: false,
-  colour1: [0.42, 0.298, 0.518, 1.0], // violeta apagado #6B4C84
+  colour1: [0.42, 0.298, 0.518, 1.0],  // violeta apagado #6B4C84
   colour2: [0.184, 0.122, 0.243, 1.0], // violeta oscuro #2F1F3E
   colour3: [0.063, 0.043, 0.094, 1.0], // casi negro morado #100B18
-};
+}
+
+// Achievements — rojo "trofeo" con vetas doradas. El diseño Claude usaba
+// #ef4444 para la barra de progreso de logros, así que partimos de esa
+// gama y la oscurecemos para no competir con el contenido en primer plano.
+export const ACHIEVEMENTS_PRESET = {
+  spinRotation: 0.18,
+  spinSpeed: 2.3,
+  spinAmount: 0.18,
+  spinEase: 1.0,
+  contrast: 3.5,
+  lighting: 0.42,
+  pixelFilter: 745.0,
+  isRotate: true,
+  colour1: [0.937, 0.267, 0.267, 1.0], // rojo trofeo #EF4444
+  colour2: [0.498, 0.137, 0.137, 1.0], // rojo oscuro #7F2323
+  colour3: [0.118, 0.043, 0.043, 1.0], // casi negro rojizo #1E0B0B
+}
 
 // Default: arranca con el de Jokers (es el "menú principal" estético).
-export const DEFAULT_PRESET = JOKERS_PRESET;
+export const DEFAULT_PRESET = JOKERS_PRESET
 
 export const BG_PRESETS = {
   default: DEFAULT_PRESET,
@@ -151,13 +168,14 @@ export const BG_PRESETS = {
   planet: PLANET_PRESET,
   spectral: SPECTRAL_PRESET,
   decks: DECKS_PRESET,
-  "booster-packs": BOOSTER_PACKS_PRESET,
+  'booster-packs': BOOSTER_PACKS_PRESET,
   vouchers: VOUCHERS_PRESET,
-  "card-modifiers": CARD_MODIFIERS_PRESET,
-};
+  'card-modifiers': CARD_MODIFIERS_PRESET,
+  achievements: ACHIEVEMENTS_PRESET,
+}
 
 export function resolvePreset(name) {
-  return BG_PRESETS[name] || BG_PRESETS.default;
+  return BG_PRESETS[name] || BG_PRESETS.default
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -178,13 +196,13 @@ export function resolvePreset(name) {
 const PLANET_SHOOTING_STAR = {
   // ~3-4 por minuto = ~1/1000 por frame a 60 fps.
   spawnChancePerFrame: 1 / 1000,
-  speedRange: [9, 14], // px/frame (mucho más rápido que los normales)
-  sizeRange: [8, 16],
+  speedRange: [9, 14],     // px/frame (mucho más rápido que los normales)
+  sizeRange: [3, 5],
   lifetimeMs: 2500,
   trailLength: 14,
   // Las estrellas fugaces toman color de la paleta de planet.
-  colors: ["#FFDA96", "#9ED4DF", "#FFFFFF"],
-};
+  colors: ['#FFDA96', '#9ED4DF', '#FFFFFF'],
+}
 
 export const SPARKLE_CONFIGS = {
   // Vistas sin destellos.
@@ -195,50 +213,54 @@ export const SPARKLE_CONFIGS = {
   // sub-tab (p.ej. vouchers como objetos brillantes), basta con
   // declarar el objeto aquí con la misma forma que tarot/spectral.
   decks: null,
-  "booster-packs": null,
+  'booster-packs': null,
   vouchers: null,
-  "card-modifiers": null,
+  'card-modifiers': null,
+
+  // Achievements — sin destellos (la vista ya tiene su propio "shimmer"
+  // sobre los iconos desbloqueados; añadir más capa visual molestaría).
+  achievements: null,
 
   // TAROT — destellos medio rápidos, 3 colores.
   tarot: {
     count: 55,
-    sizeRange: [8, 16],
-    speedRange: [0.15, 0.5], // px/frame
-    rotationSpeedRange: [-0.02, 0.02],
+    sizeRange: [2, 6],
+    speedRange: [0.25, 0.7],          // px/frame
+    rotationSpeedRange: [-0.04, 0.04],
     twinkleSpeedRange: [0.015, 0.04],
-    lifetimeMsRange: [2000, 5000],
+    lifetimeMsRange: [4000, 9000],
     baseAlphaRange: [0.55, 0.95],
-    colors: ["#B19AC6", "#FFFFFF", "#F3C667"],
+    colors: ['#B19AC6', '#FFFFFF', '#F3C667'],
     shootingStar: null,
   },
 
   // SPECTRAL — destellos lentos, 2 colores (sin morado).
   spectral: {
     count: 40,
-    sizeRange: [8, 16],
+    sizeRange: [2, 5],
     speedRange: [0.05, 0.2],
     rotationSpeedRange: [-0.015, 0.015],
     twinkleSpeedRange: [0.008, 0.02],
-    lifetimeMsRange: [5000, 10000],
+    lifetimeMsRange: [7000, 14000],
     baseAlphaRange: [0.5, 0.9],
-    colors: ["#FFFFFF", "#F3C667"],
+    colors: ['#FFFFFF', '#F3C667'],
     shootingStar: null,
   },
 
   // PLANET — destellos lentos (como spectral) + estrellas fugaces.
   planet: {
     count: 40,
-    sizeRange: [8, 16],
+    sizeRange: [2, 5],
     speedRange: [0.05, 0.2],
     rotationSpeedRange: [-0.015, 0.015],
     twinkleSpeedRange: [0.008, 0.02],
-    lifetimeMsRange: [5000, 10000],
+    lifetimeMsRange: [7000, 14000],
     baseAlphaRange: [0.5, 0.9],
-    colors: ["#FFDA96", "#9ED4DF", "#FFFFFF"],
+    colors: ['#FFDA96', '#9ED4DF', '#FFFFFF'],
     shootingStar: PLANET_SHOOTING_STAR,
   },
-};
+}
 
 export function resolveSparkles(name) {
-  return SPARKLE_CONFIGS[name] ?? null;
+  return SPARKLE_CONFIGS[name] ?? null
 }
