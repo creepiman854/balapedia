@@ -31,7 +31,7 @@
       <router-view />
     </main>
 
-    <SettingsModal v-if="showSettings" @close="showSettings = false" />
+    <SettingsModal :is-open="showSettings" @close="showSettings = false" />
     <AuthModal />
   </div>
 </template>
