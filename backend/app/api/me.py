@@ -19,6 +19,7 @@ Patrón común para los endpoints de listado:
      adicionales (evita N+1 sin recurrir a joins polimórficos complejos).
   5. Serializar con el schema base y mergear el overlay como dict.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -53,8 +54,8 @@ from app.models import (
     Voucher,
 )
 from app.models.enums import JokerRarity, UnlockSource
+from app.services.achievements_service import unlock_achievement_for_user
 from app.services.unlocks_service import set_unlock_for_user
-
 
 me_progress_bp = Blueprint("me_progress", __name__, url_prefix="/api/me")
 
@@ -101,14 +102,13 @@ def get_summary():
         }
 
     achievements_total = Achievement.query.count()
-    achievements_unlocked = (
-        UserAchievement.query
-        .filter_by(user_id=user.id, unlocked=True)
-        .count()
-    )
+    achievements_unlocked = UserAchievement.query.filter_by(
+        user_id=user.id, unlocked=True
+    ).count()
     achievements_percent = (
         round(100.0 * achievements_unlocked / achievements_total, 1)
-        if achievements_total else 0.0
+        if achievements_total
+        else 0.0
     )
 
     gold_query = (
@@ -124,23 +124,25 @@ def get_summary():
     gold_jokers = gold_by_type.get(UnlockableType.JOKER, 0)
     gold_decks = gold_by_type.get(UnlockableType.DECK, 0)
 
-    return jsonify({
-        "user_id": user.id,
-        "by_type": by_type,
-        "achievements": {
-            "total": achievements_total,
-            "unlocked": achievements_unlocked,
-            "percent": achievements_percent,
-        },
-        "gold_stickers": {
-            "total": gold_jokers + gold_decks,
-            "jokers": gold_jokers,
-            "decks": gold_decks,
-        },
-        "last_steam_sync": (
-            user.last_steam_sync.isoformat() if user.last_steam_sync else None
-        ),
-    })
+    return jsonify(
+        {
+            "user_id": user.id,
+            "by_type": by_type,
+            "achievements": {
+                "total": achievements_total,
+                "unlocked": achievements_unlocked,
+                "percent": achievements_percent,
+            },
+            "gold_stickers": {
+                "total": gold_jokers + gold_decks,
+                "jokers": gold_jokers,
+                "decks": gold_decks,
+            },
+            "last_steam_sync": (
+                user.last_steam_sync.isoformat() if user.last_steam_sync else None
+            ),
+        }
+    )
 
 
 # =============================================================================
@@ -164,17 +166,21 @@ def _fetch_user_progress_for_unlockables(
 
     unlocks_map = {
         uu.unlockable_id: uu
-        for uu in db.session.query(UserUnlock).filter(
+        for uu in db.session.query(UserUnlock)
+        .filter(
             UserUnlock.user_id == user_id,
             UserUnlock.unlockable_id.in_(unlockable_ids),
-        ).all()
+        )
+        .all()
     }
     stickers_map = {
         usa.unlockable_id: usa
-        for usa in db.session.query(UserStickerApplication).filter(
+        for usa in db.session.query(UserStickerApplication)
+        .filter(
             UserStickerApplication.user_id == user_id,
             UserStickerApplication.unlockable_id.in_(unlockable_ids),
-        ).all()
+        )
+        .all()
     }
     return unlocks_map, stickers_map
 
@@ -188,10 +194,12 @@ def _fetch_user_progress_for_achievements(
         return {}
     return {
         ua.achievement_id: ua
-        for ua in db.session.query(UserAchievement).filter(
+        for ua in db.session.query(UserAchievement)
+        .filter(
             UserAchievement.user_id == user_id,
             UserAchievement.achievement_id.in_(achievement_ids),
-        ).all()
+        )
+        .all()
     }
 
 
@@ -209,12 +217,9 @@ def _overlay_unlockable_progress(
     """
     item_dict["unlocked_for_me"] = bool(unlock and unlock.unlocked)
     item_dict["unlocked_at"] = (
-        unlock.unlocked_at.isoformat()
-        if unlock and unlock.unlocked_at else None
+        unlock.unlocked_at.isoformat() if unlock and unlock.unlocked_at else None
     )
-    item_dict["highest_stake_order"] = (
-        sticker.highest_stake_order if sticker else None
-    )
+    item_dict["highest_stake_order"] = sticker.highest_stake_order if sticker else None
     return item_dict
 
 
@@ -228,12 +233,11 @@ def _overlay_achievement_progress(
       - unlocked_for_me: bool
       - unlocked_at: ISO timestamp o None
     """
-    item_dict["unlocked_for_me"] = bool(
-        user_achievement and user_achievement.unlocked
-    )
+    item_dict["unlocked_for_me"] = bool(user_achievement and user_achievement.unlocked)
     item_dict["unlocked_at"] = (
         user_achievement.unlocked_at.isoformat()
-        if user_achievement and user_achievement.unlocked_at else None
+        if user_achievement and user_achievement.unlocked_at
+        else None
     )
     return item_dict
 
@@ -242,14 +246,10 @@ def _build_unlockable_subclass_query(subclass_model):
     """Misma plantilla que en app/api/unlockables.py: JOIN explícito al
     padre + joinedload de unlock_factor para evitar N+1 al serializar.
     Duplicada localmente para no acoplar este módulo a uno privado."""
-    return (
-        subclass_model.query
-        .join(Unlockable, subclass_model.id == Unlockable.id)
-        .options(
-            joinedload(subclass_model.unlockable).joinedload(
-                Unlockable.unlock_factor
-            )
-        )
+    return subclass_model.query.join(
+        Unlockable, subclass_model.id == Unlockable.id
+    ).options(
+        joinedload(subclass_model.unlockable).joinedload(Unlockable.unlock_factor)
     )
 
 
@@ -294,9 +294,7 @@ def list_my_jokers():
 
     jokers = paginated["items"]
     joker_ids = [j.id for j in jokers]
-    unlocks_map, stickers_map = _fetch_user_progress_for_unlockables(
-        user.id, joker_ids
-    )
+    unlocks_map, stickers_map = _fetch_user_progress_for_unlockables(user.id, joker_ids)
 
     schema = JokerSchema()
     items_data = [
@@ -338,9 +336,7 @@ def list_my_decks():
 
     decks = paginated["items"]
     deck_ids = [d.id for d in decks]
-    unlocks_map, stickers_map = _fetch_user_progress_for_unlockables(
-        user.id, deck_ids
-    )
+    unlocks_map, stickers_map = _fetch_user_progress_for_unlockables(user.id, deck_ids)
 
     schema = DeckSchema()
     items_data = [
@@ -448,9 +444,7 @@ def set_my_unlock():
     # `unlockable_id=True` no pase el check como si fuese 1.
     raw_id = payload.get("unlockable_id")
     if isinstance(raw_id, bool) or not isinstance(raw_id, int):
-        raise ValidationError(
-            {"unlockable_id": "required int (the Unlockable.id)"}
-        )
+        raise ValidationError({"unlockable_id": "required int (the Unlockable.id)"})
 
     raw_unlocked = payload.get("unlocked", True)
     if not isinstance(raw_unlocked, bool):
@@ -474,11 +468,110 @@ def set_my_unlock():
             404,
         )
 
-    return jsonify({
-        "ok": True,
-        "unlocked_for_me": result.user_unlock.unlocked,
-        "unlocked_at": (
-            result.user_unlock.unlocked_at.isoformat()
-            if result.user_unlock.unlocked_at else None
-        ),
-    })
+    return jsonify(
+        {
+            "ok": True,
+            "unlocked_for_me": result.user_unlock.unlocked,
+            "unlocked_at": (
+                result.user_unlock.unlocked_at.isoformat()
+                if result.user_unlock.unlocked_at
+                else None
+            ),
+        }
+    )
+
+
+# =============================================================================
+# POST /api/me/achievements/unlock
+# =============================================================================
+
+
+@me_progress_bp.route("/achievements/unlock", methods=["POST"])
+@require_auth
+def set_my_achievement_unlock():
+    """Marca un Achievement como desbloqueado para el usuario actual.
+
+    Endpoint específico de achievements (no comparte path con
+    `/api/me/unlocks` porque achievements NO son Unlockable: viven en
+    una tabla flat propia con su pivot `user_achievements`).
+
+    Body JSON:
+      - `achievement_id` (int, requerido): id del Achievement.
+
+    Respuestas:
+      - **200**: `{ ok, unlocked_for_me, unlocked_at,
+        was_already_unlocked }`. El `was_already_unlocked` deja al
+        frontend distinguir cambio real de no-op idempotente (hoy no
+        lo usa, pero deja la puerta abierta a feedback diferenciado
+        sin tocar la API).
+      - **400**: payload inválido (`achievement_id` ausente / no int).
+      - **401**: sin token (`@require_auth`).
+      - **404**: `achievement_id` no existe.
+
+    Para cuentas con `steam_id` la sincronización de Steam es la
+    fuente de verdad. El frontend lo enforza ocultando el botón en
+    esas cuentas; deliberadamente NO bloqueamos a nivel de servidor
+    para no cerrar la puerta a un futuro modo admin o un CLI de
+    testing que necesite marcar manualmente.
+
+    Delega en `services/achievements_service.unlock_achievement_for_user`
+    con `source=UnlockSource.MANUAL` — la MISMA función que llama el
+    sync de Steam con `source=UnlockSource.STEAM_SYNC`. Un único punto
+    de entrada al lifecycle de `UserAchievement`, simétrico al de
+    `set_unlock_for_user` para `UserUnlock`.
+
+    Diferencia con el endpoint de unlocks: aquí NO aceptamos
+    `unlocked: false`. El verbo `/unlock` en la ruta implica acción;
+    el service que lo respalda solo soporta SET-to-true (un
+    achievement "des-desbloqueado" no tiene sentido semántico). Si en
+    el futuro hace falta, será un endpoint distinto (`/relock`) con
+    su propia función de servicio.
+    """
+    payload = request.get_json(silent=True) or {}
+
+    raw_id = payload.get("achievement_id")
+    if isinstance(raw_id, bool) or not isinstance(raw_id, int):
+        raise ValidationError({"achievement_id": "required int (the Achievement.id)"})
+
+    try:
+        result = unlock_achievement_for_user(
+            user_id=g.user.id,
+            achievement_id=raw_id,
+            source=UnlockSource.MANUAL,
+        )
+    except ValueError:
+        # `unlock_achievement_for_user` lanza ValueError si el id no
+        # existe — lo traducimos a 404 con el mismo formato que el
+        # resto de "not_found" del API.
+        return (
+            jsonify(
+                error="not_found",
+                message=f"Achievement {raw_id} not found",
+            ),
+            404,
+        )
+
+    # Re-query del UserAchievement para devolver el `unlocked_at`
+    # final. El service devuelve `UnlockAchievementResult` centrado en
+    # el achievement + cascadas, no expone directamente la fila pivot
+    # — esta query extra evita acoplar el shape del result a la
+    # respuesta HTTP (si mañana el service añade más campos, este
+    # endpoint sigue devolviendo solo lo que necesita el frontend).
+    user_achievement = (
+        db.session.query(UserAchievement)
+        .filter_by(user_id=g.user.id, achievement_id=raw_id)
+        .one_or_none()
+    )
+
+    return jsonify(
+        {
+            "ok": True,
+            "unlocked_for_me": bool(user_achievement and user_achievement.unlocked),
+            "unlocked_at": (
+                user_achievement.unlocked_at.isoformat()
+                if user_achievement and user_achievement.unlocked_at
+                else None
+            ),
+            "was_already_unlocked": result.achievement_was_already_unlocked,
+        }
+    )
