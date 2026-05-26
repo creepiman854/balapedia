@@ -14,6 +14,7 @@ firebase_auth.verify_id_token. En tests parchamos esa función para que
 devuelva un dict como el que devolvería Firebase tras verificar un token
 real, sin necesidad de credenciales reales.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -33,7 +34,6 @@ from app.models import (
     UserUnlock,
 )
 from app.models.enums import JokerRarity, UnlockSource
-
 
 # =============================================================================
 # Fixtures
@@ -71,9 +71,7 @@ def populated_catalog(db_session, seeded_achievements):
         is_eternal=False,
     )
 
-    base_u = Unlockable(
-        type=UnlockableType.JOKER, item_number=1, name="Joker"
-    )
+    base_u = Unlockable(type=UnlockableType.JOKER, item_number=1, name="Joker")
     base_u.joker = Joker(
         rarity=JokerRarity.COMMON,
         in_shop=True,
@@ -128,9 +126,7 @@ def auth_headers(sample_user):
 
 
 @pytest.fixture
-def user_with_progress(
-    db_session, sample_user, populated_catalog, seeded_achievements
-):
+def user_with_progress(db_session, sample_user, populated_catalog, seeded_achievements):
     """sample_user con algunos unlocks + sticker + achievement marcados.
 
     Crea:
@@ -147,41 +143,51 @@ def user_with_progress(
     red_deck = populated_catalog["red_deck"]
     ante_up = seeded_achievements["achievements"]["BAL_01"]
 
-    db_session.add(UserUnlock(
-        user_id=sample_user.id,
-        unlockable_id=showman.id,
-        unlocked=True,
-        unlocked_at=when,
-        source=UnlockSource.STEAM_SYNC,
-    ))
-    db_session.add(UserStickerApplication(
-        user_id=sample_user.id,
-        unlockable_id=showman.id,
-        highest_stake_order=8,
-        earned_at=when,
-        source=UnlockSource.STEAM_SYNC,
-    ))
-    db_session.add(UserUnlock(
-        user_id=sample_user.id,
-        unlockable_id=red_deck.id,
-        unlocked=True,
-        unlocked_at=when,
-        source=UnlockSource.STEAM_SYNC,
-    ))
-    db_session.add(UserStickerApplication(
-        user_id=sample_user.id,
-        unlockable_id=red_deck.id,
-        highest_stake_order=8,
-        earned_at=when,
-        source=UnlockSource.STEAM_SYNC,
-    ))
-    db_session.add(UserAchievement(
-        user_id=sample_user.id,
-        achievement_id=ante_up.id,
-        unlocked=True,
-        unlocked_at=when,
-        source=UnlockSource.STEAM_SYNC,
-    ))
+    db_session.add(
+        UserUnlock(
+            user_id=sample_user.id,
+            unlockable_id=showman.id,
+            unlocked=True,
+            unlocked_at=when,
+            source=UnlockSource.STEAM_SYNC,
+        )
+    )
+    db_session.add(
+        UserStickerApplication(
+            user_id=sample_user.id,
+            unlockable_id=showman.id,
+            highest_stake_order=8,
+            earned_at=when,
+            source=UnlockSource.STEAM_SYNC,
+        )
+    )
+    db_session.add(
+        UserUnlock(
+            user_id=sample_user.id,
+            unlockable_id=red_deck.id,
+            unlocked=True,
+            unlocked_at=when,
+            source=UnlockSource.STEAM_SYNC,
+        )
+    )
+    db_session.add(
+        UserStickerApplication(
+            user_id=sample_user.id,
+            unlockable_id=red_deck.id,
+            highest_stake_order=8,
+            earned_at=when,
+            source=UnlockSource.STEAM_SYNC,
+        )
+    )
+    db_session.add(
+        UserAchievement(
+            user_id=sample_user.id,
+            achievement_id=ante_up.id,
+            unlocked=True,
+            unlocked_at=when,
+            source=UnlockSource.STEAM_SYNC,
+        )
+    )
     db_session.commit()
     return sample_user
 
@@ -341,9 +347,7 @@ class TestMyDecksEndpoint:
 class TestMyAchievementsEndpoint:
     """Tests del endpoint /api/me/achievements."""
 
-    def test_overlay_fields_present(
-        self, client, auth_headers, seeded_achievements
-    ):
+    def test_overlay_fields_present(self, client, auth_headers, seeded_achievements):
         resp = client.get("/api/me/achievements", headers=auth_headers)
         assert resp.status_code == 200
         for item in resp.get_json()["items"]:
@@ -367,9 +371,7 @@ class TestMyAchievementsEndpoint:
         """Los otros 4 achievements seeded siguen sin desbloquear."""
         resp = client.get("/api/me/achievements", headers=auth_headers)
         items = resp.get_json()["items"]
-        rule_breaker = next(
-            it for it in items if it["steam_api_name"] == "BAL_23"
-        )
+        rule_breaker = next(it for it in items if it["steam_api_name"] == "BAL_23")
         assert rule_breaker["unlocked_for_me"] is False
         assert rule_breaker["unlocked_at"] is None
 
@@ -470,9 +472,7 @@ class TestSetUnlockEndpoint:
     ):
         """Pasar `unlocked: false` desbloquea la fila y limpia el timestamp."""
         existing = (
-            db_session.query(UserUnlock)
-            .filter(UserUnlock.unlocked.is_(True))
-            .first()
+            db_session.query(UserUnlock).filter(UserUnlock.unlocked.is_(True)).first()
         )
         resp = client.post(
             "/api/me/unlocks",
@@ -562,11 +562,7 @@ class TestSetUnlockEndpoint:
         )
         assert resp.status_code == 200
 
-        unlocks = (
-            db_session.query(UserUnlock)
-            .filter_by(unlockable_id=showman.id)
-            .all()
-        )
+        unlocks = db_session.query(UserUnlock).filter_by(unlockable_id=showman.id).all()
         assert len(unlocks) == 1
         assert unlocks[0].user_id == sample_user.id
 
@@ -591,3 +587,153 @@ class TestSetUnlockEndpoint:
         showman_overlay = next(it for it in items if it["name"] == "Showman")
         assert showman_overlay["unlocked_for_me"] is True
         assert showman_overlay["unlocked_at"] is not None
+
+
+# =============================================================================
+# POST /api/me/achievements/unlock (botón "marcar como desbloqueado")
+# =============================================================================
+
+
+class TestSetAchievementUnlockEndpoint:
+    """Tests del endpoint POST /api/me/achievements/unlock.
+
+    Cubre el contrato del endpoint hermano de POST /api/me/unlocks
+    pensado para achievements (que NO son Unlockable y viven en su
+    propia tabla con su propio pivot UserAchievement).
+    """
+
+    def test_missing_auth_returns_401(self, client, seeded_achievements):
+        ante_up = seeded_achievements["achievements"]["BAL_01"]
+        resp = client.post(
+            "/api/me/achievements/unlock",
+            json={"achievement_id": ante_up.id},
+        )
+        assert resp.status_code == 401
+
+    def test_creates_new_unlock_for_user(
+        self, client, auth_headers, sample_user, seeded_achievements, db_session
+    ):
+        """Si no hay UserAchievement previo, lo crea y devuelve overlay True."""
+        ante_up = seeded_achievements["achievements"]["BAL_01"]
+
+        pre = (
+            db_session.query(UserAchievement)
+            .filter_by(user_id=sample_user.id, achievement_id=ante_up.id)
+            .one_or_none()
+        )
+        assert pre is None
+
+        resp = client.post(
+            "/api/me/achievements/unlock",
+            headers=auth_headers,
+            json={"achievement_id": ante_up.id},
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["ok"] is True
+        assert data["unlocked_for_me"] is True
+        assert data["unlocked_at"] is not None
+        assert data["was_already_unlocked"] is False
+
+        post = (
+            db_session.query(UserAchievement)
+            .filter_by(user_id=sample_user.id, achievement_id=ante_up.id)
+            .one()
+        )
+        assert post.unlocked is True
+        assert post.source == UnlockSource.MANUAL
+
+    def test_idempotent_remark_reports_was_already_unlocked(
+        self, client, auth_headers, user_with_progress, seeded_achievements, db_session
+    ):
+        """Re-marcar un achievement ya desbloqueado responde 200 + flag.
+
+        A diferencia de /api/me/unlocks (que es totalmente silencioso),
+        aquí devolvemos `was_already_unlocked=true` porque el service
+        de achievements maneja cascadas — un caller interno (Steam
+        sync logger) puede querer distinguir "se desbloqueó X y
+        cascadeó N items" vs "ya estaba desbloqueado, sin cambios".
+        """
+        ante_up = seeded_achievements["achievements"]["BAL_01"]
+        existing = (
+            db_session.query(UserAchievement).filter_by(achievement_id=ante_up.id).one()
+        )
+        original_when = existing.unlocked_at
+        original_source = existing.source
+
+        resp = client.post(
+            "/api/me/achievements/unlock",
+            headers=auth_headers,
+            json={"achievement_id": ante_up.id},
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["unlocked_for_me"] is True
+        assert data["was_already_unlocked"] is True
+
+        db_session.refresh(existing)
+        assert existing.unlocked_at == original_when
+        # source preservado igual que en /api/me/unlocks: un MANUAL
+        # no-op NO debe sobreescribir un STEAM_SYNC histórico.
+        assert existing.source == original_source
+
+    def test_unknown_achievement_returns_404(
+        self, client, auth_headers, seeded_achievements
+    ):
+        """achievement_id inexistente → 404 limpio (no ValueError sin
+        capturar). Traducción de `ValueError` del service a HTTP."""
+        resp = client.post(
+            "/api/me/achievements/unlock",
+            headers=auth_headers,
+            json={"achievement_id": 999999},
+        )
+        assert resp.status_code == 404
+        data = resp.get_json()
+        assert data["error"] == "not_found"
+        assert "999999" in data["message"]
+
+    def test_missing_achievement_id_returns_400(self, client, auth_headers):
+        resp = client.post("/api/me/achievements/unlock", headers=auth_headers, json={})
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert data["error"] == "validation_error"
+        assert "achievement_id" in data["details"]
+
+    def test_non_int_achievement_id_returns_400(self, client, auth_headers):
+        resp = client.post(
+            "/api/me/achievements/unlock",
+            headers=auth_headers,
+            json={"achievement_id": "abc"},
+        )
+        assert resp.status_code == 400
+        assert "achievement_id" in resp.get_json()["details"]
+
+    def test_bool_achievement_id_rejected(self, client, auth_headers):
+        """Misma defensa que el endpoint de unlocks: bool es subclass
+        de int en Python, lo rechazamos explícitamente."""
+        resp = client.post(
+            "/api/me/achievements/unlock",
+            headers=auth_headers,
+            json={"achievement_id": True},
+        )
+        assert resp.status_code == 400
+        assert "achievement_id" in resp.get_json()["details"]
+
+    def test_overlay_visible_immediately_in_my_achievements(
+        self, client, auth_headers, sample_user, seeded_achievements
+    ):
+        """Tras marcar manualmente, GET /api/me/achievements ya devuelve
+        unlocked_for_me=true sin re-fetch. Confirma que el upsert
+        MANUAL produce el mismo overlay que un STEAM_SYNC."""
+        ante_up = seeded_achievements["achievements"]["BAL_01"]
+        client.post(
+            "/api/me/achievements/unlock",
+            headers=auth_headers,
+            json={"achievement_id": ante_up.id},
+        )
+
+        resp = client.get("/api/me/achievements", headers=auth_headers)
+        items = resp.get_json()["items"]
+        ante_up_overlay = next(it for it in items if it["steam_api_name"] == "BAL_01")
+        assert ante_up_overlay["unlocked_for_me"] is True
+        assert ante_up_overlay["unlocked_at"] is not None
