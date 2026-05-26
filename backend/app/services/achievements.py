@@ -30,6 +30,8 @@ Toda operación es idempotente:
   - Los UserUnlock y UserStickerApplication ya existentes no se duplican;
     se actualizan in-place solo si cambia el `highest_stake_order` a uno
     mayor (caso sticker) o el `unlocked` pasa de False a True.
+
+Ubicación: app/services/achievements.py
 """
 
 from __future__ import annotations
@@ -175,6 +177,44 @@ def _unlock_achievement(
     Marca el UserAchievement, dispara la cascada genérica por shared factor
     y, si hay un resolver especial registrado, lo ejecuta. Hace commit al
     final (atomicidad: o todo o nada).
+
+    ## Cascada en re-syncs (Mayo 2026)
+
+    Antes hacíamos un atajo de "idempotencia estricta": si el achievement
+    ya estaba desbloqueado, devolvíamos sin recalcular cascadas. Eso
+    parecía sensato — ahorra trabajo en cada re-sync — pero rompe un
+    escenario real:
+
+      1. Usuario vincula Steam → sync inicial → marca BAL_07 (Card Player)
+         como unlocked. Cascada corre y desbloquea Nacho Tong... IF Nacho
+         Tong tiene unlock_factor_id apuntando a PLAY_2500_CARDS.
+      2. Si en ese momento Nacho Tong NO tenía el factor (el backfill
+         vino después, o el seed inicial tenía gap), la cascada NO lo
+         pilla. El UserAchievement queda guardado pero el voucher se
+         queda sin overlay.
+      3. Días después corremos el backfill que enlaza Nacho Tong →
+         PLAY_2500_CARDS.
+      4. Usuario re-sincroniza Steam: BAL_07 ya estaba unlocked en BD →
+         atajo de idempotencia estricta → cascada NO se ejecuta → Nacho
+         Tong sigue locked.
+
+    Solución: SIEMPRE correr la cascada y los resolvers, incluso cuando
+    el achievement ya estaba desbloqueado. Es seguro porque las
+    primitivas son idempotentes:
+
+      - `_ensure_user_unlock` solo crea/promueve, nunca duplica.
+      - `_ensure_sticker_application` solo promociona a stake_order mayor,
+        nunca baja.
+
+    El coste es N queries extra por sync (N = nº de achievements ya
+    desbloqueados ≤ 31), que en SQLite de tests son ms y en MySQL real
+    son irrelevantes. La ganancia es que cualquier mejora retrospectiva
+    a los `unlock_factor` se aplica al siguiente sync sin intervención.
+
+    El campo `achievement_was_already_unlocked` sigue siendo veraz —
+    indica si EL ACHIEVEMENT cambió de estado, no si la cascada produjo
+    cambios. Para esa información el caller mira las listas
+    `cascaded_unlockables` / `cascaded_sticker_applications`.
     """
     user_achievement = (
         db.session.query(UserAchievement)
@@ -182,14 +222,9 @@ def _unlock_achievement(
         .one_or_none()
     )
 
-    if user_achievement is not None and user_achievement.unlocked:
-        # Idempotencia estricta: si ya estaba desbloqueado, no recalculamos
-        # las cascadas. Si la lógica de cascada cambia, se requiere un
-        # re-sync explícito que pase por las funciones de rebuild.
-        return UnlockAchievementResult(
-            achievement=achievement,
-            achievement_was_already_unlocked=True,
-        )
+    achievement_was_already_unlocked = (
+        user_achievement is not None and user_achievement.unlocked
+    )
 
     if user_achievement is None:
         user_achievement = UserAchievement(
@@ -200,17 +235,22 @@ def _unlock_achievement(
             source=source,
         )
         db.session.add(user_achievement)
-    else:
+    elif not user_achievement.unlocked:
         user_achievement.unlocked = True
         user_achievement.unlocked_at = when
         user_achievement.source = source
+    # Si ya estaba unlocked NO sobreescribimos unlocked_at ni source —
+    # preservamos el audit trail original (la primera vez que se
+    # desbloqueó es la verdad histórica).
 
     result = UnlockAchievementResult(
         achievement=achievement,
-        achievement_was_already_unlocked=False,
+        achievement_was_already_unlocked=achievement_was_already_unlocked,
     )
 
-    # 1) Cascada genérica por shared unlock_factor
+    # 1) Cascada genérica por shared unlock_factor — corre SIEMPRE,
+    #    incluso si el achievement ya estaba unlocked, para pillar
+    #    backfills retrospectivos de unlock_factor_id en Unlockables.
     if achievement.unlock_factor_id is not None:
         for item in _cascade_shared_factor(
             user_id=user_id,
@@ -220,7 +260,10 @@ def _unlock_achievement(
         ):
             result.cascaded_unlockables.append(item)
 
-    # 2) Resolver especial (si existe)
+    # 2) Resolver especial (si existe) — también corre SIEMPRE por la
+    #    misma razón. Las primitivas son idempotentes, así que re-correr
+    #    Completionist o Rule Breaker sobre un usuario que ya los tiene
+    #    cascadeados es no-op.
     resolver = _special_resolvers.get(achievement.steam_api_name)
     if resolver is not None:
         resolver(user_id=user_id, result=result, source=source, when=when)
