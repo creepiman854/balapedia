@@ -155,3 +155,49 @@ def get_me():
             user.last_steam_sync.isoformat() if user.last_steam_sync else None
         ),
     )
+
+
+@auth_bp.route("/delete-account", methods=["DELETE"])
+@require_auth
+def delete_account():
+    """Elimina completamente el usuario:
+    - Firebase Auth (login)
+    - Base de datos (progreso Balapedia)
+    """
+
+    user: User = g.user
+    firebase_uid = user.firebase_uid
+
+    current_app.logger.warning(
+        "FULL DELETE user_id=%s firebase_uid=%s steam_id=%s",
+        user.id,
+        user.firebase_uid,
+        user.steam_id,
+    )
+
+    # Borra usuario de Firebase Auth (email/google login)
+    if firebase_uid:
+        try:
+            firebase_auth.delete_user(firebase_uid)
+        except firebase_auth.UserNotFoundError:
+            current_app.logger.warning(
+                "Firebase user not found while deleting: %s",
+                firebase_uid,
+            )
+        except Exception as e:
+            current_app.logger.exception("Failed to delete Firebase user: %s", e)
+            return (
+                jsonify(
+                    error="firebase_delete_failed",
+                    message="No se pudo eliminar la cuenta de autenticación.",
+                ),
+                500,
+            )
+
+    # Borra usuario de tu BD (Steam + progreso)
+    db.session.delete(user)
+    db.session.commit()
+
+    current_app.logger.warning("User deleted from DB: user_id=%s", user.id)
+
+    return jsonify(message="Account fully deleted"), 200

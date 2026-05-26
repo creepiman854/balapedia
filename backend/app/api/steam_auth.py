@@ -16,6 +16,7 @@ El token firmado entre /start y /callback se firma con SECRET_KEY del
 proyecto e incluye un timestamp; expira en 10 minutos. Esto evita
 necesidad de session cookies y mantiene el flujo stateless.
 """
+
 import re
 from urllib.parse import urlencode
 
@@ -24,9 +25,9 @@ from flask import Blueprint, current_app, g, jsonify, redirect, request
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from app.api.auth import require_auth
+from app.services.achievement_sync import clear_steam_sync_progress_for_user
 from app.extensions import db
 from app.models import User
-
 
 steam_auth_bp = Blueprint("steam_auth", __name__, url_prefix="/api/auth/steam")
 
@@ -35,6 +36,10 @@ STEAM_OPENID_URL = "https://steamcommunity.com/openid/login"
 # el flow de Steam sin dar margen excesivo a ataques de replay.
 LINK_TOKEN_MAX_AGE = 600
 
+STEAM_PLAYER_SUMMARIES_URL = (
+    "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/"
+)
+
 
 def _serializer():
     """Devuelve un serializer firmado con SECRET_KEY del proyecto."""
@@ -42,6 +47,53 @@ def _serializer():
         current_app.config["SECRET_KEY"],
         salt="steam-link",
     )
+
+
+def _fetch_steam_profile(steam_id: str) -> dict | None:
+    """Obtiene el perfil público básico de Steam.
+
+    Usamos GetPlayerSummaries para recuperar:
+      - personaname
+      - avatar
+      - visibility state
+      etc.
+
+    Si Steam falla o el usuario no existe, devolvemos None.
+    El linking NO debe romperse por un fallo cosmético de perfil.
+    """
+    api_key = current_app.config.get("STEAM_API_KEY")
+
+    if not api_key:
+        current_app.logger.warning("STEAM_API_KEY missing")
+        return None
+
+    try:
+        response = requests.get(
+            STEAM_PLAYER_SUMMARIES_URL,
+            params={
+                "key": api_key,
+                "steamids": steam_id,
+            },
+            timeout=10,
+        )
+
+        response.raise_for_status()
+
+        data = response.json()
+
+        players = data.get("response", {}).get("players", [])
+
+        if not players:
+            return None
+
+        return players[0]
+
+    except requests.RequestException:
+        current_app.logger.exception(
+            "Failed to fetch Steam profile for steam_id=%s",
+            steam_id,
+        )
+        return None
 
 
 @steam_auth_bp.route("/start", methods=["GET"])
@@ -130,7 +182,7 @@ def steam_callback():
     # 3. Extrae el SteamID64 del claimed_id
     # Formato: https://steamcommunity.com/openid/id/76561198XXXXXXX
     claimed_id = request.args.get("openid.claimed_id", "")
-    match = re.search(r"/id/(\d+)$", claimed_id)
+    match = re.search(r"/(\d+)$", claimed_id)
     if not match:
         current_app.logger.warning(
             "Could not extract SteamID from claimed_id: %s", claimed_id
@@ -140,14 +192,34 @@ def steam_callback():
     steam_id = match.group(1)
 
     # 4. Verifica que ese SteamID no esté ya vinculado a otro user.
-    existing = User.query.filter(
-        User.steam_id == steam_id, User.id != user.id
-    ).first()
+    existing = User.query.filter(User.steam_id == steam_id, User.id != user.id).first()
     if existing:
         return redirect(f"{redirect_to_profile}?steam_link=already_linked")
 
-    # 5. Actualiza el user y commit
+    # 5. Actualiza el user
     user.steam_id = steam_id
+
+    # Recupera datos básicos del perfil Steam para enriquecer
+    # cuentas creadas únicamente con email/password.
+    steam_profile = _fetch_steam_profile(steam_id)
+
+    if steam_profile:
+        # Solo rellenamos display_name si el usuario todavía
+        # no tenía uno. Nunca sobreescribimos nombres ya
+        # existentes (Google, futuros usernames manuales, etc.).
+        if not user.display_name:
+            personaname = steam_profile.get("personaname")
+
+            if personaname:
+                user.display_name = personaname
+
+        # Avatar opcional.
+        if not user.avatar_url:
+            avatar = steam_profile.get("avatarfull")
+
+            if avatar:
+                user.avatar_url = avatar
+
     db.session.commit()
     current_app.logger.info(
         "Linked Steam ID %s to user %s (firebase_uid=%s)",
@@ -164,14 +236,46 @@ def steam_callback():
 def unlink_steam():
     """Desvincula la cuenta Steam del usuario autenticado.
 
-    Requiere que el usuario tenga al menos firebase_uid presente
-    (garantizado por el CheckConstraint del modelo User).
+    Política de cleanup:
+      1. Borra todas las filas con source=STEAM_SYNC del usuario
+         (UserAchievement, UserUnlock, UserStickerApplication). Las
+         filas con source=MANUAL se preservan — son decisiones
+         conscientes del usuario que sobreviven a un cambio de
+         vinculación.
+      2. Limpia el steam_id del user.
+      3. El perfil visual (display_name, avatar_url) deja de depender
+         de Steam: si el usuario solo tenía nombre porque venía de
+         Steam, se cae el fallback a email; si tenía nombre propio
+         (Google, etc.), Firebase lo restaurará en la próxima
+         verificación de token vía _get_or_create_user_from_firebase.
+
+    Antes el cleanup NO se ejecutaba: las filas STEAM_SYNC quedaban
+    colgadas en BD y la siguiente vez que el usuario entraba en la
+    vista de Logros / Colección seguía viendo los items "desbloqueados"
+    pese a haber desvinculado su Steam. Ahora la desvinculación es
+    coherente: lo que vino de Steam, con Steam se va.
     """
     user: User = g.user
+
     if user.firebase_uid is None:
-        # No tendría manera de loguearse después.
         return jsonify(error="Cannot unlink: would leave account without auth"), 400
 
+    # 1) Limpieza del progreso heredado de Steam. La función gestiona
+    #    su propio commit. Si falla por cualquier razón, no tocamos
+    #    steam_id — preservamos la coherencia.
+    cleanup_counts = clear_steam_sync_progress_for_user(user.id)
+    current_app.logger.info(
+        "Steam unlinked for user=%s, cleanup=%s", user.id, cleanup_counts
+    )
+
+    # 2) Desvinculación + reset del perfil visual.
     user.steam_id = None
+    user.display_name = None
+    user.avatar_url = None
+
     db.session.commit()
-    return jsonify(message="Steam account unlinked successfully")
+
+    return jsonify(
+        message="Steam account unlinked successfully",
+        cleanup=cleanup_counts,
+    )

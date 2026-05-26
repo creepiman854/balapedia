@@ -108,7 +108,7 @@ import ItemDetailPanel from "@/components/items/ItemDetailPanel.vue";
 import ItemTooltip from "@/components/items/ItemTooltip.vue";
 
 const authStore = useAuthStore();
-const { isAuthenticated } = storeToRefs(authStore);
+const { isAuthenticated, lastSyncedAt } = storeToRefs(authStore);
 const settings = useSettingsStore();
 const bgStore = useBackgroundStore();
 
@@ -141,6 +141,11 @@ onMounted(() => {
   loadJokers();
 });
 watch(isAuthenticated, loadJokers);
+// Re-fetch tras sync de Steam (logros nuevos cascadean jokers) o
+// unlink (las filas STEAM_SYNC se borran y los jokers vuelven a
+// aparecer como locked). Mismo mecanismo en CollectionView y
+// AchievementsView.
+watch(lastSyncedAt, loadJokers);
 
 /**
  * Detecta jokers desbloqueados de fábrica ("Available from start").
@@ -374,7 +379,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
   overflow-y: auto;
   overflow-x: hidden;
   padding: 28px 22px 32px;
-  background: rgba(26, 42, 46, 0.6);
+  background: rgba(26, 42, 46, 0.6); // = $panel-darkest con alpha
   scrollbar-width: thin;
   scrollbar-color: $panel-mid transparent;
   @include pixel-clip;
@@ -433,7 +438,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
   0% {
     opacity: 0;
     // Usamos 'translate' y 'scale' nativos (propiedades independientes).
-    // NO sobreescribe el 'transform' que genera el arco.
+    // Esto es magia negra: NO sobreescribe el 'transform' que genera tu arco.
     translate: 0 -100px;
     scale: 1.15;
   }

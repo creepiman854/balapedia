@@ -19,7 +19,6 @@ Patrón común para los endpoints de listado:
      adicionales (evita N+1 sin recurrir a joins polimórficos complejos).
   5. Serializar con el schema base y mergear el overlay como dict.
 """
-
 from __future__ import annotations
 
 from typing import Optional
@@ -40,6 +39,7 @@ from app.api.schemas import (
     AchievementSchema,
     DeckSchema,
     JokerSchema,
+    VoucherSchema,
 )
 from app.extensions import db
 from app.models import (
@@ -56,6 +56,7 @@ from app.models import (
 from app.models.enums import JokerRarity, UnlockSource
 from app.services.achievements import unlock_achievement_for_user
 from app.services.unlocks_service import set_unlock_for_user
+
 
 me_progress_bp = Blueprint("me_progress", __name__, url_prefix="/api/me")
 
@@ -102,13 +103,14 @@ def get_summary():
         }
 
     achievements_total = Achievement.query.count()
-    achievements_unlocked = UserAchievement.query.filter_by(
-        user_id=user.id, unlocked=True
-    ).count()
+    achievements_unlocked = (
+        UserAchievement.query
+        .filter_by(user_id=user.id, unlocked=True)
+        .count()
+    )
     achievements_percent = (
         round(100.0 * achievements_unlocked / achievements_total, 1)
-        if achievements_total
-        else 0.0
+        if achievements_total else 0.0
     )
 
     gold_query = (
@@ -124,25 +126,23 @@ def get_summary():
     gold_jokers = gold_by_type.get(UnlockableType.JOKER, 0)
     gold_decks = gold_by_type.get(UnlockableType.DECK, 0)
 
-    return jsonify(
-        {
-            "user_id": user.id,
-            "by_type": by_type,
-            "achievements": {
-                "total": achievements_total,
-                "unlocked": achievements_unlocked,
-                "percent": achievements_percent,
-            },
-            "gold_stickers": {
-                "total": gold_jokers + gold_decks,
-                "jokers": gold_jokers,
-                "decks": gold_decks,
-            },
-            "last_steam_sync": (
-                user.last_steam_sync.isoformat() if user.last_steam_sync else None
-            ),
-        }
-    )
+    return jsonify({
+        "user_id": user.id,
+        "by_type": by_type,
+        "achievements": {
+            "total": achievements_total,
+            "unlocked": achievements_unlocked,
+            "percent": achievements_percent,
+        },
+        "gold_stickers": {
+            "total": gold_jokers + gold_decks,
+            "jokers": gold_jokers,
+            "decks": gold_decks,
+        },
+        "last_steam_sync": (
+            user.last_steam_sync.isoformat() if user.last_steam_sync else None
+        ),
+    })
 
 
 # =============================================================================
@@ -166,21 +166,17 @@ def _fetch_user_progress_for_unlockables(
 
     unlocks_map = {
         uu.unlockable_id: uu
-        for uu in db.session.query(UserUnlock)
-        .filter(
+        for uu in db.session.query(UserUnlock).filter(
             UserUnlock.user_id == user_id,
             UserUnlock.unlockable_id.in_(unlockable_ids),
-        )
-        .all()
+        ).all()
     }
     stickers_map = {
         usa.unlockable_id: usa
-        for usa in db.session.query(UserStickerApplication)
-        .filter(
+        for usa in db.session.query(UserStickerApplication).filter(
             UserStickerApplication.user_id == user_id,
             UserStickerApplication.unlockable_id.in_(unlockable_ids),
-        )
-        .all()
+        ).all()
     }
     return unlocks_map, stickers_map
 
@@ -194,12 +190,10 @@ def _fetch_user_progress_for_achievements(
         return {}
     return {
         ua.achievement_id: ua
-        for ua in db.session.query(UserAchievement)
-        .filter(
+        for ua in db.session.query(UserAchievement).filter(
             UserAchievement.user_id == user_id,
             UserAchievement.achievement_id.in_(achievement_ids),
-        )
-        .all()
+        ).all()
     }
 
 
@@ -217,9 +211,12 @@ def _overlay_unlockable_progress(
     """
     item_dict["unlocked_for_me"] = bool(unlock and unlock.unlocked)
     item_dict["unlocked_at"] = (
-        unlock.unlocked_at.isoformat() if unlock and unlock.unlocked_at else None
+        unlock.unlocked_at.isoformat()
+        if unlock and unlock.unlocked_at else None
     )
-    item_dict["highest_stake_order"] = sticker.highest_stake_order if sticker else None
+    item_dict["highest_stake_order"] = (
+        sticker.highest_stake_order if sticker else None
+    )
     return item_dict
 
 
@@ -233,11 +230,12 @@ def _overlay_achievement_progress(
       - unlocked_for_me: bool
       - unlocked_at: ISO timestamp o None
     """
-    item_dict["unlocked_for_me"] = bool(user_achievement and user_achievement.unlocked)
+    item_dict["unlocked_for_me"] = bool(
+        user_achievement and user_achievement.unlocked
+    )
     item_dict["unlocked_at"] = (
         user_achievement.unlocked_at.isoformat()
-        if user_achievement and user_achievement.unlocked_at
-        else None
+        if user_achievement and user_achievement.unlocked_at else None
     )
     return item_dict
 
@@ -246,10 +244,14 @@ def _build_unlockable_subclass_query(subclass_model):
     """Misma plantilla que en app/api/unlockables.py: JOIN explícito al
     padre + joinedload de unlock_factor para evitar N+1 al serializar.
     Duplicada localmente para no acoplar este módulo a uno privado."""
-    return subclass_model.query.join(
-        Unlockable, subclass_model.id == Unlockable.id
-    ).options(
-        joinedload(subclass_model.unlockable).joinedload(Unlockable.unlock_factor)
+    return (
+        subclass_model.query
+        .join(Unlockable, subclass_model.id == Unlockable.id)
+        .options(
+            joinedload(subclass_model.unlockable).joinedload(
+                Unlockable.unlock_factor
+            )
+        )
     )
 
 
@@ -294,7 +296,9 @@ def list_my_jokers():
 
     jokers = paginated["items"]
     joker_ids = [j.id for j in jokers]
-    unlocks_map, stickers_map = _fetch_user_progress_for_unlockables(user.id, joker_ids)
+    unlocks_map, stickers_map = _fetch_user_progress_for_unlockables(
+        user.id, joker_ids
+    )
 
     schema = JokerSchema()
     items_data = [
@@ -336,7 +340,9 @@ def list_my_decks():
 
     decks = paginated["items"]
     deck_ids = [d.id for d in decks]
-    unlocks_map, stickers_map = _fetch_user_progress_for_unlockables(user.id, deck_ids)
+    unlocks_map, stickers_map = _fetch_user_progress_for_unlockables(
+        user.id, deck_ids
+    )
 
     schema = DeckSchema()
     items_data = [
@@ -346,6 +352,61 @@ def list_my_decks():
             stickers_map.get(deck.id),
         )
         for deck in decks
+    ]
+    paginated["items"] = items_data
+    return jsonify(paginated)
+
+
+# =============================================================================
+# GET /api/me/vouchers
+# =============================================================================
+
+
+_VOUCHER_SORTS = {
+    "item_number": Unlockable.item_number,
+    "name": Unlockable.name,
+}
+
+
+@me_progress_bp.route("/vouchers", methods=["GET"])
+@require_auth
+def list_my_vouchers():
+    """Catálogo completo de vouchers + overlay de progreso del usuario.
+
+    Endpoint hermano de `/api/me/decks` y `/api/me/jokers`. Existe
+    porque sin él la cascade de unlock_factor compartido (e.g.
+    BAL_07 Card Player → Nacho Tong, BAL_08 Card Discarder → Recyclomancy)
+    NO es visible en el frontend: la cascade crea correctamente la fila
+    UserUnlock para el voucher, pero CollectionView leía de
+    `/api/vouchers` (público, sin overlay), así que nunca veía
+    `unlocked_for_me=true`.
+
+    Para mantener simetría con `list_my_decks`, también devuelve
+    `highest_stake_order` por si en el futuro los vouchers acaban
+    soportando stickers (hoy no, así que siempre será null). El coste
+    de la query extra de stickers es despreciable y mantiene el
+    contrato del overlay uniforme entre los tres endpoints.
+    """
+    user = g.user
+
+    query = _build_unlockable_subclass_query(Voucher)
+    query = apply_sort(query, _VOUCHER_SORTS, default_sort="item_number")
+    paginated = paginate_query(query, schema=None)
+
+    vouchers = paginated["items"]
+    voucher_ids = [v.id for v in vouchers]
+    unlocks_map, stickers_map = _fetch_user_progress_for_unlockables(
+        user.id, voucher_ids
+    )
+
+    schema = VoucherSchema()
+    items_data = [
+        _overlay_unlockable_progress(
+            schema.dump(voucher),
+            unlocks_map.get(voucher.id),
+            stickers_map.get(voucher.id),
+        )
+        for voucher in vouchers
     ]
     paginated["items"] = items_data
     return jsonify(paginated)
@@ -444,7 +505,9 @@ def set_my_unlock():
     # `unlockable_id=True` no pase el check como si fuese 1.
     raw_id = payload.get("unlockable_id")
     if isinstance(raw_id, bool) or not isinstance(raw_id, int):
-        raise ValidationError({"unlockable_id": "required int (the Unlockable.id)"})
+        raise ValidationError(
+            {"unlockable_id": "required int (the Unlockable.id)"}
+        )
 
     raw_unlocked = payload.get("unlocked", True)
     if not isinstance(raw_unlocked, bool):
@@ -468,17 +531,14 @@ def set_my_unlock():
             404,
         )
 
-    return jsonify(
-        {
-            "ok": True,
-            "unlocked_for_me": result.user_unlock.unlocked,
-            "unlocked_at": (
-                result.user_unlock.unlocked_at.isoformat()
-                if result.user_unlock.unlocked_at
-                else None
-            ),
-        }
-    )
+    return jsonify({
+        "ok": True,
+        "unlocked_for_me": result.user_unlock.unlocked,
+        "unlocked_at": (
+            result.user_unlock.unlocked_at.isoformat()
+            if result.user_unlock.unlocked_at else None
+        ),
+    })
 
 
 # =============================================================================
@@ -531,7 +591,9 @@ def set_my_achievement_unlock():
 
     raw_id = payload.get("achievement_id")
     if isinstance(raw_id, bool) or not isinstance(raw_id, int):
-        raise ValidationError({"achievement_id": "required int (the Achievement.id)"})
+        raise ValidationError(
+            {"achievement_id": "required int (the Achievement.id)"}
+        )
 
     try:
         result = unlock_achievement_for_user(
@@ -563,15 +625,14 @@ def set_my_achievement_unlock():
         .one_or_none()
     )
 
-    return jsonify(
-        {
-            "ok": True,
-            "unlocked_for_me": bool(user_achievement and user_achievement.unlocked),
-            "unlocked_at": (
-                user_achievement.unlocked_at.isoformat()
-                if user_achievement and user_achievement.unlocked_at
-                else None
-            ),
-            "was_already_unlocked": result.achievement_was_already_unlocked,
-        }
-    )
+    return jsonify({
+        "ok": True,
+        "unlocked_for_me": bool(
+            user_achievement and user_achievement.unlocked
+        ),
+        "unlocked_at": (
+            user_achievement.unlocked_at.isoformat()
+            if user_achievement and user_achievement.unlocked_at else None
+        ),
+        "was_already_unlocked": result.achievement_was_already_unlocked,
+    })

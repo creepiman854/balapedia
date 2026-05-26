@@ -34,6 +34,19 @@ export const useAuthStore = defineStore("auth", () => {
 
   const isAuthenticated = computed(() => !!firebaseUser.value);
 
+  // Tras un sync con Steam, las views (Jokers/Colección/Logros) se
+  // re-fetchean para mostrar los nuevos unlocks. Esto se coordina con
+  // un ref que las views observan via watch().
+  //
+  // Por qué un ref aquí y no un eventBus: ya tenemos el authStore como
+  // fuente de verdad de "estado del usuario actual". Un sync IS un evento
+  // de usuario, así que cabe natural. Cero dependencias nuevas.
+  const lastSyncedAt = ref(null);
+
+  function notifySteamSync() {
+    lastSyncedAt.value = new Date();
+  }
+
   // ── Helpers UI ──
   function openAuthModal() {
     isAuthModalOpen.value = true;
@@ -93,6 +106,23 @@ export const useAuthStore = defineStore("auth", () => {
       await signInWithPopup(firebaseAuth, provider);
     } catch (e) {
       error.value = _translateFirebaseError(e);
+      throw e;
+    }
+  }
+
+  async function deleteAccount() {
+    error.value = null;
+
+    try {
+      await api.delete("/api/delete-account");
+
+      // Logout Firebase después de borrar el user interno
+      await signOut(firebaseAuth);
+
+      user.value = null;
+    } catch (e) {
+      error.value = e.response?.data?.error || "No se pudo eliminar la cuenta";
+
       throw e;
     }
   }
@@ -157,7 +187,10 @@ export const useAuthStore = defineStore("auth", () => {
     signupWithEmail,
     loginWithGoogle,
     logout,
+    deleteAccount,
     startSteamLink,
     unlinkSteam,
+    lastSyncedAt,
+    notifySteamSync,
   };
 });

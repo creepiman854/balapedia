@@ -22,6 +22,7 @@
 -->
 <template>
   <div class="collection-view">
+    <div class="view-title">▸ COLECCIÓN</div>
 
     <div class="layout">
       <!-- ── Columna izquierda ── -->
@@ -78,8 +79,6 @@
             <ItemCard
               v-for="(item, idx) in filteredDecks"
               :key="item.id"
-              class="card-deal-anim"
-              :style="{ animationDelay: `${Math.min(idx, 50) * 35}ms` }"
               :item="item"
               :is-locked="isLocked(item)"
               :is-selected="selectedItem?.id === item.id && selectedItem?._kind === 'deck'"
@@ -110,8 +109,6 @@
                   <ItemCard
                     v-for="(pack, idx) in group.items"
                     :key="pack.id"
-                    class="card-deal-anim"
-                    :style="{ animationDelay: `${Math.min(idx, 50) * 35}ms` }"
                     :item="enrichedPackName(pack)"
                     :is-locked="isLocked(pack)"
                     :is-selected="selectedItem?.id === pack.id && selectedItem?._kind === 'pack'"
@@ -135,8 +132,6 @@
             <ItemCard
               v-for="(item, idx) in filteredVouchers"
               :key="item.id"
-              class="card-deal-anim"
-              :style="{ animationDelay: `${Math.min(idx, 50) * 35}ms` }"
               :item="item"
               :is-locked="isLocked(item)"
               :is-selected="selectedItem?.id === item.id && selectedItem?._kind === 'voucher'"
@@ -167,8 +162,6 @@
                 <ItemCard
                   v-for="(mod, idx) in modGroup.items"
                   :key="`${modGroup.key}-${mod.id}`"
-                  class="card-deal-anim"
-                  :style="{ animationDelay: `${Math.min(idx, 50) * 35}ms` }"
                   :item="mod"
                   :is-locked="isLocked(mod)"
                   :is-selected="
@@ -238,7 +231,7 @@ import ItemDetailPanel from "@/components/items/ItemDetailPanel.vue";
 import ItemTooltip from "@/components/items/ItemTooltip.vue";
 
 const authStore = useAuthStore();
-const { isAuthenticated } = storeToRefs(authStore);
+const { isAuthenticated, lastSyncedAt } = storeToRefs(authStore);
 const bgStore = useBackgroundStore();
 
 const SUBTABS = [
@@ -315,7 +308,12 @@ async function loadAll() {
   error.value = "";
   try {
     decks.value = await fetchAllDecks({ authenticated: isAuthenticated.value });
-    vouchers.value = await fetchAllVouchers();
+    // Vouchers también necesita el endpoint autenticado para que la
+    // cascade del Steam sync (BAL_07 → Nacho Tong, BAL_08 → Recyclomancy)
+    // sea visible en la UI. Sin esto, el cascade SÍ crea las filas
+    // UserUnlock pero el frontend lee del endpoint público sin overlay
+    // y los vouchers parecen siempre locked.
+    vouchers.value = await fetchAllVouchers({ authenticated: isAuthenticated.value });
     boosterPacks.value = await fetchAllBoosterPacks();
     modifiers.value = await fetchAllCardModifiers();
   } catch (e) {
@@ -330,9 +328,16 @@ onMounted(() => {
   bgStore.setPreset(currentSub.value);
   loadAll();
 });
-// Si la sesión cambia, recargamos para que decks recoja el overlay
-// (/api/me/decks) y los demás se reajusten al nuevo lock state.
+// Si la sesión cambia, recargamos para que decks/vouchers recojan el
+// overlay (/api/me/decks, /api/me/vouchers) y los demás se reajusten
+// al nuevo lock state.
 watch(isAuthenticated, loadAll);
+
+// Si el authStore notifica un sync de Steam (sync exitoso O unlink),
+// recargamos para reflejar los nuevos unlocks o el re-lock de items
+// que vinieron de STEAM_SYNC. Es el mecanismo simétrico al que ya
+// usan JokersView y AchievementsView.
+watch(lastSyncedAt, loadAll);
 
 // ── Lock state ───────────────────────────────────────────────────
 function isLocked(item) {
@@ -605,6 +610,12 @@ async function onManualUnlock(item) {
     mutateLocally(item, { unlocked_for_me: true, unlocked_at: new Date().toISOString() });
   } catch (e) {
     console.error("[CollectionView] manual unlock failed", e);
+    // 401 = sesión caducada. Abrimos el AuthModal — es la acción que
+    // el usuario necesita; un alert técnico no le ayuda a recuperarse.
+    if (e?.response?.status === 401) {
+      authStore.openAuthModal();
+      return;
+    }
     alert("No se pudo marcar como desbloqueado. " + (e.message || ""));
   }
 }
@@ -867,28 +878,6 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
   &__body {
     flex: 1;
     overflow: hidden;
-  }
-}
-
-/* ── Animaciones de Entrada ───────────────────────────────────────── */
-/*
- * Animación estilo "repartir carta" (Deal) para la vista de colección.
- * Cae verticalmente con escala elástica protegiendo los transforms del arco.
- */
-.card-deal-anim {
-  animation: dealCard 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.15) backwards;
-}
-
-@keyframes dealCard {
-  0% {
-    opacity: 0;
-    translate: 0 -100px;
-    scale: 1.15;
-  }
-  100% {
-    opacity: 1;
-    translate: 0 0;
-    scale: 1;
   }
 }
 </style>

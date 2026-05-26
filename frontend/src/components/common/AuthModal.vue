@@ -56,12 +56,17 @@
             </header>
 
             <div class="modal-body">
-              <div
-                v-if="steamLinkMessage"
-                :class="['notice-wrapper', `notice-wrapper--${steamLinkClass}`]"
-              >
-                <div :class="['notice', steamLinkClass]">
-                  {{ steamLinkMessage }}
+              <div v-if="steamLinkMessage || syncMessage" class="notice-wrapper">
+                <div v-if="steamLinkMessage" :class="['notice-frame', steamLinkClass]">
+                  <div class="notice">
+                    {{ steamLinkMessage }}
+                  </div>
+                </div>
+
+                <div v-if="syncMessage" :class="['notice-frame', syncClass]">
+                  <div class="notice">
+                    {{ syncMessage }}
+                  </div>
                 </div>
               </div>
 
@@ -72,7 +77,9 @@
                 </div>
                 <div class="info-row">
                   <span class="label">Nombre:</span>
-                  <span class="value">{{ user?.display_name || "—" }}</span>
+                  <span class="value">
+                    {{ user?.display_name || user?.email || "—" }}
+                  </span>
                 </div>
                 <div class="info-row">
                   <span class="label">Steam ID:</span>
@@ -83,23 +90,42 @@
               </div>
 
               <div class="actions">
-                <div v-if="!user?.steam_id" class="btn-wrapper steam-wrapper">
+                <div
+                  v-if="!user?.steam_id"
+                  class="btn-wrapper steam-wrapper"
+                  @mouseenter="showTooltip = true"
+                  @mouseleave="showTooltip = false"
+                  ref="steamWrapperElement"
+                >
                   <button class="balatro-btn steam-btn" @click="handleLinkSteam" :disabled="busy">
-                    <iconify-icon icon="pixel:steam" noobserver />
-                    VINCULAR STEAM
+                    <iconify-icon icon="pixel:steam" noobserver /> VINCULAR STEAM
                   </button>
                 </div>
-                <button
-                  v-else
-                  class="balatro-btn secondary"
-                  @click="handleUnlinkSteam"
-                  :disabled="busy"
-                >
-                  DESVINCULAR STEAM
-                </button>
+
+                <template v-else>
+                  <div class="btn-wrapper sync-wrapper">
+                    <button class="balatro-btn sync-btn" @click="handleSyncSteam" :disabled="busy">
+                      <iconify-icon icon="pixel:refresh-double" noobserver />
+                      {{ busy ? "SINCRONIZANDO..." : "SINCRONIZAR CON STEAM" }}
+                    </button>
+                  </div>
+                  <button class="balatro-btn secondary" @click="handleUnlinkSteam" :disabled="busy">
+                    DESVINCULAR STEAM
+                  </button>
+                </template>
+
                 <button class="balatro-btn danger" @click="handleLogout" :disabled="busy">
                   CERRAR SESIÓN
                 </button>
+                <div class="danger-zone">
+                  <button
+                    class="balatro-btn delete-account-btn"
+                    @click="handleDeleteAccount"
+                    :disabled="busy"
+                  >
+                    ELIMINAR CUENTA
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -108,14 +134,23 @@
         </div>
       </div>
     </Transition>
+
+    <Transition name="modal-fade">
+      <div v-if="showTooltip" class="steam-tooltip" ref="tooltipElement">
+        Al vincular tu Steam, los logros que tengas desbloqueados allí se sincronizarán
+        automáticamente y desbloquearán los Jokers, Vales y Mazos correspondientes en sus
+        respectivas vistas.
+      </div>
+    </Transition>
   </Teleport>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount } from "vue";
 import { storeToRefs } from "pinia";
 import { useAuthStore } from "@/stores/auth";
 import { useRoute, useRouter } from "vue-router";
+import { syncSteamAchievements, describeSyncError } from "@/services/steam_sync";
 
 const authStore = useAuthStore();
 const route = useRoute();
@@ -135,13 +170,64 @@ const busy = ref(false);
 // Estado local para los mensajes de Steam (migrado desde ProfileView)
 const steamLinkMessage = ref("");
 const steamLinkClass = ref("info");
+const syncMessage = ref("");
+const syncClass = ref("info");
+const suppressNextSyncError = ref(false);
+
+// Estado para el tooltip
+const showTooltip = ref(false);
+const tooltipElement = ref(null);
+const steamWrapperElement = ref(null);
+
+function updateTooltipPosition() {
+  if (!showTooltip.value || !tooltipElement.value || !steamWrapperElement.value) return;
+
+  const rect = steamWrapperElement.value.getBoundingClientRect();
+  const tooltip = tooltipElement.value;
+
+  // Calcular posición (derecha, centrado vertical) con offset de scroll
+  const top = rect.top + window.scrollY + rect.height / 2;
+  const left = rect.right + window.scrollX + 14;
+
+  // Aplicar estilos directamente
+  tooltip.style.top = `${top}px`;
+  tooltip.style.left = `${left}px`;
+  tooltip.style.transform = `translateY(-50%)`;
+}
+
+watch(showTooltip, (isOpen) => {
+  if (isOpen) {
+    // nextTick es crucial para que el elemento esté en el DOM antes de medir
+    nextTick(updateTooltipPosition);
+    window.addEventListener("resize", updateTooltipPosition);
+    window.addEventListener("scroll", updateTooltipPosition);
+  } else {
+    // Limpieza
+    window.removeEventListener("resize", updateTooltipPosition);
+    window.removeEventListener("scroll", updateTooltipPosition);
+  }
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("resize", updateTooltipPosition);
+  window.removeEventListener("scroll", updateTooltipPosition);
+});
+
+function resetNotices() {
+  steamLinkMessage.value = "";
+  steamLinkClass.value = "info";
+
+  syncMessage.value = "";
+  syncClass.value = "info";
+}
 
 // ── Helpers de UI ──
 function close() {
   authStore.closeAuthModal();
   // Limpiamos los estados de error al cerrar para que no persistan en futuras aperturas
   authStore.error = null;
-  steamLinkMessage.value = "";
+
+  resetNotices();
 }
 
 // ── Lógica de Login/Signup ──
@@ -163,8 +249,33 @@ async function handleGoogleLogin() {
 }
 
 async function handleLogout() {
+  resetNotices();
+
   await authStore.logout();
+
   close();
+}
+
+async function handleDeleteAccount() {
+  const confirmation = prompt(
+    "¿Seguro que quieres eliminar tu cuenta?\n\n" +
+      "Perderás todo el progreso guardado, desbloqueos y sincronizaciones.\n\n" +
+      "Escribe ELIMINAR para confirmar.",
+  );
+
+  if (confirmation !== "ELIMINAR") {
+    return;
+  }
+
+  busy.value = true;
+
+  try {
+    await authStore.deleteAccount();
+
+    close();
+  } finally {
+    busy.value = false;
+  }
 }
 
 // ── Lógica de Integración con Steam ──
@@ -183,11 +294,66 @@ async function handleLinkSteam() {
 
 async function handleUnlinkSteam() {
   if (!confirm("¿Seguro que quieres desvincular tu cuenta de Steam?")) return;
+
   busy.value = true;
+
+  // Evita mostrar errores de sync provocados por el propio unlink.
+  suppressNextSyncError.value = true;
+
+  steamLinkMessage.value = "";
+  syncMessage.value = "";
+
   try {
     await authStore.unlinkSteam();
+
     steamLinkMessage.value = "Cuenta Steam desvinculada.";
     steamLinkClass.value = "success";
+
+    authStore.notifySteamSync();
+  } finally {
+    busy.value = false;
+
+    // Se libera en el siguiente tick de microtarea para cubrir
+    // cualquier refetch/reactividad inmediata posterior al unlink.
+    queueMicrotask(() => {
+      suppressNextSyncError.value = false;
+    });
+  }
+}
+
+async function handleSyncSteam({ suppressUnauthorized = false } = {}) {
+  if (busy.value) return;
+
+  syncMessage.value = "";
+  busy.value = true;
+
+  try {
+    const result = await syncSteamAchievements();
+    const s = result.summary;
+
+    syncMessage.value =
+      `✓ Sincronización completada.\n` +
+      `${s.newly_unlocked_count} logros nuevos · ` +
+      `${s.total_items_cascaded} items en cascada · ` +
+      `${s.total_sticker_applications} stickers aplicados.`;
+
+    syncClass.value = "success";
+
+    authStore.notifySteamSync();
+  } catch (e) {
+    if (suppressNextSyncError.value) {
+      return;
+    }
+
+    const desc = describeSyncError(e);
+
+    // Ignora el 401 espurio del auto-sync post-vinculación.
+    if (suppressUnauthorized && desc.code === "unauthorized") {
+      return;
+    }
+
+    syncMessage.value = desc.message;
+    syncClass.value = "error";
   } finally {
     busy.value = false;
   }
@@ -228,6 +394,13 @@ async function checkSteamRedirect() {
   // Si la vinculación fue exitosa, forzamos un re-fetch de /api/me para ver el steam_id
   if (status === "success") {
     await authStore.fetchMe();
+    // Auto-trigger del sync una vez. Si falla, no rompemos el flow de
+    // vinculación — el usuario tendrá el botón manual disponible.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    handleSyncSteam({
+      suppressUnauthorized: true,
+    }); // intencional: sin await, corre en background
   }
 
   // Restauramos la ruta previa
@@ -247,6 +420,17 @@ async function checkSteamRedirect() {
 
 onMounted(checkSteamRedirect);
 watch(() => route.query.steam_link, checkSteamRedirect);
+watch(
+  () => user.value?.id,
+  () => {
+    if (!isOpen.value) resetNotices();
+  },
+);
+watch(isAuthenticated, (authenticated) => {
+  if (!authenticated && !isOpen.value) {
+    resetNotices();
+  }
+});
 </script>
 
 <style lang="scss" scoped>
@@ -337,18 +521,16 @@ watch(() => route.query.steam_link, checkSteamRedirect);
   @include pixel-stroke(#66c0f4);
 }
 
+// El wrapper SOLO maneja layout (column + gap). No aplica pixel-stroke,
+// porque eso causaba doble borde cuando el `.notice` interno tenía su
+// propia clase semántica (.success/.error/.info) con su propio color.
+//
+// La regla: una sola fuente de verdad por color de notice. La fuente
+// es el `.notice.X`, no el wrapper.
 .notice-wrapper {
   display: flex;
-
-  &--success {
-    @include pixel-stroke(#22c55e);
-  }
-  &--error {
-    @include pixel-stroke(#dc2626);
-  }
-  &--info {
-    @include pixel-stroke(#3b82f6);
-  }
+  flex-direction: column;
+  gap: 10px;
 }
 
 .balatro-input {
@@ -485,27 +667,79 @@ watch(() => route.query.steam_link, checkSteamRedirect);
   text-align: center;
   color: #e8443a;
   font-family: "m6x11plus", monospace;
-  margin-top: 8px;
+  margin-bottom: 8px;
 }
+
+.danger-zone {
+  margin-top: 12px;
+  padding-top: 14px;
+  border-top: 2px solid rgba(255, 255, 255, 0.08);
+}
+
+.delete-account-btn {
+  background: #7f1d1d;
+  color: #fecaca;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.15);
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Notice wrapper
+|--------------------------------------------------------------------------
+| El borde pixelado vive en el wrapper exterior.
+| El contenido interior aplica únicamente el clip pixelado.
+| Esto evita artefactos visuales en las esquinas y mantiene
+| consistencia con el resto del sistema UI del proyecto.
+*/
+.notice-frame {
+  width: 100%;
+
+  &.success {
+    @include pixel-stroke(#22c55e);
+  }
+
+  &.error {
+    @include pixel-stroke(#dc2626);
+  }
+
+  &.info {
+    @include pixel-stroke(#3b82f6);
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Notice content
+|--------------------------------------------------------------------------
+*/
 
 .notice {
   width: 100%;
   padding: 12px;
   text-align: center;
   font-family: "m6x11plus", monospace;
+  white-space: pre-line;
   @include pixel-clip-sm;
-}
-.notice.success {
-  background: linear-gradient(rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.15)), $panel-darkest;
-  color: #22c55e;
-}
-.notice.error {
-  background: linear-gradient(rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.15)), $panel-darkest;
-  color: #ef4444;
-}
-.notice.info {
-  background: linear-gradient(rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.15)), $panel-darkest;
-  color: #60a5fa;
+
+  background: $panel-darkest;
+
+  .notice-frame.success & {
+    background: linear-gradient(rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.15)), $panel-darkest;
+    color: #22c55e;
+  }
+
+  .notice-frame.error & {
+    background: linear-gradient(rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.15)), $panel-darkest;
+    color: #ef4444;
+  }
+
+  .notice-frame.info & {
+    background: linear-gradient(rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.15)), $panel-darkest;
+    color: #60a5fa;
+  }
 }
 /* Transición del modal */
 .modal-fade-enter-active,
@@ -515,5 +749,44 @@ watch(() => route.query.steam_link, checkSteamRedirect);
 .modal-fade-enter-from,
 .modal-fade-leave-to {
   opacity: 0;
+}
+
+// Mismo color azul Steam que el link, ligeramente más claro para
+// distinguir "vincular" (acción definitiva) de "sincronizar" (acción
+// repetible).
+.sync-wrapper {
+  @include pixel-stroke(#66c0f4);
+}
+
+.balatro-btn.sync-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #2a4d6e;
+  color: #9ecde6;
+}
+
+// El notice ya existe; le permitimos respetar saltos de línea para
+// que el mensaje multi-línea del sync no se vea todo seguido.
+.notice {
+  white-space: pre-line;
+}
+
+.steam-tooltip {
+  position: absolute; // Anclado a body, z-index funciona
+  width: 260px;
+  padding: 10px 12px;
+  background: #1b2838; /* Mismo color de fondo que el botón de Steam */
+  color: #9ecde6;
+  font-family: "m6x11plus", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  letter-spacing: 0.2px;
+  z-index: 10000; // Por encima de todo, incluso el modal
+  pointer-events: none;
+  @include pixel-clip-sm;
 }
 </style>

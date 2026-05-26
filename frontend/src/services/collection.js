@@ -41,7 +41,7 @@ function wrapError(e, contextPath) {
     return err
   }
   if (e.request) {
-    return new Error(`${contextPath} → sin respuesta del backend (¿flask corriendo en :8080?)`)
+    return new Error(`${contextPath} → sin respuesta del backend (¿flask corriendo en :5000?)`)
   }
   return e
 }
@@ -106,8 +106,22 @@ export async function fetchAllDecks({ authenticated = false } = {}) {
 }
 
 // ── Vouchers ──────────────────────────────────────────────────────
-export async function fetchAllVouchers() {
-  return fetchAllPages('/api/vouchers')
+/**
+ * Si `authenticated` es true se pide /api/me/vouchers (con overlay
+ * `unlocked_for_me` + `unlocked_at` + `highest_stake_order`); si no,
+ * /api/vouchers (público, sin overlay).
+ *
+ * Importante para el cascade de Steam sync: BAL_07 (Card Player) y
+ * BAL_08 (Card Discarder) comparten unlock_factor con Nacho Tong y
+ * Recyclomancy respectivamente. La cascade del backend crea las filas
+ * UserUnlock correctamente cuando esos logros se sincronizan, pero
+ * SIN este endpoint autenticado el frontend no las puede ver — leería
+ * de /api/vouchers (público) y los vouchers parecerían siempre locked
+ * aunque el usuario tenga ambos logros completados en Steam.
+ */
+export async function fetchAllVouchers({ authenticated = false } = {}) {
+  const path = authenticated ? '/api/me/vouchers' : '/api/vouchers'
+  return fetchAllPages(path)
 }
 
 // ── Booster Packs ─────────────────────────────────────────────────
