@@ -144,6 +144,10 @@ onMounted(() => {
 // Si el usuario inicia o cierra sesión, recargamos para que el overlay
 // `unlocked_for_me` aparezca o desaparezca del payload del backend.
 watch(isAuthenticated, loadAchievements);
+// Re-fetch tras sync de Steam (logros nuevos via STEAM_SYNC) o tras
+// unlink (los UserAchievement con source=STEAM_SYNC se borran y
+// reaparecen como locked). Es la clave del re-lock-on-unlink que el
+// usuario pidió: el watcher dispara aquí cuando authStore notifica.
 watch(lastSyncedAt, loadAchievements);
 
 // ── Filtros ──────────────────────────────────────────────────────────
