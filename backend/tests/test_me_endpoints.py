@@ -372,3 +372,222 @@ class TestMyAchievementsEndpoint:
         )
         assert rule_breaker["unlocked_for_me"] is False
         assert rule_breaker["unlocked_at"] is None
+
+
+# =============================================================================
+# POST /api/me/unlocks (botón "marcar como desbloqueado")
+# =============================================================================
+
+
+class TestSetUnlockEndpoint:
+    """Tests del endpoint POST /api/me/unlocks.
+
+    Cubre el contrato completo del endpoint que sustenta el botón
+    "marcar como desbloqueado" del frontend (Jokers / Consumibles /
+    Colección) y el futuro Steam-sync (compartirán el mismo upsert
+    interno vía `services/unlocks_service.set_unlock_for_user`).
+    """
+
+    def test_missing_auth_returns_401(self, client, populated_catalog):
+        """Sin token → 401, igual que el resto de /api/me/*."""
+        showman = populated_catalog["showman"]
+        resp = client.post(
+            "/api/me/unlocks",
+            json={"unlockable_id": showman.id},
+        )
+        assert resp.status_code == 401
+
+    def test_creates_new_unlock_for_user(
+        self, client, auth_headers, sample_user, populated_catalog, db_session
+    ):
+        """Si no hay UserUnlock previo, lo crea y devuelve overlay True."""
+        showman = populated_catalog["showman"]
+        unlockable_id = showman.id
+
+        pre = (
+            db_session.query(UserUnlock)
+            .filter_by(user_id=sample_user.id, unlockable_id=unlockable_id)
+            .one_or_none()
+        )
+        assert pre is None
+
+        resp = client.post(
+            "/api/me/unlocks",
+            headers=auth_headers,
+            json={"unlockable_id": unlockable_id},
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["ok"] is True
+        assert data["unlocked_for_me"] is True
+        assert data["unlocked_at"] is not None
+
+        # Y la fila aparece en BD.
+        post = (
+            db_session.query(UserUnlock)
+            .filter_by(user_id=sample_user.id, unlockable_id=unlockable_id)
+            .one()
+        )
+        assert post.unlocked is True
+        assert post.source == UnlockSource.MANUAL
+
+    def test_idempotent_remark_same_state_preserves_unlocked_at(
+        self, client, auth_headers, sample_user, user_with_progress, db_session
+    ):
+        """Re-marcar lo ya desbloqueado responde 200 sin tocar `unlocked_at`.
+
+        Esto es importante para el lifecycle de la fila: si el usuario
+        pulsa dos veces el botón sin querer, el primer timestamp no se
+        debe perder (sería confuso ver el desbloqueo "actualizado" a
+        ahora cuando en realidad pasó hace meses).
+        """
+        existing = (
+            db_session.query(UserUnlock)
+            .filter_by(user_id=sample_user.id)
+            .filter(UserUnlock.unlocked.is_(True))
+            .first()
+        )
+        assert existing is not None
+        original_when = existing.unlocked_at
+        original_source = existing.source
+
+        resp = client.post(
+            "/api/me/unlocks",
+            headers=auth_headers,
+            json={"unlockable_id": existing.unlockable_id, "unlocked": True},
+        )
+        assert resp.status_code == 200
+        assert resp.get_json()["unlocked_for_me"] is True
+
+        db_session.refresh(existing)
+        assert existing.unlocked_at == original_when
+        # El source tampoco debe sobreescribirse — un re-mark MANUAL
+        # sobre un STEAM_SYNC NO debería pisar el origen original.
+        assert existing.source == original_source
+
+    def test_can_flip_to_unlocked_false(
+        self, client, auth_headers, user_with_progress, db_session
+    ):
+        """Pasar `unlocked: false` desbloquea la fila y limpia el timestamp."""
+        existing = (
+            db_session.query(UserUnlock)
+            .filter(UserUnlock.unlocked.is_(True))
+            .first()
+        )
+        resp = client.post(
+            "/api/me/unlocks",
+            headers=auth_headers,
+            json={"unlockable_id": existing.unlockable_id, "unlocked": False},
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["unlocked_for_me"] is False
+        assert data["unlocked_at"] is None
+        db_session.refresh(existing)
+        assert existing.unlocked is False
+        assert existing.unlocked_at is None
+
+    def test_unknown_unlockable_returns_404(
+        self, client, auth_headers, populated_catalog
+    ):
+        """unlockable_id que no existe en BD → 404 limpio, no IntegrityError."""
+        resp = client.post(
+            "/api/me/unlocks",
+            headers=auth_headers,
+            json={"unlockable_id": 999999},
+        )
+        assert resp.status_code == 404
+        data = resp.get_json()
+        assert data["error"] == "not_found"
+        assert "999999" in data["message"]
+
+    def test_missing_unlockable_id_returns_400(self, client, auth_headers):
+        resp = client.post("/api/me/unlocks", headers=auth_headers, json={})
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert data["error"] == "validation_error"
+        assert "unlockable_id" in data["details"]
+
+    def test_non_int_unlockable_id_returns_400(self, client, auth_headers):
+        resp = client.post(
+            "/api/me/unlocks",
+            headers=auth_headers,
+            json={"unlockable_id": "abc"},
+        )
+        assert resp.status_code == 400
+        assert "unlockable_id" in resp.get_json()["details"]
+
+    def test_bool_unlockable_id_rejected(self, client, auth_headers):
+        """`unlockable_id=True` NO debe colar como 1 — bool es subclase
+        de int en Python pero semánticamente es un payload inválido."""
+        resp = client.post(
+            "/api/me/unlocks",
+            headers=auth_headers,
+            json={"unlockable_id": True},
+        )
+        assert resp.status_code == 400
+        assert "unlockable_id" in resp.get_json()["details"]
+
+    def test_non_bool_unlocked_returns_400(
+        self, client, auth_headers, populated_catalog
+    ):
+        showman = populated_catalog["showman"]
+        resp = client.post(
+            "/api/me/unlocks",
+            headers=auth_headers,
+            json={
+                "unlockable_id": showman.id,
+                "unlocked": "yes",
+            },
+        )
+        assert resp.status_code == 400
+        assert "unlocked" in resp.get_json()["details"]
+
+    def test_user_isolation(
+        self, client, auth_headers, sample_user, populated_catalog, db_session
+    ):
+        """El unlock se asocia al usuario del token, no a otros usuarios
+        que existan en BD. Verifica que `g.user.id` es la fuente de verdad."""
+        from app.models import User
+
+        other = User(firebase_uid="other-uid", display_name="Other")
+        db_session.add(other)
+        db_session.commit()
+
+        showman = populated_catalog["showman"]
+        resp = client.post(
+            "/api/me/unlocks",
+            headers=auth_headers,
+            json={"unlockable_id": showman.id},
+        )
+        assert resp.status_code == 200
+
+        unlocks = (
+            db_session.query(UserUnlock)
+            .filter_by(unlockable_id=showman.id)
+            .all()
+        )
+        assert len(unlocks) == 1
+        assert unlocks[0].user_id == sample_user.id
+
+    def test_overlay_visible_immediately_in_my_jokers(
+        self, client, auth_headers, sample_user, populated_catalog, db_session
+    ):
+        """Tras marcar manualmente, /api/me/jokers ya devuelve
+        unlocked_for_me=true sin necesidad de re-fetch del frontend.
+
+        Verifica end-to-end que el upsert MANUAL produce el mismo
+        overlay que un STEAM_SYNC — confirma que el contrato del
+        endpoint compartido se cumple."""
+        showman = populated_catalog["showman"]
+        client.post(
+            "/api/me/unlocks",
+            headers=auth_headers,
+            json={"unlockable_id": showman.id},
+        )
+
+        resp = client.get("/api/me/jokers", headers=auth_headers)
+        items = resp.get_json()["items"]
+        showman_overlay = next(it for it in items if it["name"] == "Showman")
+        assert showman_overlay["unlocked_for_me"] is True
+        assert showman_overlay["unlocked_at"] is not None
