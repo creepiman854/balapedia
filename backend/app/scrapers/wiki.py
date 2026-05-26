@@ -229,101 +229,144 @@ def extract_leading_int(value: Any) -> Optional[int]:
     return int(match.group()) if match else None
 
 
-def render_wikitext(raw: Any) -> str:
+def render_wikitext(raw):
     """Convierte wikitexto con plantillas y formato a texto plano legible.
 
     Plantillas reconocidas (mapeo a texto):
-      - ``{{Mult|+4}}`` -> ``"+4 Mult"``
-      - ``{{Chips|+30}}`` -> ``"+30 Chips"``
-      - ``{{xmult|2}}`` -> ``"x2 Mult"``
-      - ``{{hl|color|texto}}`` -> ``"texto"`` (descarta el color)
-      - ``{{Suit|Diamond}}`` -> ``"Diamond"``
-      - ``{{ph|Flush}}`` -> ``"Flush"``
-      - ``{{V|Tarot Merchant|...}}`` -> ``"Tarot Merchant"``
-      - ``{{J|Credit Card}}`` -> ``"Credit Card"``
-      - ``{{Tarot|The Empress}}`` -> ``"The Empress"``
-      - ``{{D|Plasma}}`` -> ``"Plasma"``
-      - ``{{Stake|Red}}`` -> ``"Red Stake"``
-      - ``{{Money|2}}`` -> ``"$2"``
+      - ``{{Mult|+4}}``                       → ``"+4 Mult"``
+      - ``{{Chips|+30}}``                     → ``"+30 Chips"``
+      - ``{{xmult|2}}``                       → ``"x2 Mult"``
+      - ``{{hl|color|texto}}``                → ``"texto"`` (descarta color)
+      - ``{{c|color|texto}}``                 → ``"texto"`` (alias de hl)
+      - ``{{color|color|texto}}``             → ``"texto"`` (alias de hl)
+      - ``{{fc|color|texto}}``                → ``"texto"`` (alias de hl)
+      - ``{{Suit|Diamond}}``                  → ``"Diamond"``
+      - ``{{ph|Flush}}``                      → ``"Flush"``
+      - ``{{V|Tarot Merchant|...}}``          → ``"Tarot Merchant"``
+      - ``{{J|Credit Card}}``                 → ``"Credit Card"``
+      - ``{{Tarot|The Empress}}``             → ``"The Empress"``
+      - ``{{D|Plasma}}``                      → ``"Plasma"``
+      - ``{{Stake|Red}}``                     → ``"Red Stake"``
+      - ``{{Money|2}}``                       → ``"$2"``
+      - ``{{Sticker|Eternal|name=Vampire}}``  → ``"Vampire"`` o ``"Eternal"``
 
-    Otros nodos:
-      - Wikilinks ``[[Cards|alias]]`` -> ``"alias"``.
-      - Etiquetas HTML ``<br>`` -> espacio. ``<small>...</small>`` -> contenido.
-      - Comentarios HTML descartados.
+    Args anidados (plantillas dentro de args): ahora se aplanan
+    recursivamente. Ejemplo: ``{{j|{{hl|red|Joker}}}}`` → ``"Joker"``.
+    Antes esto devolvía literalmente ``"{{hl|red|Joker}}"`` porque la
+    función auxiliar `arg()` stringificaba el ``Wikicode`` crudo.
 
-    Para plantillas no reconocidas, devuelve el primer argumento posicional
-    como heurística razonable; si no tiene argumentos, devuelve cadena vacía.
+    Plantillas desconocidas: devuelve `arg(1)` como heurística y loguea
+    un WARNING con el nombre — así se detectan plantillas nuevas en la
+    wiki sin tener que bucear en descripciones rotas.
     """
     if raw is None or str(raw).strip() == "":
         return ""
 
     code = mwparserfromhell.parse(str(raw))
 
-    def render_node(node: Any) -> str:
+    # Templates conocidos por familia:
+    # - COLOR_DISCARD: descartan arg(1) (el color) y devuelven arg(2) recursivo.
+    # - IDENTITY: devuelven arg(1) recursivo tal cual (nombre del juego).
+    # - El resto (mult/chips/xmult/money/stake/sticker/seal/room) tienen
+    #   formato custom y se manejan en líneas separadas más abajo.
+    COLOR_DISCARD_TEMPLATES = {"hl", "c", "color", "fc", "clr", "textcolor"}
+    IDENTITY_TEMPLATES = {
+        "suit",
+        "ph",
+        "v",
+        "j",
+        "tarot",
+        "d",
+        "spectral",
+        "blind",
+        "enhancement",
+        "edition",
+        "tag",
+    }
+
+    def render_node(node):
         if isinstance(node, Template):
             name = str(node.name).strip().lower()
 
-            def arg(n: int) -> str:
-                return str(node.get(n).value).strip() if node.has(n) else ""
+            def arg(n):
+                """Devuelve el arg n-ésimo de la plantilla ya RENDERIZADO.
 
-            # Plantillas de score
+                Recursivo: si el arg contiene plantillas anidadas, las
+                aplana llamando a render_node sobre cada nodo de su
+                Wikicode. Sin esto, plantillas como `{{j|{{hl|red|X}}}}`
+                devolvían el wikitext literal de arg(1).
+                """
+                if not node.has(n):
+                    return ""
+                value = node.get(n).value
+                if hasattr(value, "nodes"):
+                    return "".join(render_node(child) for child in value.nodes).strip()
+                return str(value).strip()
+
+            # ── Plantillas de score ──
             if name == "mult":
                 return f"{arg(1)} Mult"
             if name == "chips":
                 return f"{arg(1)} Chips"
             if name == "xmult":
+                # `lstrip('+')` por si el wikitext es "{{xmult|+2}}" — el +
+                # ya está implícito en la x del prefijo "x2 Mult".
                 return f"x{arg(1).lstrip('+')} Mult"
-            # Highlight: descarta color, mantiene texto.
-            # Render recursivo del segundo arg para aplanar templates anidados
-            # (p.ej. {{hl|orange|<small>X</small>}} debe devolver "X", no
-            # "<small>X</small>"). Sin esto, las descripciones complejas de
-            # los Tags conservan HTML crudo.
-            if name == "hl":
-                if node.has(2):
-                    inner = node.get(2).value
-                    if hasattr(inner, "nodes"):
-                        return "".join(render_node(n) for n in inner.nodes)
-                    return str(inner)
-                return ""
-            # Referencias a entidades del juego donde el primer arg ES el nombre
-            if name in (
-                "suit",
-                "ph",
-                "v",
-                "j",
-                "tarot",
-                "d",
-                "spectral",
-                "blind",
-                "enhancement",
-                "edition",
-                "tag",
-            ):
+
+            # ── Familia "color-discard" ──
+            # Todas estas plantillas tienen forma {{name|color|texto}}.
+            # Solo nos interesa el texto (arg 2), que se renderiza
+            # recursivamente para soportar más plantillas dentro.
+            if name in COLOR_DISCARD_TEMPLATES:
+                return arg(2)
+
+            # ── Familia "identity" ──
+            # {{j|JokerName}} -> "JokerName" (con render recursivo de arg(1)
+            # por si tuviera plantillas dentro).
+            if name in IDENTITY_TEMPLATES:
                 return arg(1)
-            # Sticker y Seal: si hay arg con nombre `name`, lo preferimos
-            # (suele ser más legible). Si no, usamos el primer arg.
-            # Ejemplos:
+
+            # ── Sticker / Seal: arg con nombre `name` preferido ──
             #   {{Sticker|Eternal|name=Vampire}} -> "Vampire"
             #   {{Sticker|Eternal}}              -> "Eternal"
             #   {{Seal|Blue|name=Blue Seals}}    -> "Blue Seals"
             #   {{Seal|Blue}}                    -> "Blue"
+            #
+            # Antes esto tenía render manual recursivo. Ahora con
+            # `arg()` recursivo se puede consultar igual el arg por
+            # nombre vía un helper inline simétrico.
             if name in ("sticker", "seal"):
                 if node.has("name"):
-                    inner = node.get("name").value
-                    if hasattr(inner, "nodes"):
-                        return "".join(render_node(n) for n in inner.nodes)
-                    return str(inner)
+                    value = node.get("name").value
+                    if hasattr(value, "nodes"):
+                        return "".join(
+                            render_node(child) for child in value.nodes
+                        ).strip()
+                    return str(value).strip()
                 return arg(1)
-            # Stake
+
+            # ── Stake / Money ──
             if name == "stake":
                 return f"{arg(1)} Stake"
-            # Money
             if name == "money":
                 return f"${arg(1)}"
-            # Plantilla "room" (puzzles) → descartada
+
+            # ── Plantillas decorativas que NO aportan texto ──
+            # `{{room}}` es marker de fin de habitación en challenge
+            # decks — no se renderiza.
             if name == "room":
                 return ""
-            # Plantilla desconocida: heurística → primer argumento
+
+            # ── Plantilla desconocida ──
+            # Fallback: heurística → primer arg recursivo. Loguea
+            # WARNING para que cualquier plantilla nueva en la wiki
+            # genere ruido visible y podamos extender la whitelist.
+            logger.warning(
+                "Unknown wiki template encountered: {{%s|%s}} — "
+                "falling back to arg(1). Consider adding a handler.",
+                name,
+                arg(1)[:60],
+            )
             return arg(1)
 
         if isinstance(node, Wikilink):
