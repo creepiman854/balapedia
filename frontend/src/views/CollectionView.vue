@@ -22,8 +22,6 @@
 -->
 <template>
   <div class="collection-view">
-    <div class="view-title">▸ COLECCIÓN</div>
-
     <div class="layout">
       <!-- ── Columna izquierda ── -->
       <div class="grid-col">
@@ -79,6 +77,8 @@
             <ItemCard
               v-for="(item, idx) in filteredDecks"
               :key="item.id"
+              class="card-deal-anim"
+              :style="{ animationDelay: `${Math.min(idx, 50) * 35}ms` }"
               :item="item"
               :is-locked="isLocked(item)"
               :is-selected="selectedItem?.id === item.id && selectedItem?._kind === 'deck'"
@@ -109,6 +109,8 @@
                   <ItemCard
                     v-for="(pack, idx) in group.items"
                     :key="pack.id"
+                    class="card-deal-anim"
+                    :style="{ animationDelay: `${Math.min(idx, 50) * 35}ms` }"
                     :item="enrichedPackName(pack)"
                     :is-locked="isLocked(pack)"
                     :is-selected="selectedItem?.id === pack.id && selectedItem?._kind === 'pack'"
@@ -132,6 +134,8 @@
             <ItemCard
               v-for="(item, idx) in filteredVouchers"
               :key="item.id"
+              class="card-deal-anim"
+              :style="{ animationDelay: `${Math.min(idx, 50) * 35}ms` }"
               :item="item"
               :is-locked="isLocked(item)"
               :is-selected="selectedItem?.id === item.id && selectedItem?._kind === 'voucher'"
@@ -162,6 +166,8 @@
                 <ItemCard
                   v-for="(mod, idx) in modGroup.items"
                   :key="`${modGroup.key}-${mod.id}`"
+                  class="card-deal-anim"
+                  :style="{ animationDelay: `${Math.min(idx, 50) * 35}ms` }"
                   :item="mod"
                   :is-locked="isLocked(mod)"
                   :is-selected="
@@ -314,7 +320,12 @@ async function loadAll() {
     // UserUnlock pero el frontend lee del endpoint público sin overlay
     // y los vouchers parecen siempre locked.
     vouchers.value = await fetchAllVouchers({ authenticated: isAuthenticated.value });
-    boosterPacks.value = await fetchAllBoosterPacks();
+    // Booster packs también van por el endpoint autenticado para
+    // mantener la simetría con jokers/decks/vouchers. En vanilla
+    // Balatro no cambia nada (no hay sobres con unlock_factor), pero
+    // si en el futuro un mod añade sobres desbloqueables, ya
+    // funciona sin tocar más código.
+    boosterPacks.value = await fetchAllBoosterPacks({ authenticated: isAuthenticated.value });
     modifiers.value = await fetchAllCardModifiers();
   } catch (e) {
     console.error("[CollectionView] error completo:", e, e.cause || "");
@@ -878,6 +889,28 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
   &__body {
     flex: 1;
     overflow: hidden;
+  }
+}
+
+/* ── Animaciones de Entrada ───────────────────────────────────────── */
+/*
+ * Animación estilo "repartir carta" (Deal) para la vista de colección.
+ * Cae verticalmente con escala elástica protegiendo los transforms del arco.
+ */
+.card-deal-anim {
+  animation: dealCard 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.15) backwards;
+}
+
+@keyframes dealCard {
+  0% {
+    opacity: 0;
+    translate: 0 -100px;
+    scale: 1.15;
+  }
+  100% {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
   }
 }
 </style>
