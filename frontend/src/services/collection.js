@@ -165,9 +165,16 @@ export async function fetchAllCardModifiers() {
 // ── Manual unlock ─────────────────────────────────────────────────
 /**
  * Marca un Unlockable como desbloqueado para el usuario actual.
- * Endpoint compartido para jokers/decks/vouchers/booster-packs —
- * todos son subclases de Unlockable, por lo que comparten id namespace
- * para POST /api/me/unlocks { unlockable_id, unlocked }.
+ *
+ * Endpoint compartido para jokers/decks/vouchers/booster-packs/
+ * consumables/challenge-decks — todos comparten el id namespace de la
+ * tabla padre `unlockables`, así que `POST /api/me/unlocks` con
+ * `{ unlockable_id, unlocked }` cubre los seis subtipos.
+ *
+ * El upsert backend (`services/unlocks_service.set_unlock_for_user`)
+ * es idempotente: re-marcar el mismo estado responde 200 sin tocar
+ * `unlocked_at`. El mismo upsert lo usará el sync de Steam, así que
+ * un item que ya estuviese desbloqueado por Steam permanece igual.
  *
  * NOTA: Card Modifiers (Enhancement/Edition/Seal) NO son Unlockable,
  * son tabla flat, así que esta función no aplica a ellos. La vista
