@@ -63,6 +63,9 @@
                 <div :class="['notice', steamLinkClass]">
                   {{ steamLinkMessage }}
                 </div>
+                <div v-if="syncMessage" :class="['notice-wrapper', `notice-wrapper--${syncClass}`]">
+                  <div :class="['notice', syncClass]">{{ syncMessage }}</div>
+                </div>
               </div>
 
               <div class="profile-info">
@@ -85,18 +88,20 @@
               <div class="actions">
                 <div v-if="!user?.steam_id" class="btn-wrapper steam-wrapper">
                   <button class="balatro-btn steam-btn" @click="handleLinkSteam" :disabled="busy">
-                    <iconify-icon icon="pixel:steam" noobserver />
-                    VINCULAR STEAM
+                    <iconify-icon icon="pixel:steam" noobserver /> VINCULAR STEAM
                   </button>
                 </div>
-                <button
-                  v-else
-                  class="balatro-btn secondary"
-                  @click="handleUnlinkSteam"
-                  :disabled="busy"
-                >
-                  DESVINCULAR STEAM
-                </button>
+                <template v-else>
+                  <div class="btn-wrapper sync-wrapper">
+                    <button class="balatro-btn sync-btn" @click="handleSyncSteam" :disabled="busy">
+                      <iconify-icon icon="pixel:refresh-double" noobserver />
+                      {{ busy ? "SINCRONIZANDO..." : "SINCRONIZAR CON STEAM" }}
+                    </button>
+                  </div>
+                  <button class="balatro-btn secondary" @click="handleUnlinkSteam" :disabled="busy">
+                    DESVINCULAR STEAM
+                  </button>
+                </template>
                 <button class="balatro-btn danger" @click="handleLogout" :disabled="busy">
                   CERRAR SESIÓN
                 </button>
@@ -116,6 +121,7 @@ import { ref, computed, watch, onMounted } from "vue";
 import { storeToRefs } from "pinia";
 import { useAuthStore } from "@/stores/auth";
 import { useRoute, useRouter } from "vue-router";
+import { syncSteamAchievements, describeSyncError } from "@/services/steam_sync";
 
 const authStore = useAuthStore();
 const route = useRoute();
@@ -135,6 +141,8 @@ const busy = ref(false);
 // Estado local para los mensajes de Steam (migrado desde ProfileView)
 const steamLinkMessage = ref("");
 const steamLinkClass = ref("info");
+const syncMessage = ref("");
+const syncClass = ref("info");
 
 // ── Helpers de UI ──
 function close() {
@@ -193,6 +201,39 @@ async function handleUnlinkSteam() {
   }
 }
 
+async function handleSyncSteam() {
+  busy.value = true;
+  syncMessage.value = "Sincronizando con Steam...";
+  syncClass.value = "info";
+  try {
+    const result = await syncSteamAchievements();
+    const s = result.summary;
+    // Mensaje multi-línea: el .notice ya respeta \n con white-space: pre-line
+    // (lo añadimos en el style más abajo). Si no, queda en una línea con
+    // separadores " · ".
+    syncMessage.value =
+      `✓ Sincronización completada.\n` +
+      `${s.newly_unlocked_count} logros nuevos · ` +
+      `${s.total_items_cascaded} items en cascada · ` +
+      `${s.total_sticker_applications} stickers aplicados.`;
+    syncClass.value = "success";
+    // Notifica al resto de la app: las vistas re-fetchean.
+    authStore.notifySteamSync();
+  } catch (e) {
+    const desc = describeSyncError(e);
+    if (desc.code === "unauthorized") {
+      // Sesión caducada — el modal sigue abierto, pero forzamos un
+      // re-login mostrando el formulario en vez del perfil.
+      await authStore.logout();
+      return;
+    }
+    syncMessage.value = desc.message;
+    syncClass.value = "error";
+  } finally {
+    busy.value = false;
+  }
+}
+
 /**
  * Listener de redirección de Steam.
  * Si el usuario vuelve del flujo de OAuth, la URL traerá un parámetro `steam_link`.
@@ -228,6 +269,9 @@ async function checkSteamRedirect() {
   // Si la vinculación fue exitosa, forzamos un re-fetch de /api/me para ver el steam_id
   if (status === "success") {
     await authStore.fetchMe();
+    // Auto-trigger del sync una vez. Si falla, no rompemos el flow de
+    // vinculación — el usuario tendrá el botón manual disponible.
+    handleSyncSteam(); // intencional: sin await, corre en background
   }
 
   // Restauramos la ruta previa
@@ -339,6 +383,8 @@ watch(() => route.query.steam_link, checkSteamRedirect);
 
 .notice-wrapper {
   display: flex;
+  flex-direction: column;
+  gap: 10px;
 
   &--success {
     @include pixel-stroke(#22c55e);
@@ -515,5 +561,27 @@ watch(() => route.query.steam_link, checkSteamRedirect);
 .modal-fade-enter-from,
 .modal-fade-leave-to {
   opacity: 0;
+}
+
+// Mismo color azul Steam que el link, ligeramente más claro para
+// distinguir "vincular" (acción definitiva) de "sincronizar" (acción
+// repetible).
+.sync-wrapper {
+  @include pixel-stroke(#66c0f4);
+}
+
+.balatro-btn.sync-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #2a4d6e;
+  color: #9ecde6;
+}
+
+// El notice ya existe; le permitimos respetar saltos de línea para
+// que el mensaje multi-línea del sync no se vea todo seguido.
+.notice {
+  white-space: pre-line;
 }
 </style>
