@@ -31,7 +31,6 @@
 -->
 <template>
   <div class="achievements-view">
-
     <!--
       Barra de progreso global. Solo con auth — el cálculo se hace sobre
       la lista COMPLETA (no `filtered`) para que el % refleje el progreso
@@ -218,7 +217,13 @@ async function onManualUnlock(ach) {
     }
   } catch (e) {
     console.error("[AchievementsView] manual unlock falló", e);
-    alert("No se pudo marcar como desbloqueado. " + (e.message || "¿Endpoint backend listo?"));
+    // 401 = sesión caducada. Abrimos el AuthModal — es la acción que
+    // el usuario necesita; un alert técnico no le ayuda a recuperarse.
+    if (e?.response?.status === 401) {
+      authStore.openAuthModal();
+      return;
+    }
+    alert("No se pudo marcar como desbloqueado. " + (e.message || ""));
   }
 }
 </script>
