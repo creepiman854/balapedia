@@ -24,26 +24,26 @@
  * Errores: envolvemos los AxiosError en Error con status + mensaje del
  * backend para diagnosticar a la primera (igual que services/consumables.js).
  */
-import { api } from './api'
+import { api } from "./api";
 
 function wrapError(e, contextPath) {
   if (e.response) {
-    const status = e.response.status
-    const data = e.response.data || {}
+    const status = e.response.status;
+    const data = e.response.data || {};
     const detail =
       (data.details && JSON.stringify(data.details)) ||
       data.message ||
       data.error ||
       e.response.statusText ||
-      `HTTP ${status}`
-    const err = new Error(`${contextPath} → ${status}: ${detail}`)
-    err.cause = e
-    return err
+      `HTTP ${status}`;
+    const err = new Error(`${contextPath} → ${status}: ${detail}`);
+    err.cause = e;
+    return err;
   }
   if (e.request) {
-    return new Error(`${contextPath} → sin respuesta del backend (¿flask corriendo en :5000?)`)
+    return new Error(`${contextPath} → sin respuesta del backend (¿flask corriendo en :5000?)`);
   }
-  return e
+  return e;
 }
 
 /**
@@ -56,12 +56,12 @@ function wrapError(e, contextPath) {
  */
 async function withColdStartRetry(fn) {
   try {
-    return await fn()
+    return await fn();
   } catch (e) {
-    const is500 = e?.response?.status === 500
-    if (!is500) throw e
-    await new Promise((r) => setTimeout(r, 700))
-    return await fn()
+    const is500 = e?.response?.status === 500;
+    if (!is500) throw e;
+    await new Promise((r) => setTimeout(r, 700));
+    return await fn();
   }
 }
 
@@ -70,23 +70,23 @@ async function withColdStartRetry(fn) {
  * en paralelo. Devuelve la lista concatenada de `items`.
  */
 async function fetchAllPages(path, extraParams = {}, contextLabel = null) {
-  const ctx = contextLabel ?? path
-  const params = { per_page: 100, page: 1, ...extraParams }
+  const ctx = contextLabel ?? path;
+  const params = { per_page: 100, page: 1, ...extraParams };
   try {
-    const first = await withColdStartRetry(() => api.get(path, { params }))
-    let items = [...first.data.items]
-    const totalPages = first.data.total_pages || 1
+    const first = await withColdStartRetry(() => api.get(path, { params }));
+    let items = [...first.data.items];
+    const totalPages = first.data.total_pages || 1;
     if (totalPages > 1) {
       const rest = await Promise.all(
         Array.from({ length: totalPages - 1 }, (_, i) =>
           api.get(path, { params: { ...params, page: i + 2 } }),
         ),
-      )
-      for (const r of rest) items = items.concat(r.data.items)
+      );
+      for (const r of rest) items = items.concat(r.data.items);
     }
-    return items
+    return items;
   } catch (e) {
-    throw wrapError(e, ctx)
+    throw wrapError(e, ctx);
   }
 }
 
@@ -101,8 +101,8 @@ async function fetchAllPages(path, extraParams = {}, contextLabel = null) {
  * tienen unlock method no-default (ver `isItemLocked`).
  */
 export async function fetchAllDecks({ authenticated = false } = {}) {
-  const path = authenticated ? '/api/me/decks' : '/api/decks'
-  return fetchAllPages(path)
+  const path = authenticated ? "/api/me/decks" : "/api/decks";
+  return fetchAllPages(path);
 }
 
 // ── Vouchers ──────────────────────────────────────────────────────
@@ -120,8 +120,8 @@ export async function fetchAllDecks({ authenticated = false } = {}) {
  * aunque el usuario tenga ambos logros completados en Steam.
  */
 export async function fetchAllVouchers({ authenticated = false } = {}) {
-  const path = authenticated ? '/api/me/vouchers' : '/api/vouchers'
-  return fetchAllPages(path)
+  const path = authenticated ? "/api/me/vouchers" : "/api/vouchers";
+  return fetchAllPages(path);
 }
 
 // ── Booster Packs ─────────────────────────────────────────────────
@@ -134,9 +134,18 @@ export async function fetchAllVouchers({ authenticated = false } = {}) {
  * Si en el futuro se modela "variantes visuales" por combo (ej. 4
  * imágenes distintas para ARCANA NORMAL), o el shape cambia, este
  * fetch sigue valiendo — solo cambia la lógica de presentación.
+ *
+ * Si `authenticated` es true se pide /api/me/booster-packs (overlay
+ * `unlocked_for_me`); si no, /api/booster-packs. Mismo patrón que
+ * fetchAllDecks / fetchAllVouchers. En vanilla Balatro los sobres
+ * son "available from start" sin unlock_factor, así que el overlay
+ * siempre devolverá unlocked_for_me=false — pero exponer el endpoint
+ * mantiene la simetría de la API y deja la puerta abierta a mods
+ * comunitarios con sobres con condiciones de desbloqueo.
  */
-export async function fetchAllBoosterPacks() {
-  return fetchAllPages('/api/booster-packs')
+export async function fetchAllBoosterPacks({ authenticated = false } = {}) {
+  const path = authenticated ? "/api/me/booster-packs" : "/api/booster-packs";
+  return fetchAllPages(path);
 }
 
 // ── Card Modifiers ────────────────────────────────────────────────
@@ -145,10 +154,10 @@ export async function fetchAllBoosterPacks() {
  */
 export async function fetchCardModifiers(modifierType) {
   return fetchAllPages(
-    '/api/card-modifiers',
+    "/api/card-modifiers",
     { modifier_type: modifierType },
     `/api/card-modifiers?modifier_type=${modifierType}`,
-  )
+  );
 }
 
 /**
@@ -165,15 +174,15 @@ export async function fetchCardModifiers(modifierType) {
  * @returns {Promise<{enhancements: Array, editions: Array, seals: Array}>}
  */
 export async function fetchAllCardModifiers() {
-  const all = await fetchAllPages('/api/card-modifiers')
-  const grouped = { enhancements: [], editions: [], seals: [] }
+  const all = await fetchAllPages("/api/card-modifiers");
+  const grouped = { enhancements: [], editions: [], seals: [] };
   for (const item of all) {
-    const type = String(item.modifier_type || '').toUpperCase()
-    if (type === 'ENHANCEMENT') grouped.enhancements.push(item)
-    else if (type === 'EDITION') grouped.editions.push(item)
-    else if (type === 'SEAL') grouped.seals.push(item)
+    const type = String(item.modifier_type || "").toUpperCase();
+    if (type === "ENHANCEMENT") grouped.enhancements.push(item);
+    else if (type === "EDITION") grouped.editions.push(item);
+    else if (type === "SEAL") grouped.seals.push(item);
   }
-  return grouped
+  return grouped;
 }
 
 // ── Manual unlock ─────────────────────────────────────────────────
@@ -197,5 +206,5 @@ export async function fetchAllCardModifiers() {
  * @param {number} unlockableId
  */
 export async function unlockItem(unlockableId) {
-  await api.post('/api/me/unlocks', { unlockable_id: unlockableId, unlocked: true })
+  await api.post("/api/me/unlocks", { unlockable_id: unlockableId, unlocked: true });
 }
