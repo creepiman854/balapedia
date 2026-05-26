@@ -110,6 +110,23 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
+  async function deleteAccount() {
+    error.value = null;
+
+    try {
+      await api.delete("/api/delete-account");
+
+      // Logout Firebase después de borrar el user interno
+      await signOut(firebaseAuth);
+
+      user.value = null;
+    } catch (e) {
+      error.value = e.response?.data?.error || "No se pudo eliminar la cuenta";
+
+      throw e;
+    }
+  }
+
   async function logout() {
     error.value = null;
     await signOut(firebaseAuth);
@@ -170,6 +187,7 @@ export const useAuthStore = defineStore("auth", () => {
     signupWithEmail,
     loginWithGoogle,
     logout,
+    deleteAccount,
     startSteamLink,
     unlinkSteam,
     lastSyncedAt,
