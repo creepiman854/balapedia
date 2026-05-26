@@ -41,7 +41,7 @@ function wrapError(e, contextPath) {
     return err
   }
   if (e.request) {
-    return new Error(`${contextPath} → sin respuesta del backend (¿flask corriendo en :5000?)`)
+    return new Error(`${contextPath} → sin respuesta del backend (¿flask corriendo en :8080?)`)
   }
   return e
 }
