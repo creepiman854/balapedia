@@ -64,31 +64,15 @@ export async function fetchMySummary() {
 /**
  * Marca manualmente un joker como desbloqueado para el usuario actual.
  *
- * BACKEND PENDIENTE: requiere endpoint nuevo `POST /api/me/unlocks` con
- * body `{ unlockable_id: <int>, unlocked: <bool> }`. Crea o actualiza
- * la fila correspondiente en `user_unlocks` para el usuario del token.
+ * Llama al endpoint compartido `POST /api/me/unlocks` con
+ * `{ unlockable_id, unlocked: true }`. El backend hace el upsert
+ * idempotente vía `services/unlocks_service.set_unlock_for_user` —
+ * el mismo punto de entrada que usará el sync de Steam, así que un
+ * joker que ya estuviese desbloqueado por Steam permanece igual.
  *
- * Sugerencia de implementación (Flask, en `app/api/me.py`):
- *
- *   @me_progress_bp.route("/unlocks", methods=["POST"])
- *   @require_auth
- *   def set_my_unlock():
- *       payload = request.get_json() or {}
- *       unlockable_id = payload.get("unlockable_id")
- *       unlocked = bool(payload.get("unlocked", True))
- *       # ...validar que el unlockable existe...
- *       row = UserUnlock.query.filter_by(
- *           user_id=g.user.id, unlockable_id=unlockable_id
- *       ).first()
- *       if not row:
- *           row = UserUnlock(
- *               user_id=g.user.id, unlockable_id=unlockable_id,
- *           )
- *           db.session.add(row)
- *       row.unlocked = unlocked
- *       row.unlocked_at = func.now() if unlocked else None
- *       db.session.commit()
- *       return jsonify({"ok": True})
+ * Respuesta esperada (200): `{ ok, unlocked_for_me, unlocked_at }`.
+ * El caller puede usar esos campos para mutar la fila local sin
+ * tener que re-fetchear todo el catálogo.
  *
  * @param {number} jokerId
  * @returns {Promise<void>}
@@ -98,7 +82,9 @@ export async function unlockJoker(jokerId) {
 }
 
 /**
- * Desmarca un joker (rollback manual). Útil para testing.
+ * Desmarca un joker (rollback manual). Útil para testing y para un
+ * futuro botón "ocultar este joker como completado" en la UI.
+ *
  * @param {number} jokerId
  */
 export async function relockJoker(jokerId) {
