@@ -24,7 +24,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-from flask import Blueprint, g, jsonify
+from flask import Blueprint, g, jsonify, request
+from marshmallow import ValidationError
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
@@ -52,7 +53,9 @@ from app.models import (
     UserUnlock,
     Voucher,
 )
-from app.models.enums import JokerRarity
+from app.models.enums import JokerRarity, UnlockSource
+from app.services.achievements import unlock_achievement_for_user
+from app.services.unlocks_service import set_unlock_for_user
 
 me_progress_bp = Blueprint("me_progress", __name__, url_prefix="/api/me")
 
@@ -396,3 +399,179 @@ def list_my_achievements():
     ]
     paginated["items"] = items_data
     return jsonify(paginated)
+
+
+# =============================================================================
+# POST /api/me/unlocks
+# =============================================================================
+
+
+@me_progress_bp.route("/unlocks", methods=["POST"])
+@require_auth
+def set_my_unlock():
+    """Marca un Unlockable como (des)bloqueado para el usuario actual.
+
+    Body JSON:
+      - `unlockable_id` (int, requerido): id de Joker / Consumable /
+        Deck / Voucher / BoosterPack / ChallengeDeck. Los seis subtipos
+        comparten id namespace en la tabla padre `unlockables`, así
+        que un único endpoint cubre todos.
+      - `unlocked` (bool, opcional, default `true`): nuevo estado. El
+        botón del frontend manda siempre `true`; el flag explícito deja
+        la puerta abierta a un futuro botón "desmarcar" sin tener que
+        evolucionar el contrato del API.
+
+    Respuestas:
+      - **200**: `{ ok, unlocked_for_me, unlocked_at }`. Éxito —
+        incluyendo el re-mark idempotente (re-aplicar el mismo estado
+        responde 200 sin tocar la BD; preserva `unlocked_at`).
+      - **400**: payload inválido (`unlockable_id` ausente / no
+        entero, `unlocked` no booleano).
+      - **401**: sin token o token inválido (`@require_auth`).
+      - **404**: `unlockable_id` no existe en BD.
+
+    El upsert vive en `app.services.unlocks_service.set_unlock_for_user`
+    para que el futuro Steam-sync llame a la misma función con
+    `source=UnlockSource.STEAM_SYNC` — un único punto de entrada al
+    lifecycle de `UserUnlock` garantiza consistencia.
+    """
+    payload = request.get_json(silent=True) or {}
+
+    # Validación inline: son solo 2 campos. Marshmallow sería overkill
+    # y obligaría a definir un schema extra solo para este endpoint.
+    # OJO: `isinstance(x, bool)` también devuelve True para bool subclase
+    # de int en Python — descartamos bools explícitamente para que
+    # `unlockable_id=True` no pase el check como si fuese 1.
+    raw_id = payload.get("unlockable_id")
+    if isinstance(raw_id, bool) or not isinstance(raw_id, int):
+        raise ValidationError({"unlockable_id": "required int (the Unlockable.id)"})
+
+    raw_unlocked = payload.get("unlocked", True)
+    if not isinstance(raw_unlocked, bool):
+        raise ValidationError({"unlocked": "must be a boolean"})
+
+    try:
+        result = set_unlock_for_user(
+            user_id=g.user.id,
+            unlockable_id=raw_id,
+            unlocked=raw_unlocked,
+            source=UnlockSource.MANUAL,
+        )
+    except LookupError:
+        # Traducimos LookupError → 404 con mensaje consistente con
+        # el resto de la API (ver _not_found en unlockables.py).
+        return (
+            jsonify(
+                error="not_found",
+                message=f"Unlockable {raw_id} not found",
+            ),
+            404,
+        )
+
+    return jsonify(
+        {
+            "ok": True,
+            "unlocked_for_me": result.user_unlock.unlocked,
+            "unlocked_at": (
+                result.user_unlock.unlocked_at.isoformat()
+                if result.user_unlock.unlocked_at
+                else None
+            ),
+        }
+    )
+
+
+# =============================================================================
+# POST /api/me/achievements/unlock
+# =============================================================================
+
+
+@me_progress_bp.route("/achievements/unlock", methods=["POST"])
+@require_auth
+def set_my_achievement_unlock():
+    """Marca un Achievement como desbloqueado para el usuario actual.
+
+    Endpoint específico de achievements (no comparte path con
+    `/api/me/unlocks` porque achievements NO son Unlockable: viven en
+    una tabla flat propia con su pivot `user_achievements`).
+
+    Body JSON:
+      - `achievement_id` (int, requerido): id del Achievement.
+
+    Respuestas:
+      - **200**: `{ ok, unlocked_for_me, unlocked_at,
+        was_already_unlocked }`. El `was_already_unlocked` deja al
+        frontend distinguir cambio real de no-op idempotente (hoy no
+        lo usa, pero deja la puerta abierta a feedback diferenciado
+        sin tocar la API).
+      - **400**: payload inválido (`achievement_id` ausente / no int).
+      - **401**: sin token (`@require_auth`).
+      - **404**: `achievement_id` no existe.
+
+    Para cuentas con `steam_id` la sincronización de Steam es la
+    fuente de verdad. El frontend lo enforza ocultando el botón en
+    esas cuentas; deliberadamente NO bloqueamos a nivel de servidor
+    para no cerrar la puerta a un futuro modo admin o un CLI de
+    testing que necesite marcar manualmente.
+
+    Delega en `services/achievements_service.unlock_achievement_for_user`
+    con `source=UnlockSource.MANUAL` — la MISMA función que llama el
+    sync de Steam con `source=UnlockSource.STEAM_SYNC`. Un único punto
+    de entrada al lifecycle de `UserAchievement`, simétrico al de
+    `set_unlock_for_user` para `UserUnlock`.
+
+    Diferencia con el endpoint de unlocks: aquí NO aceptamos
+    `unlocked: false`. El verbo `/unlock` en la ruta implica acción;
+    el service que lo respalda solo soporta SET-to-true (un
+    achievement "des-desbloqueado" no tiene sentido semántico). Si en
+    el futuro hace falta, será un endpoint distinto (`/relock`) con
+    su propia función de servicio.
+    """
+    payload = request.get_json(silent=True) or {}
+
+    raw_id = payload.get("achievement_id")
+    if isinstance(raw_id, bool) or not isinstance(raw_id, int):
+        raise ValidationError({"achievement_id": "required int (the Achievement.id)"})
+
+    try:
+        result = unlock_achievement_for_user(
+            user_id=g.user.id,
+            achievement_id=raw_id,
+            source=UnlockSource.MANUAL,
+        )
+    except ValueError:
+        # `unlock_achievement_for_user` lanza ValueError si el id no
+        # existe — lo traducimos a 404 con el mismo formato que el
+        # resto de "not_found" del API.
+        return (
+            jsonify(
+                error="not_found",
+                message=f"Achievement {raw_id} not found",
+            ),
+            404,
+        )
+
+    # Re-query del UserAchievement para devolver el `unlocked_at`
+    # final. El service devuelve `UnlockAchievementResult` centrado en
+    # el achievement + cascadas, no expone directamente la fila pivot
+    # — esta query extra evita acoplar el shape del result a la
+    # respuesta HTTP (si mañana el service añade más campos, este
+    # endpoint sigue devolviendo solo lo que necesita el frontend).
+    user_achievement = (
+        db.session.query(UserAchievement)
+        .filter_by(user_id=g.user.id, achievement_id=raw_id)
+        .one_or_none()
+    )
+
+    return jsonify(
+        {
+            "ok": True,
+            "unlocked_for_me": bool(user_achievement and user_achievement.unlocked),
+            "unlocked_at": (
+                user_achievement.unlocked_at.isoformat()
+                if user_achievement and user_achievement.unlocked_at
+                else None
+            ),
+            "was_already_unlocked": result.achievement_was_already_unlocked,
+        }
+    )

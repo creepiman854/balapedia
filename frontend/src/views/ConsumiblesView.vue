@@ -19,7 +19,6 @@
 -->
 <template>
   <div class="consumibles-view">
-
     <div class="layout">
       <!-- ── Grid izquierda ── -->
       <div class="grid-col">
