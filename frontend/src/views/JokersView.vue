@@ -16,7 +16,6 @@
 -->
 <template>
   <div class="jokers-view">
-
     <div class="jokers-layout">
       <!-- ── Columna izquierda: grid ── -->
       <div class="jokers-grid-col">
@@ -177,18 +176,45 @@ function isLocked(joker) {
 }
 
 // ── Manual unlock (botón en el panel de detalle) ─────────────────────
+/**
+ * Marca un joker como desbloqueado para el usuario actual.
+ *
+ * Estrategia de update local (no full reload):
+ *   - Antes hacíamos `await loadJokers()` tras el POST → todo el grid
+ *     se re-renderizaba desde 0, la animación de "repartir cartas"
+ *     volvía a dispararse, el scroll saltaba al principio y los
+ *     filtros se mantenían pero la experiencia era abrupta.
+ *   - Ahora mutamos solo el joker afectado en la lista reactiva.
+ *     `selectedJoker.value` es la misma referencia que el item del
+ *     array (lo asignamos así en `onSelect`), así que mutar uno
+ *     mutarlos los dos — la imagen "desbloqueada" aparece al instante
+ *     en la carta del grid y en el panel de detalle, sin re-render
+ *     del catálogo. Mismo patrón que CollectionView.
+ *
+ * Si el POST falla con 401 (sesión caducada), abrimos el AuthModal —
+ * un alert técnico no ayuda al usuario a recuperarse, pero re-loguearse
+ * sí. Otros errores caen al alert estándar con el detalle del backend.
+ */
 async function onManualUnlock(joker) {
   if (!joker) return;
   try {
     await unlockJoker(joker.id);
-    // Refrescamos toda la lista para que `unlocked_for_me` se actualice;
-    // alternativa más fina sería mutar solo el joker afectado.
-    await loadJokers();
-    const fresh = jokers.value.find((j) => j.id === joker.id);
-    if (fresh) selectedJoker.value = fresh;
+    // Mutación local sin re-fetch — preserva animación, scroll y
+    // filtros. Mismo patrón que CollectionView.mutateLocally().
+    const target = jokers.value.find((j) => j.id === joker.id);
+    if (target) {
+      target.unlocked_for_me = true;
+      target.unlocked_at = new Date().toISOString();
+    }
   } catch (e) {
     console.error("[JokersView] no se pudo desbloquear manualmente", e);
-    alert("No se pudo marcar como desbloqueado. ¿Endpoint backend listo?");
+    // 401 = sesión caducada. Abrimos el AuthModal en lugar de un alert
+    // técnico — es la acción que el usuario necesita para recuperar.
+    if (e?.response?.status === 401) {
+      authStore.openAuthModal();
+      return;
+    }
+    alert("No se pudo marcar como desbloqueado. " + (e.message || ""));
   }
 }
 
@@ -348,7 +374,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
   overflow-y: auto;
   overflow-x: hidden;
   padding: 28px 22px 32px;
-  background: rgba(26, 42, 46, 0.6); // = $panel-darkest con alpha
+  background: rgba(26, 42, 46, 0.6);
   scrollbar-width: thin;
   scrollbar-color: $panel-mid transparent;
   @include pixel-clip;
@@ -407,7 +433,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
   0% {
     opacity: 0;
     // Usamos 'translate' y 'scale' nativos (propiedades independientes).
-    // Esto es magia negra: NO sobreescribe el 'transform' que genera tu arco.
+    // NO sobreescribe el 'transform' que genera el arco.
     translate: 0 -100px;
     scale: 1.15;
   }
