@@ -54,7 +54,7 @@ from app.models import (
     Voucher,
 )
 from app.models.enums import JokerRarity, UnlockSource
-from app.services.achievements_service import unlock_achievement_for_user
+from app.services.achievements import unlock_achievement_for_user
 from app.services.unlocks_service import set_unlock_for_user
 
 me_progress_bp = Blueprint("me_progress", __name__, url_prefix="/api/me")
