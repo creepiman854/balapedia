@@ -108,7 +108,7 @@ import ItemDetailPanel from "@/components/items/ItemDetailPanel.vue";
 import ItemTooltip from "@/components/items/ItemTooltip.vue";
 
 const authStore = useAuthStore();
-const { isAuthenticated } = storeToRefs(authStore);
+const { isAuthenticated, lastSyncedAt } = storeToRefs(authStore);
 const settings = useSettingsStore();
 const bgStore = useBackgroundStore();
 
@@ -141,6 +141,7 @@ onMounted(() => {
   loadJokers();
 });
 watch(isAuthenticated, loadJokers);
+watch(lastSyncedAt, loadJokers);
 
 /**
  * Detecta jokers desbloqueados de fábrica ("Available from start").

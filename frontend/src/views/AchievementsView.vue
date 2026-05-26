@@ -114,7 +114,7 @@ import ProgressBar from "@/components/common/ProgressBar.vue";
 import FilterBar from "@/components/common/FilterBar.vue";
 
 const authStore = useAuthStore();
-const { isAuthenticated, user } = storeToRefs(authStore);
+const { isAuthenticated, user, lastSyncedAt } = storeToRefs(authStore);
 const bgStore = useBackgroundStore();
 
 // ── Datos ────────────────────────────────────────────────────────────
@@ -144,6 +144,7 @@ onMounted(() => {
 // Si el usuario inicia o cierra sesión, recargamos para que el overlay
 // `unlocked_for_me` aparezca o desaparezca del payload del backend.
 watch(isAuthenticated, loadAchievements);
+watch(lastSyncedAt, loadAchievements);
 
 // ── Filtros ──────────────────────────────────────────────────────────
 const filters = ref({

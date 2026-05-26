@@ -238,7 +238,7 @@ import ItemDetailPanel from "@/components/items/ItemDetailPanel.vue";
 import ItemTooltip from "@/components/items/ItemTooltip.vue";
 
 const authStore = useAuthStore();
-const { isAuthenticated } = storeToRefs(authStore);
+const { isAuthenticated, lastSyncedAt } = storeToRefs(authStore);
 const bgStore = useBackgroundStore();
 
 const SUBTABS = [
@@ -333,6 +333,7 @@ onMounted(() => {
 // Si la sesión cambia, recargamos para que decks recoja el overlay
 // (/api/me/decks) y los demás se reajusten al nuevo lock state.
 watch(isAuthenticated, loadAll);
+watch(lastSyncedAt, loadAll);
 
 // ── Lock state ───────────────────────────────────────────────────
 function isLocked(item) {
