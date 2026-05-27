@@ -51,7 +51,7 @@
                 color: isLocked ? '#4D6870' : accent.color,
               }"
             >
-              {{ displayEffect }}
+              <ColoredDescription :text="displayEffect" />
             </div>
           </div>
         </div>
@@ -119,6 +119,8 @@
               <div class="stat stat--buy">
                 <div class="stat__label">COMPRA</div>
                 <div class="stat__value">{{ formatPrice(item.buy_price) }}</div>
+
+                <div v-if="!item.in_shop" class="stat__sublabel">(cannot be found in shop)</div>
               </div>
             </div>
             <div class="stroke-wrapper stat-wrapper--sell">
@@ -179,6 +181,7 @@ import { computed, ref } from "vue";
 import { getItemAccent, getItemBadgeLabel, getItemEffectText } from "@/constants/items";
 import ItemCardArt from "./ItemCardArt.vue";
 import AccentBadge from "@/components/common/AccentBadge.vue";
+import ColoredDescription from "./ColoredDescription.vue";
 
 const props = defineProps({
   item: { type: Object, default: null },
@@ -210,8 +213,7 @@ const badgeLabel = computed(() => getItemBadgeLabel(props.item));
  *
  * Lo movemos a un único computed que devuelve directamente la
  * cadena final ('???' si locked, '—' si vacío, el efecto en
- * cualquier otro caso). El template solo hace `{{ displayEffect }}`,
- * top-level → unwrap garantizado.
+ * cualquier otro caso).
  */
 const displayEffect = computed(() => {
   if (props.isLocked) return "???";
@@ -597,5 +599,15 @@ async function onManualUnlock() {
     font-size: 12px;
     margin-top: 6px;
   }
+}
+
+/* Estilo para el aviso debajo del precio */
+.stat__sublabel {
+  font-size: 10px;
+  color: #708387; /* Un color grisáceo que contraste pero no destaque demasiado */
+  margin-top: -4px;
+  padding-bottom: 4px;
+  font-family: "m6x11plus", monospace;
+  opacity: 0.8;
 }
 </style>
