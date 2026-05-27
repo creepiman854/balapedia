@@ -14,6 +14,7 @@ Idempotencia: garantizada por la idempotencia ya existente del servicio
 de achievements. Re-ejecutar el sync sin cambios desde Steam es no-op
 (devuelve un resultado con `newly_unlocked_count == 0`).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -39,7 +40,6 @@ from app.services.steam import (
     SteamAchievement,
     get_player_achievements,
 )
-
 
 # =============================================================================
 # Excepciones del servicio
@@ -107,9 +107,7 @@ class SteamSyncResult:
     @property
     def already_unlocked_count(self) -> int:
         """Achievements que ya estaban desbloqueados antes de este sync."""
-        return sum(
-            1 for r in self.unlock_results if r.achievement_was_already_unlocked
-        )
+        return sum(1 for r in self.unlock_results if r.achievement_was_already_unlocked)
 
     @property
     def total_items_cascaded(self) -> int:
@@ -119,9 +117,7 @@ class SteamSyncResult:
     @property
     def total_sticker_applications(self) -> int:
         """Suma de UserStickerApplication creadas/promovidas."""
-        return sum(
-            len(r.cascaded_sticker_applications) for r in self.unlock_results
-        )
+        return sum(len(r.cascaded_sticker_applications) for r in self.unlock_results)
 
 
 # =============================================================================
@@ -176,9 +172,7 @@ def sync_steam_achievements_for_user(
     if user is None:
         raise UserNotFoundError(f"User id={user_id} not found")
     if user.steam_id is None:
-        raise UserNotLinkedError(
-            f"User id={user_id} has no Steam account linked"
-        )
+        raise UserNotLinkedError(f"User id={user_id} has no Steam account linked")
 
     # 2. Fetch desde Steam — las excepciones SteamApi* propagan hacia arriba
     steam_achievements = steam_client_fn(user.steam_id)
@@ -217,9 +211,7 @@ def sync_steam_achievements_for_user(
         # no viniera (puede pasar con achievements no granted con timestamp),
         # caemos al timestamp del propio sync.
         if steam_ach.unlocktime:
-            unlock_when = datetime.fromtimestamp(
-                steam_ach.unlocktime, tz=timezone.utc
-            )
+            unlock_when = datetime.fromtimestamp(steam_ach.unlocktime, tz=timezone.utc)
         else:
             unlock_when = started_at
 
@@ -322,11 +314,19 @@ def clear_steam_sync_progress_for_user(user_id: int) -> dict:
         .filter_by(user_id=user_id, source=UnlockSource.STEAM_SYNC)
         .delete(synchronize_session=False)
     )
-    deleted_stickers = (
+
+    # FIX P1: Reseteamos SOLO el progreso aportado por Steam a 0
+    updated_stickers = (
         db.session.query(UserStickerApplication)
-        .filter_by(user_id=user_id, source=UnlockSource.STEAM_SYNC)
-        .delete(synchronize_session=False)
+        .filter_by(user_id=user_id)
+        .update({"steam_stake_order": 0}, synchronize_session=False)
     )
+
+    # Cleanup de basurilla: si tras quitar Steam, también tenían manual a 0,
+    # la fila ya no hace nada, así que la purgamos.
+    db.session.query(UserStickerApplication).filter_by(
+        user_id=user_id, manual_stake_order=0, steam_stake_order=0
+    ).delete(synchronize_session=False)
 
     user = db.session.get(User, user_id)
     if user is not None:
@@ -337,5 +337,5 @@ def clear_steam_sync_progress_for_user(user_id: int) -> dict:
     return {
         "user_achievements": deleted_achievements,
         "user_unlocks": deleted_unlocks,
-        "user_sticker_applications": deleted_stickers,
+        "user_sticker_applications_cleared": updated_stickers,
     }
