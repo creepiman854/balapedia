@@ -26,6 +26,12 @@
       <div v-tilt="{ max: 10, scale: 1.04, speed: 400 }" class="detail__art">
         <ItemCardArt :item="item" :is-locked="isLocked" :is-selected="false" :accent="accent" />
       </div>
+      <!-- Solo para jokers y decks autenticados -->
+      <StakeSelector
+        v-if="isAuthenticated && !isLocked && (itemType === 'JOKER' || itemType === 'DECK')"
+        :item="item"
+        @set-stake="onSetStake"
+      />
     </div>
 
     <div class="detail__body">
@@ -182,6 +188,42 @@ import { getItemAccent, getItemBadgeLabel, getItemEffectText } from "@/constants
 import ItemCardArt from "./ItemCardArt.vue";
 import AccentBadge from "@/components/common/AccentBadge.vue";
 import ColoredDescription from "./ColoredDescription.vue";
+import StakeSelector from "./StakeSelector.vue";
+import { useAuthStore } from "@/stores/auth";
+import { storeToRefs } from "pinia";
+import { setStickerApplication } from "@/services/progression";
+
+const itemType = computed(() => String(props.item?.type || "").toUpperCase());
+const updatingStake = ref(false);
+
+const authStore = useAuthStore();
+const { isAuthenticated } = storeToRefs(authStore);
+
+async function onSetStake(stakeOrder) {
+  if (!props.item || updatingStake.value) return;
+
+  updatingStake.value = true;
+
+  try {
+    const result = await setStickerApplication(props.item.id, stakeOrder);
+
+    if (result && result.highest_stake_order !== undefined) {
+      emit("stake-updated", {
+        id: props.item.id,
+        highest_stake_order: result.highest_stake_order,
+      });
+    }
+  } catch (e) {
+    console.error("[ItemDetailPanel] set-stake failed:", e);
+
+    alert(
+      "No se pudo aplicar el sticker: " +
+        (e.response?.data?.message || e.message || "Error del servidor"),
+    );
+  } finally {
+    updatingStake.value = false;
+  }
+}
 
 const props = defineProps({
   item: { type: Object, default: null },
@@ -194,7 +236,7 @@ const props = defineProps({
   canUnlock: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(["manual-unlock"]);
+const emit = defineEmits(["manual-unlock", "stake-updated"]);
 
 const busy = ref(false);
 
@@ -366,8 +408,11 @@ async function onManualUnlock() {
 
 .detail__art-wrap {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  padding: 18px 30px 14px;
+  gap: 16px;
+  padding: 18px 16px 14px;
   flex-shrink: 0;
 }
 

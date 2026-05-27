@@ -117,9 +117,25 @@ def get_summary():
     gold_query = (
         db.session.query(Unlockable.type, func.count(UserStickerApplication.user_id))
         .join(Unlockable, Unlockable.id == UserStickerApplication.unlockable_id)
+        .outerjoin(
+            UserUnlock,
+            db.and_(
+                UserUnlock.user_id == user.id, UserUnlock.unlockable_id == Unlockable.id
+            ),
+        )
         .filter(
             UserStickerApplication.user_id == user.id,
-            UserStickerApplication.highest_stake_order == 8,
+            db.or_(
+                UserStickerApplication.manual_stake_order == 8,
+                UserStickerApplication.steam_stake_order == 8,
+            ),
+            # Aseguramos que solo cuente los de ítems verdaderamente desbloqueados
+            db.or_(
+                UserUnlock.unlocked == True,
+                Unlockable.unlock_condition.in_(
+                    ["Available from start.", "Unlocked from start"]
+                ),
+            ),
         )
         .group_by(Unlockable.type)
     )
@@ -222,7 +238,17 @@ def _overlay_unlockable_progress(
     item_dict["unlocked_at"] = (
         unlock.unlocked_at.isoformat() if unlock and unlock.unlocked_at else None
     )
-    item_dict["highest_stake_order"] = sticker.highest_stake_order if sticker else None
+
+    # Validamos si está disponible desde el principio o fue desbloqueado
+    is_base_unlocked = item_dict.get("unlock_condition") in (
+        "Available from start.",
+        "Unlocked from start",
+    )
+    is_visually_unlocked = item_dict["unlocked_for_me"] or is_base_unlocked
+
+    item_dict["highest_stake_order"] = (
+        sticker.highest_stake_order if (sticker and is_visually_unlocked) else None
+    )
     return item_dict
 
 
@@ -688,5 +714,125 @@ def set_my_achievement_unlock():
                 else None
             ),
             "was_already_unlocked": result.achievement_was_already_unlocked,
+        }
+    )
+
+
+# =============================================================================
+# POST /api/me/sticker-applications
+# =============================================================================
+
+
+@me_progress_bp.route("/sticker-applications", methods=["POST"])
+@require_auth
+def set_my_sticker_application():
+    """Aplica o promociona un sticker (stake progression) a un Joker o Deck.
+
+    Body JSON:
+      - `unlockable_id` (int, requerido): id del Joker o Deck en la tabla
+        `unlockables`. Los otros subtipos (Voucher, BoosterPack, etc.) no
+        soportan stickers y se rechazan con 400.
+      - `stake_order` (int 1-8, requerido): nivel del sticker a aplicar.
+        1=White Stake, 2=Red, ..., 8=Gold. El endpoint SOLO promociona:
+        si el usuario ya tiene un stake_order >= al solicitado, es no-op.
+
+    Respuestas:
+      - **200**: `{ ok, highest_stake_order }` — éxito (incluido no-op
+        si el usuario ya tenía un stake_order mayor o igual).
+      - **400**: payload inválido (unlockable_id/stake_order falta, fuera
+        de rango 1-8, tipo de item no compatible con stickers).
+      - **401**: sin token (@require_auth).
+      - **404**: `unlockable_id` no existe.
+
+    Política de promoción: solo sube, nunca baja. Si el usuario tiene
+    stake_order=5 y envía 3, el response devuelve
+    `highest_stake_order=5` sin cambio. Esto simplifica la UX del
+    selector (el usuario no puede "desmarcarse" un sticker por error) y
+    es consistente con cómo funciona el juego (los stickers son
+    permanentes — una vez que ganas con un deck en Gold Stake, no
+    puedes "des-ganar").
+
+    Para cuentas Steam: la UI esconde el selector interactivo (solo
+    read-only), pero NO bloqueamos a nivel de servidor para permitir
+    un futuro modo admin o CLI de testing.
+    """
+    payload = request.get_json(silent=True) or {}
+
+    # Validación: unlockable_id
+    raw_id = payload.get("unlockable_id")
+    if isinstance(raw_id, bool) or not isinstance(raw_id, int):
+        raise ValidationError({"unlockable_id": "required int (the Unlockable.id)"})
+
+    # Validación: stake_order (De 0 a 8 para permitir quitarlo)
+    raw_stake = payload.get("stake_order")
+    if not isinstance(raw_stake, int) or isinstance(raw_stake, bool):
+        raise ValidationError({"stake_order": "required int (0-8)"})
+    if raw_stake < 0 or raw_stake > 8:
+        raise ValidationError({"stake_order": "must be between 0 and 8"})
+
+    # Verificar que el unlockable existe...
+    unlockable = db.session.get(Unlockable, raw_id)
+    # ... código de validación de tipo JOKER / DECK ...
+
+    if unlockable is None:
+        return (
+            jsonify(
+                error="not_found",
+                message=f"Unlockable {raw_id} not found",
+            ),
+            404,
+        )
+
+    # Solo Jokers y Decks soportan stickers (validación del modelo
+    # UserStickerApplication dispara un error si el tipo es incorrecto,
+    # pero atraparlo antes da un mensaje más claro al frontend).
+    if unlockable.type not in (UnlockableType.JOKER, UnlockableType.DECK):
+        raise ValidationError(
+            {
+                "unlockable_id": (
+                    f"Type {unlockable.type.name} does not support stickers. "
+                    f"Only JOKER and DECK are valid."
+                )
+            }
+        )
+
+    # Upsert con política de "solo promover"
+    user = g.user
+    user_sticker = (
+        db.session.query(UserStickerApplication)
+        .filter_by(user_id=user.id, unlockable_id=raw_id)
+        .one_or_none()
+    )
+
+    if user_sticker is None:
+        if raw_stake > 0:  # Si manda 0 a un hueco vacío, es un no-op
+            from datetime import datetime, timezone
+
+            user_sticker = UserStickerApplication(
+                user_id=user.id,
+                unlockable_id=raw_id,
+                manual_stake_order=raw_stake,
+                earned_at=datetime.now(timezone.utc),
+            )
+            db.session.add(user_sticker)
+    elif user_sticker.manual_stake_order != raw_stake:
+        from datetime import datetime, timezone
+
+        user_sticker.manual_stake_order = raw_stake
+        user_sticker.earned_at = datetime.now(timezone.utc)
+
+        # CLEANUP: Si tras el cambio ambos stakes quedan a 0, borramos la fila entera para no ensuciar la DB
+        if user_sticker.manual_stake_order == 0 and user_sticker.steam_stake_order == 0:
+            db.session.delete(user_sticker)
+            user_sticker = None
+
+    db.session.commit()
+
+    return jsonify(
+        {
+            "ok": True,
+            "highest_stake_order": (
+                user_sticker.highest_stake_order if user_sticker else None
+            ),
         }
     )

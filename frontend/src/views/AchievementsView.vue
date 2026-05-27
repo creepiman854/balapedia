@@ -87,9 +87,10 @@
             v-if="canShowManualUnlock(ach)"
             type="button"
             class="row__unlock"
+            :disabled="unlocking === ach.id"
             @click.stop="onManualUnlock(ach)"
           >
-            MARCAR COMO DESBLOQUEADO
+            {{ unlocking === ach.id ? "DESBLOQUEANDO..." : "MARCAR COMO DESBLOQUEADO" }}
           </button>
 
           <span class="row__dot" :class="{ 'row__dot--on': !isLocked(ach) }" />
@@ -121,6 +122,8 @@ const bgStore = useBackgroundStore();
 const achievements = ref([]);
 const loading = ref(false);
 const error = ref("");
+
+const unlocking = ref(null);
 
 async function loadAchievements() {
   loading.value = true;
@@ -211,24 +214,28 @@ function canShowManualUnlock(ach) {
 
 async function onManualUnlock(ach) {
   if (!ach) return;
+
+  unlocking.value = ach.id;
+
   try {
     await unlockAchievement(ach.id);
-    // Mutamos la fila localmente para no tener que re-fetchear toda la
-    // lista — más fluido visualmente, el dot pasa a verde al instante.
+
     const target = achievements.value.find((a) => a.id === ach.id);
     if (target) {
       target.unlocked_for_me = true;
       target.unlocked_at = new Date().toISOString();
     }
   } catch (e) {
-    console.error("[AchievementsView] manual unlock falló", e);
-    // 401 = sesión caducada. Abrimos el AuthModal — es la acción que
-    // el usuario necesita; un alert técnico no le ayuda a recuperarse.
+    console.error(e);
+
     if (e?.response?.status === 401) {
       authStore.openAuthModal();
       return;
     }
+
     alert("No se pudo marcar como desbloqueado. " + (e.message || ""));
+  } finally {
+    unlocking.value = null;
   }
 }
 </script>

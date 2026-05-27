@@ -333,6 +333,7 @@ def _ensure_user_unlock(
     return True
 
 
+# Busca _ensure_sticker_application y reemplázala por esta versión:
 def _ensure_sticker_application(
     user_id: int,
     unlockable: Unlockable,
@@ -340,15 +341,6 @@ def _ensure_sticker_application(
     source: UnlockSource,
     when: datetime,
 ) -> Optional[UserStickerApplication]:
-    """Crea/actualiza UserStickerApplication para un joker o deck.
-
-    Pasamos el objeto `unlockable` (no solo el id) para que el `@validates`
-    del modelo dispare la validación de tipo (JOKER | DECK).
-
-    Returns:
-        La USA si fue creada o promovida a un stake_order mayor.
-        None si ya estaba en >= stake_order (no-op).
-    """
     user_sticker = (
         db.session.query(UserStickerApplication)
         .filter_by(user_id=user_id, unlockable_id=unlockable.id)
@@ -357,21 +349,32 @@ def _ensure_sticker_application(
     if user_sticker is None:
         user_sticker = UserStickerApplication(
             user_id=user_id,
-            unlockable=unlockable,  # vía relationship → dispara @validates
-            highest_stake_order=stake_order,
+            unlockable=unlockable,
             earned_at=when,
-            source=source,
         )
+        if source == UnlockSource.MANUAL:
+            user_sticker.manual_stake_order = stake_order
+        else:
+            user_sticker.steam_stake_order = stake_order
         db.session.add(user_sticker)
         return user_sticker
 
-    if user_sticker.highest_stake_order >= stake_order:
-        return None
+    changed = False
+    # Evaluamos independientemente el canal Manual y el canal Steam
+    if source == UnlockSource.MANUAL and user_sticker.manual_stake_order < stake_order:
+        user_sticker.manual_stake_order = stake_order
+        changed = True
+    elif (
+        source == UnlockSource.STEAM_SYNC
+        and user_sticker.steam_stake_order < stake_order
+    ):
+        user_sticker.steam_stake_order = stake_order
+        changed = True
 
-    user_sticker.highest_stake_order = stake_order
-    user_sticker.earned_at = when
-    user_sticker.source = source
-    return user_sticker
+    if changed:
+        user_sticker.earned_at = when
+        return user_sticker
+    return None
 
 
 # =============================================================================
@@ -451,12 +454,6 @@ def _resolve_completionist_plus(
     source: UnlockSource,
     when: datetime,
 ) -> None:
-    """Completionist+: aplica Gold Sticker (stake_order=8) a TODOS los decks.
-
-    El achievement se obtiene al ganar con cada deck en Gold Stake, lo cual
-    implica que el usuario tiene Gold Sticker en cada uno. Backfilleamos
-    los registros que falten.
-    """
     decks = (
         db.session.query(Unlockable)
         .filter(Unlockable.type == UnlockableType.DECK)
@@ -464,19 +461,16 @@ def _resolve_completionist_plus(
     )
     cascaded_count = 0
     for deck in decks:
-        usa = _ensure_sticker_application(
-            user_id=user_id,
-            unlockable=deck,
-            stake_order=8,
-            source=source,
-            when=when,
-        )
+        # FIX: Asegurar primero el desbloqueo real de la carta
+        if _ensure_user_unlock(user_id, deck.id, source, when):
+            result.cascaded_unlockables.append(deck)
+
+        usa = _ensure_sticker_application(user_id, deck, 8, source, when)
         if usa is not None:
             result.cascaded_sticker_applications.append(usa)
-            cascaded_count += 1
+        cascaded_count += 1
     result.notes.append(
-        f"Completionist+ → Gold Sticker aplicado/promovido en "
-        f"{cascaded_count}/{len(decks)} decks."
+        f"Completionist+ → Desbloqueo y Gold Sticker en {cascaded_count}/{len(decks)} decks."
     )
 
 
@@ -487,13 +481,6 @@ def _resolve_completionist_plus_plus(
     source: UnlockSource,
     when: datetime,
 ) -> None:
-    """Completionist++: aplica Gold Sticker a TODOS los jokers.
-
-    Inferencia simétrica a Completionist+: el achievement requiere tener
-    Gold Sticker en cada joker, así que si está unlocked podemos backfillear
-    las USA que falten (típicamente útil para el sync de Steam, donde la
-    granularidad de "qué stake batiste cada joker" no está disponible).
-    """
     jokers = (
         db.session.query(Unlockable)
         .filter(Unlockable.type == UnlockableType.JOKER)
@@ -501,17 +488,14 @@ def _resolve_completionist_plus_plus(
     )
     cascaded_count = 0
     for joker in jokers:
-        usa = _ensure_sticker_application(
-            user_id=user_id,
-            unlockable=joker,
-            stake_order=8,
-            source=source,
-            when=when,
-        )
+        # FIX: Asegurar primero el desbloqueo real de la carta
+        if _ensure_user_unlock(user_id, joker.id, source, when):
+            result.cascaded_unlockables.append(joker)
+
+        usa = _ensure_sticker_application(user_id, joker, 8, source, when)
         if usa is not None:
             result.cascaded_sticker_applications.append(usa)
-            cascaded_count += 1
+        cascaded_count += 1
     result.notes.append(
-        f"Completionist++ → Gold Sticker aplicado/promovido en "
-        f"{cascaded_count}/{len(jokers)} jokers."
+        f"Completionist++ → Desbloqueo y Gold Sticker en {cascaded_count}/{len(jokers)} jokers."
     )

@@ -201,6 +201,7 @@
             :is-locked="selectedItem ? isLocked(selectedItem) : false"
             :can-unlock="true"
             @manual-unlock="onManualUnlock"
+            @stake-updated="onStakeUpdated"
           />
         </div>
       </div>
@@ -229,6 +230,7 @@ import {
   unlockItem,
 } from "@/services/collection";
 import { isItemLocked } from "@/constants/items";
+import { useProgressionStore } from "@/stores/progression";
 
 import FilterBar from "@/components/common/FilterBar.vue";
 import ProgressBar from "@/components/common/ProgressBar.vue";
@@ -239,6 +241,8 @@ import ItemTooltip from "@/components/items/ItemTooltip.vue";
 const authStore = useAuthStore();
 const { isAuthenticated, lastSyncedAt } = storeToRefs(authStore);
 const bgStore = useBackgroundStore();
+
+const progStore = useProgressionStore();
 
 const SUBTABS = [
   { id: "decks", label: "MAZOS", color: "#e84040" },
@@ -337,8 +341,10 @@ async function loadAll() {
 
 onMounted(() => {
   bgStore.setPreset(currentSub.value);
+  progStore.init();
   loadAll();
 });
+
 // Si la sesión cambia, recargamos para que decks/vouchers recojan el
 // overlay (/api/me/decks, /api/me/vouchers) y los demás se reajusten
 // al nuevo lock state.
@@ -576,22 +582,22 @@ const tooltip = ref(null);
 let hoverTimer = null;
 
 function onSelect(item, kind, modKey = null) {
+  // Comprobación estricta para evitar toggle
+  if (
+    selectedItem.value &&
+    selectedItem.value.id === item.id &&
+    selectedItem.value._kind === kind
+  ) {
+    return; // Ya está seleccionado, no hagas nada
+  }
+
   const enriched = { ...item, _kind: kind, _modKey: modKey };
-  // Vouchers BASE: si tienen `next_voucher_id`, adjuntamos un preview
-  // del voucher "upgraded" para que el detail panel muestre la
-  // sección MEJORA A con miniatura + nombre.
-  // (Los vouchers UPGRADED no tienen next_voucher_id → no se enriquece.)
-  // El backend incluye `next_voucher_id` en VoucherSchema; si en
-  // algún momento se renombra o no se serializa, el bloque
-  // simplemente no aparece — sin errores.
+
+  // Lógica para traer el preview de vouchers si aplica
   if (kind === "voucher" && item.next_voucher_id) {
     const upgrade = vouchers.value.find((v) => v.id === item.next_voucher_id);
     if (upgrade) {
-      enriched._nextVoucher = {
-        id: upgrade.id,
-        name: upgrade.name,
-        image_url: upgrade.image_url,
-      };
+      enriched._nextVoucher = { id: upgrade.id, name: upgrade.name, image_url: upgrade.image_url };
     }
   }
   selectedItem.value = enriched;
@@ -628,6 +634,30 @@ async function onManualUnlock(item) {
       return;
     }
     alert("No se pudo marcar como desbloqueado. " + (e.message || ""));
+  }
+}
+
+function onStakeUpdated(data) {
+  // data viene de { id, highest_stake_order }
+
+  // 1. Identificamos el array correcto según la pestaña actual
+  let targetArray;
+  if (currentSub.value === "decks") {
+    targetArray = decks.value;
+  } else {
+    // Si no es un mazo, no tenemos nada que actualizar en esta vista
+    return;
+  }
+
+  // 2. Buscamos el item en la lista y lo actualizamos
+  const item = targetArray.find((i) => i.id === data.id);
+  if (item) {
+    item.highest_stake_order = data.highest_stake_order;
+  }
+
+  // 3. Si el item está seleccionado en el panel derecho, actualizamos también el panel
+  if (selectedItem.value && selectedItem.value.id === data.id) {
+    selectedItem.value.highest_stake_order = data.highest_stake_order;
   }
 }
 
