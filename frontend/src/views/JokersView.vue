@@ -72,6 +72,7 @@
             :is-locked="selectedJoker ? isLocked(selectedJoker) : false"
             :can-unlock="true"
             @manual-unlock="onManualUnlock"
+            @stake-updated="onStakeUpdated"
           />
         </div>
       </div>
@@ -96,6 +97,7 @@ import { useSettingsStore } from "@/stores/settings";
 import { useBackgroundStore } from "@/stores/background";
 import { fetchAllJokers, unlockJoker } from "@/services/jokers";
 import { RARITY_ORDER } from "@/constants/rarity";
+import { useProgressionStore } from "@/stores/progression";
 
 import ProgressBar from "@/components/common/ProgressBar.vue";
 import FilterBar from "@/components/common/FilterBar.vue";
@@ -111,6 +113,7 @@ const authStore = useAuthStore();
 const { isAuthenticated, lastSyncedAt } = storeToRefs(authStore);
 const settings = useSettingsStore();
 const bgStore = useBackgroundStore();
+const progStore = useProgressionStore();
 
 // ── Datos ─────────────────────────────────────────────────────────────
 const jokers = ref([]);
@@ -134,12 +137,11 @@ async function loadJokers() {
 }
 
 onMounted(() => {
-  // Le decimos al shader que pinte el preset "jokers" — esto es lo que
-  // hará cada vista al montar (Tarot → 'tarot', Planet → 'planet', etc.).
-  // El BalatroBackground interpola suavemente desde el preset anterior.
   bgStore.setPreset("jokers");
+  progStore.init();
   loadJokers();
 });
+
 watch(isAuthenticated, loadJokers);
 // Re-fetch tras sync de Steam (logros nuevos cascadean jokers) o
 // unlink (las filas STEAM_SYNC se borran y los jokers vuelven a
@@ -221,6 +223,25 @@ async function onManualUnlock(joker) {
     }
     alert("No se pudo marcar como desbloqueado. " + (e.message || ""));
   }
+}
+
+function onStakeUpdated(updatedJoker) {
+  if (!updatedJoker) return;
+
+  const target = jokers.value.find((j) => j.id === updatedJoker.id);
+
+  if (!target) return;
+
+  // Forzamos reemplazo de referencia para garantizar reactividad
+  Object.assign(target, updatedJoker);
+
+  // También refrescamos selectedJoker por seguridad
+  if (selectedJoker.value?.id === updatedJoker.id) {
+    selectedJoker.value = target;
+  }
+
+  // Fuerza reactividad del array/grid
+  jokers.value = [...jokers.value];
 }
 
 // ── Filtros ───────────────────────────────────────────────────────────
