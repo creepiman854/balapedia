@@ -42,6 +42,7 @@ Output ejemplo::
     ...
     Total: 31 rows cleaned across 6 tables.
 """
+
 from __future__ import annotations
 
 import logging
@@ -59,8 +60,11 @@ from app.models import (
     Tag,
     Unlockable,
 )
-from app.scrapers.wiki import render_wikitext
-
+from app.scrapers.wiki import (
+    DESCRIPTION_OVERRIDES,
+    apply_description_override,
+    render_wikitext,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -128,12 +132,8 @@ def reprocess_column(col: WikitextColumn) -> tuple[int, int]:
           reconocido por la versión actual de `render_wikitext`).
     """
     column = getattr(col.model, col.column_name)
-    candidates = (
-        db.session.query(col.model)
-        .filter(column.like("%{{%"))
-        .all()
-    )
-    logger.info("[%s] scanning %d candidate rows...", col.label, len(candidates))
+    candidates = db.session.query(col.model).all()
+    logger.info("[%s] scanning %d rows...", col.label, len(candidates))
 
     cleaned = 0
     still_dirty = 0
@@ -145,18 +145,12 @@ def reprocess_column(col: WikitextColumn) -> tuple[int, int]:
 
         reprocessed = render_wikitext(current)
 
-        # Si el reprocesado no cambia nada, no escribimos (evita writes
-        # innecesarios para filas donde el bug viene de un template
-        # nuevo no soportado).
+        # Aplicamos overrides si es un Unlockable
+        if isinstance(row, Unlockable) and col.column_name == "description":
+            reprocessed = apply_description_override(row.name, reprocessed)
+
+        # Si tras limpiar sigue siendo igual, no hacemos update
         if reprocessed == current:
-            still_dirty += 1
-            logger.warning(
-                "[%s id=%s] reprocessing did not clean the field. "
-                "Sample: %r",
-                col.label,
-                row.id,
-                current[:120],
-            )
             continue
 
         # Si tras el reprocesado AÚN queda `{{`, también es interesante
@@ -176,14 +170,20 @@ def reprocess_column(col: WikitextColumn) -> tuple[int, int]:
         cleaned += 1
 
     db.session.commit()
-    logger.info(
-        "[%s] %d rows cleaned, %d still dirty.", col.label, cleaned, still_dirty
-    )
+    logger.info("[%s] %d rows updated.", col.label, cleaned)
     return cleaned, still_dirty
 
 
 def reprocess_all() -> dict:
     """Ejecuta la migración contra todas las columnas declaradas.
+
+    Hace tres pasadas:
+
+      1. Re-procesa cada columna con `render_wikitext` (limpia wikitext
+         residual + post-procesado de v2).
+      2. Aplica los `DESCRIPTION_OVERRIDES` hardcoded a Unlockable por
+         nombre (TO DO LIST, ANAGLYPH DECK).
+      3. Loguea resumen.
 
     Returns:
         Dict con totales agregados:
@@ -191,6 +191,7 @@ def reprocess_all() -> dict:
           "tables_scanned": int,
           "total_cleaned": int,
           "total_still_dirty": int,
+          "overrides_applied": int,
           "per_table": {"unlockables.description": (cleaned, still_dirty), ...}
         }
     """
@@ -198,25 +199,70 @@ def reprocess_all() -> dict:
     total_cleaned = 0
     total_still_dirty = 0
 
+    # 1. Re-procesado genérico por columna
     for col in WIKITEXT_COLUMNS:
         cleaned, still_dirty = reprocess_column(col)
         summary[col.label] = (cleaned, still_dirty)
         total_cleaned += cleaned
         total_still_dirty += still_dirty
 
+    # 2. Overrides hardcoded por nombre — escribe las descripciones de
+    #    los items que no pueden representarse con la salida genérica
+    #    (TO DO LIST con `<small>`, ANAGLYPH DECK con `24px`, etc.).
+    overrides_applied = apply_description_overrides()
+
     logger.info(
-        "Total: %d rows cleaned across %d tables (%d still dirty).",
+        "Total: %d rows cleaned across %d tables (%d still dirty), "
+        "%d overrides applied.",
         total_cleaned,
         len(WIKITEXT_COLUMNS),
         total_still_dirty,
+        overrides_applied,
     )
 
     return {
         "tables_scanned": len(WIKITEXT_COLUMNS),
         "total_cleaned": total_cleaned,
         "total_still_dirty": total_still_dirty,
+        "overrides_applied": overrides_applied,
         "per_table": summary,
     }
+
+
+def apply_description_overrides() -> int:
+    """Sobrescribe descripciones de items con valor hardcoded.
+
+    Recorre `DESCRIPTION_OVERRIDES` (definido en `app.scrapers.wiki`) y
+    para cada (nombre, descripción) actualiza la fila correspondiente
+    en `unlockables` si existe.
+
+    Idempotente: si ya tenía el valor target, el UPDATE no cambia nada
+    (MySQL no marca la fila como modificada). El conteo devuelto puede
+    incluir UPDATEs "lógicamente noop" — eso es aceptable para
+    diagnóstico.
+
+    Returns:
+        Número total de UPDATEs ejecutados (uno por nombre en el dict
+        que existe en BD).
+    """
+    n_applied = 0
+    for name, new_description in DESCRIPTION_OVERRIDES.items():
+        row = db.session.query(Unlockable).filter(Unlockable.name == name).one_or_none()
+        if row is None:
+            logger.warning(
+                "Override target not found in DB: name=%r — skipping.",
+                name,
+            )
+            continue
+        if row.description == new_description:
+            # No-op: la BD ya tenía el override aplicado (seguramente
+            # ejecutaste este script antes).
+            continue
+        row.description = new_description
+        n_applied += 1
+        logger.info("Override applied: name=%r — description rewritten.", name)
+    db.session.commit()
+    return n_applied
 
 
 # =============================================================================
