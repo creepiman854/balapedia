@@ -9,12 +9,13 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
-        "pool_size": 3,
+        "pool_size": 2,
+        "max_overflow": 0,
         "pool_recycle": 280,  # recicla conexiones cada ~5 min para evitar timeouts
         "pool_pre_ping": True,  # detecta conexiones muertas antes de usarlas
     }
     STEAM_API_KEY = os.getenv("STEAM_API_KEY")
-    STEAM_APP_ID = 2379780 # Balatro en Steam
+    STEAM_APP_ID = 2379780  # Balatro en Steam
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
     FIREBASE_ADMIN_CREDENTIALS_PATH = os.environ.get(
         "FIREBASE_ADMIN_CREDENTIALS_PATH", "./firebase-admin.json"

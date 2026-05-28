@@ -38,7 +38,6 @@ HEADERS = {"User-Agent": USER_AGENT}
 COLOR_DISCARD_TEMPLATES = {"hl", "c", "color", "fc", "clr", "textcolor"}
 IDENTITY_TEMPLATES = {
     "suit",
-    "ph",
     "v",
     "j",
     "tarot",
@@ -412,6 +411,7 @@ def parse_voucher(wikitext: str) -> Optional[dict]:
         "unlock_condition": render_wikitext(
             _field(tpl, "unlock", "Available from start.")
         ),
+        "buy_price": extract_leading_int(_field(tpl, "buyprice")),
     }
 
 
@@ -510,71 +510,6 @@ def _parse_booster_pack_row(cells: list[str], pack_type: str) -> Optional[dict]:
             if re.search(r"\[\[File:([^|\]]+)", image_cell)
             else None
         ),
-    }
-
-
-def parse_poker_hands_page(wikitext: str) -> list[dict]:
-    hands = []
-    hand_order = 0
-    for section_name, is_hidden in [
-        ("Regular Poker Hands", False),
-        ("Secret Poker Hands", True),
-    ]:
-        match = re.search(
-            r"==\s*" + re.escape(section_name) + r"\s*==.*?(\{\|.*?\|\})",
-            wikitext,
-            re.DOTALL,
-        )
-        if not match:
-            continue
-        for row in match.group(1).split("\n|-"):
-            if "Poker Hand" in row and "Base Scoring" in row:
-                continue
-            cells = _split_wikitable_cells(row)
-            if len(cells) < 4:
-                continue
-            hand_order += 1
-            hand = _parse_poker_hand_row(cells, is_hidden, hand_order)
-            if hand:
-                hands.append(hand)
-    return hands
-
-
-def _parse_poker_hand_row(
-    cells: list[str], is_hidden: bool, hand_order: int
-) -> Optional[dict]:
-    id_match = re.search(r'id="([^"]+)"', cells[0])
-    if not id_match:
-        return None
-
-    name = id_match.group(1)
-    # Aplicamos override
-    description = apply_description_override(name, render_wikitext(cells[3]))
-
-    chips = re.search(r"\{\{Chips\|(\d+)\}\}", cells[1])
-    mult = re.search(r"\{\{Mult\|(\d+)\}\}", cells[1])
-    if not chips or not mult:
-        return None
-
-    planet = re.search(r"\{\{Planet\|([^}|]+)", cells[2])
-    return {
-        "name": id_match.group(1),
-        "base_chips": int(chips.group(1)),
-        "base_mult": int(mult.group(1)),
-        "chips_per_level": (
-            int(re.search(r"\{\{chips\|\+?(\d+)\}\}", cells[2]).group(1))
-            if re.search(r"\{\{chips\|\+?(\d+)\}\}", cells[2])
-            else 0
-        ),
-        "mult_per_level": (
-            int(re.search(r"\{\{mult\|\+?(\d+)\}\}", cells[2]).group(1))
-            if re.search(r"\{\{mult\|\+?(\d+)\}\}", cells[2])
-            else 0
-        ),
-        "planet_card_name": planet.group(1).strip() if planet else None,
-        "description": render_wikitext(cells[3]),
-        "hidden": is_hidden,
-        "hand_order": hand_order,
     }
 
 

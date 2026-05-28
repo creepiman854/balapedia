@@ -4,7 +4,6 @@ Cubre tablas independientes de la jerarquía Unlockable:
   - GET /api/blinds            + /api/blinds/<id>
   - GET /api/tags              + /api/tags/<id>
   - GET /api/card-modifiers    + /api/card-modifiers/<id>
-  - GET /api/poker-hands       + /api/poker-hands/<id>
   - GET /api/stakes            + /api/stakes/<id>
   - GET /api/stickers          + /api/stickers/<id>
 
@@ -30,7 +29,6 @@ from app.api._helpers import (
 from app.api.schemas import (
     BlindSchema,
     CardModifierSchema,
-    PokerHandSchema,
     StakeSchema,
     StickerSchema,
     TagSchema,
@@ -41,7 +39,6 @@ from app.models import (
     BlindType,
     CardModifier,
     ModifierType,
-    PokerHand,
     Stake,
     Sticker,
     StickerType,
@@ -155,42 +152,6 @@ def get_card_modifier(modifier_id: int):
     if modifier is None:
         return _not_found("CardModifier", modifier_id)
     return jsonify(CardModifierSchema().dump(modifier))
-
-
-# =============================================================================
-#  Poker Hands
-# =============================================================================
-
-
-_POKER_HAND_FILTERS = {
-    "hidden": parse_bool,
-}
-
-_POKER_HAND_SORTS = {
-    "hand_order": PokerHand.hand_order,
-    "name": PokerHand.name,
-    "base_chips": PokerHand.base_chips,
-    "base_mult": PokerHand.base_mult,
-}
-
-
-@reference_bp.route("/poker-hands", methods=["GET"])
-def list_poker_hands():
-    """Lista paginada de Poker Hands. Filtro por hidden (Flush Five y
-    otros escondidos requieren desbloqueo)."""
-    query = PokerHand.query
-    query = apply_filters(query, PokerHand, _POKER_HAND_FILTERS)
-    query = apply_sort(query, _POKER_HAND_SORTS, default_sort="hand_order")
-    return jsonify(paginate_query(query, schema=PokerHandSchema()))
-
-
-@reference_bp.route("/poker-hands/<int:hand_id>", methods=["GET"])
-def get_poker_hand(hand_id: int):
-    """Detalle de un Poker Hand por id."""
-    hand = db.session.get(PokerHand, hand_id)
-    if hand is None:
-        return _not_found("PokerHand", hand_id)
-    return jsonify(PokerHandSchema().dump(hand))
 
 
 # =============================================================================

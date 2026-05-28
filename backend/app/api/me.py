@@ -661,18 +661,33 @@ def set_my_achievement_unlock():
     de entrada al lifecycle de `UserAchievement`, simétrico al de
     `set_unlock_for_user` para `UserUnlock`.
 
-    Diferencia con el endpoint de unlocks: aquí NO aceptamos
-    `unlocked: false`. El verbo `/unlock` en la ruta implica acción;
-    el service que lo respalda solo soporta SET-to-true (un
-    achievement "des-desbloqueado" no tiene sentido semántico). Si en
-    el futuro hace falta, será un endpoint distinto (`/relock`) con
-    su propia función de servicio.
     """
     payload = request.get_json(silent=True) or {}
 
     raw_id = payload.get("achievement_id")
     if isinstance(raw_id, bool) or not isinstance(raw_id, int):
         raise ValidationError({"achievement_id": "required int (the Achievement.id)"})
+
+    raw_unlocked = payload.get("unlocked", True)
+    if not isinstance(raw_unlocked, bool):
+        raise ValidationError({"unlocked": "must be a boolean"})
+
+    if not raw_unlocked:
+        # Re-lock path
+        from app.services.achievements import lock_achievement_for_user
+
+        relock_result = lock_achievement_for_user(
+            user_id=g.user.id,
+            achievement_id=raw_id,
+        )
+        return jsonify(
+            {
+                "ok": True,
+                "unlocked_for_me": False,
+                "unlocked_at": None,
+                **relock_result,
+            }
+        )
 
     try:
         result = unlock_achievement_for_user(
