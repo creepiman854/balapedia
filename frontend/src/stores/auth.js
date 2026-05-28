@@ -70,6 +70,11 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   async function fetchMe() {
+    if (!firebaseAuth.currentUser) {
+      user.value = null;
+      return;
+    }
+
     try {
       const response = await api.get("/api/me");
       user.value = response.data;

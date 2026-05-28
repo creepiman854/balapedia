@@ -106,7 +106,9 @@ export const useProgressionStore = defineStore("progression", () => {
     if (loaded.value || loading.value) return;
     loading.value = true;
     try {
-      const [s, st] = await Promise.all([fetchAllStakes(), fetchAllStickers()]);
+      const s = await fetchAllStakes();
+      const st = await fetchAllStickers();
+      
       stakes.value = s;
       stickers.value = st;
       loaded.value = true;
