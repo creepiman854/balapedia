@@ -31,14 +31,14 @@
       </router-link>
     </nav>
 
-    <div class="header-btn-wrapper">
+    <div class="settings-wrapper">
       <button class="login-btn" title="Ajustes" @click="$emit('open-settings')">
         <iconify-icon icon="pixel:cog" noobserver />
       </button>
     </div>
 
     <template v-if="isAuthenticated && user">
-      <div class="header-btn-wrapper logged-in-wrapper">
+      <div class="account-wrapper logged-in-wrapper">
         <button
           class="login-btn logged-in"
           @click="authStore.openAuthModal()"
@@ -50,7 +50,7 @@
     </template>
 
     <template v-else>
-      <div class="header-btn-wrapper">
+      <div class="account-wrapper">
         <button class="login-btn" @click="authStore.openAuthModal()">
           <iconify-icon icon="pixel:user" noobserver /> CUENTA
         </button>
@@ -187,7 +187,21 @@ async function handleLogout() {
   background: $tab-collection;
 }
 
-.header-btn-wrapper {
+/* ── CONTENEDOR DE AJUSTES ── */
+.settings-wrapper {
+  display: flex;
+  @include pixel-stroke($panel-mid);
+  transition: filter 0.15s;
+
+  /* Sobreescribimos las propiedades del botón SOLO cuando está dentro de settings */
+  .login-btn {
+    padding: 8px;
+    width: 36px;
+  }
+}
+
+/* ── CONTENEDOR DE CUENTA ── */
+.account-wrapper {
   display: flex;
   @include pixel-stroke($panel-mid);
   transition: filter 0.15s;
@@ -195,15 +209,20 @@ async function handleLogout() {
   &.logged-in-wrapper {
     @include pixel-stroke(#22c55e);
   }
+
+  /* Sobreescribimos las propiedades del botón SOLO cuando está dentro de cuenta */
+  .login-btn {
+    padding: 8px 16px;
+  }
 }
 
+/* ── ESTILOS BASE DEL BOTÓN (Compartidos) ── */
 .login-btn {
   font-family: "m6x11plus", monospace;
   font-size: 15px;
   color: $text-2;
   background: $panel-dark;
   border: none;
-  padding: 8px 12px;
   cursor: pointer;
   letter-spacing: 0.5px;
   transition: all 0.15s;
