@@ -6,12 +6,18 @@
   El badge inferior se resuelve por `getItemBadgeLabel`:
     - joker         → rareza (Común / Inusual / Raro / Legendario)
     - consumible    → tipo (Arcano / Planeta / Espectral)
+
+  Fase 2: la variante bloqueada incluye el nombre real del item bajo
+  "Por descubrir" en texto pequeño y atenuado. Permite identificar el
+  item desde el tooltip y, lo más importante, permite al buscador
+  encontrarlo por nombre aunque su imagen sea el dorso locked.
 -->
 <template>
   <div :style="posStyle">
     <div v-if="isLocked" :style="lockedBoxStyle">
       <div :style="lockedHeaderStyle">
         <span :style="lockedHeaderTextStyle">Por descubrir</span>
+        <span v-if="item?.name" :style="lockedHiddenNameStyle">{{ item.name }}</span>
       </div>
       <div :style="lockedBodyStyle">
         <p :style="lockedBodyTextStyle">{{ unlockText }}</p>
@@ -120,12 +126,30 @@ const lockedHeaderStyle = {
   background: TEAL.mid,
   padding: "10px 12px",
   textAlign: "center",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  gap: "2px",
 };
 const lockedHeaderTextStyle = {
   fontFamily: "'m6x11plus', monospace",
   fontSize: "16px",
   color: TEAL.text2,
   letterSpacing: "0.5px",
+};
+/**
+ * Nombre real del item bajo "Por descubrir": pequeño, atenuado.
+ * Sirve para identificar el item sin necesidad de descubrirlo y, sobre
+ * todo, para que el buscador (que indexa el `name` del array) pueda
+ * encontrar items bloqueados — manteniendo la usabilidad sin destruir
+ * la sorpresa visual del dorso "locked" en el grid.
+ */
+const lockedHiddenNameStyle = {
+  fontFamily: "'m6x11plus', monospace",
+  fontSize: "11px",
+  color: "rgba(168, 196, 200, 0.55)",
+  letterSpacing: "0.3px",
+  textTransform: "uppercase",
 };
 const lockedBodyStyle = {
   background: "#c8c8c8",

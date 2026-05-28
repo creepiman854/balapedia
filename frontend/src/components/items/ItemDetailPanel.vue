@@ -13,6 +13,21 @@
       el shape los trae (jokers).
     - COMPATIBILIDAD → solo si alguno de is_copyable/perishable/eternal
       es true (jokers).
+
+  Botón unlock/re-lock (Fase 2):
+    El botón único que vivía debajo del arte se ha convertido en un
+    toggle bidireccional:
+      · isLocked → "MARCAR COMO DESBLOQUEADO" (variante verde).
+      · !isLocked && esRe-lockeable → "VOLVER A BLOQUEAR" (variante roja).
+    "Es re-lockeable" = el item tiene una unlock_condition real (no es
+    "Available from start"). Los items disponibles desde el inicio nunca
+    están en estado bloqueado, así que no tiene sentido ofrecer "lockear-
+    los": el backend no tendría datos previos a los que volver.
+
+    El evento emitido sigue siendo `manual-unlock` para no romper a los
+    consumidores, pero ahora pasa el segundo argumento `unlocked: boolean`
+    indicando la dirección del cambio. La vista padre decide qué servicio
+    llamar (unlock vs relock).
 -->
 <template>
   <div v-if="!item" class="empty">
@@ -35,10 +50,22 @@
     </div>
 
     <div class="detail__body">
-      <!-- Desbloqueo manual (solo si está locked Y el padre admite el evento) -->
+      <!--
+        Botón unlock (cuando bloqueado) o re-lock (cuando desbloqueado).
+        Solo aparece para items re-lockeables (con unlock_condition real)
+        autenticados.
+      -->
       <div v-if="isLocked && canUnlock" class="stroke-wrapper manual-unlock-wrapper">
-        <button class="manual-unlock" :disabled="busy" @click="onManualUnlock">
+        <button class="manual-unlock" :disabled="busy" @click="onToggleUnlock(true)">
           {{ busy ? "Desbloqueando..." : "Marcar como desbloqueado" }}
+        </button>
+      </div>
+      <div
+        v-else-if="!isLocked && canUnlock && isRelockable"
+        class="stroke-wrapper manual-relock-wrapper"
+      >
+        <button class="manual-relock" :disabled="busy" @click="onToggleUnlock(false)">
+          {{ busy ? "Bloqueando..." : "Volver a bloquear" }}
         </button>
       </div>
 
@@ -193,57 +220,30 @@ import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
 import { setStickerApplication } from "@/services/progression";
 
-const itemType = computed(() => String(props.item?.type || "").toUpperCase());
-const updatingStake = ref(false);
-
-const authStore = useAuthStore();
-const { isAuthenticated } = storeToRefs(authStore);
-
-async function onSetStake(stakeOrder) {
-  if (!props.item || updatingStake.value) return;
-
-  updatingStake.value = true;
-
-  try {
-    const result = await setStickerApplication(props.item.id, stakeOrder);
-
-    if (result && result.highest_stake_order !== undefined) {
-      emit("stake-updated", {
-        id: props.item.id,
-        highest_stake_order: result.highest_stake_order,
-      });
-    }
-  } catch (e) {
-    console.error("[ItemDetailPanel] set-stake failed:", e);
-
-    alert(
-      "No se pudo aplicar el sticker: " +
-        (e.response?.data?.message || e.message || "Error del servidor"),
-    );
-  } finally {
-    updatingStake.value = false;
-  }
-}
-
 const props = defineProps({
   item: { type: Object, default: null },
   isLocked: { type: Boolean, default: false },
   /**
-   * Si true, muestra el botón de "desbloqueo manual" cuando isLocked.
-   * Para jokers va a true; para consumibles, false mientras no exista
-   * el endpoint correspondiente.
+   * Si true, muestra el botón de unlock/relock cuando aplique.
+   * Para jokers/decks/vouchers/packs va a true; para card modifiers,
+   * false (no son Unlockable).
    */
   canUnlock: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(["manual-unlock", "stake-updated"]);
 
+const itemType = computed(() => String(props.item?.type || "").toUpperCase());
+const updatingStake = ref(false);
+
+const authStore = useAuthStore();
+const { isAuthenticated } = storeToRefs(authStore);
+
 const busy = ref(false);
 
 const accent = computed(() => (props.item ? getItemAccent(props.item) : {}));
 const badgeLabel = computed(() => getItemBadgeLabel(props.item));
-// `description` (jokers, decks, vouchers, packs) o `effect`
-// (card modifiers). El helper centraliza la resolución.
+
 /**
  * Texto a mostrar en la sección EFECTO.
  *
@@ -286,24 +286,82 @@ const unlockText = computed(() => {
   return props.item.unlock_condition || props.item.unlock_factor?.description || "";
 });
 
-function safe(value, fallback = "—") {
-  if (value == null) return fallback;
-  if (typeof value === "string" && !value.trim()) return fallback;
-  return value;
-}
+/**
+ * "Es re-lockeable" = el item tiene una condición de desbloqueo real,
+ * no es "Available from start". Items disponibles desde el inicio no
+ * tienen estado bloqueado al que volver — esconderles el botón evita
+ * acciones sin sentido y mantiene la UI limpia.
+ *
+ * Misma lista de strings que reconoce `isAvailableFromStart` en
+ * JokersView/CollectionView para mantener la regla centralizada (si en
+ * el futuro la fuente de verdad pasa a un helper compartido, este
+ * computed lo usa también).
+ */
+const isRelockable = computed(() => {
+  if (!props.item) return false;
+  const condition = String(
+    props.item.unlock_condition || props.item.unlock_factor?.description || "",
+  )
+    .trim()
+    .toLowerCase();
+  if (!condition) return false;
+  if (
+    condition.includes("available from start") ||
+    condition.includes("available from the start") ||
+    condition.includes("disponible desde el inicio")
+  ) {
+    return false;
+  }
+  const code = String(props.item.unlock_factor?.code || "").toLowerCase();
+  if (code === "available_from_start" || code === "start") return false;
+  return true;
+});
 
 function formatPrice(v) {
   if (!Number.isFinite(Number(v))) return "—";
   return `$${Number(v)}`;
 }
 
-async function onManualUnlock() {
+/**
+ * Toggle unificado: emite `manual-unlock` con dos argumentos
+ * (item, unlocked) para que la vista padre llame al servicio
+ * adecuado. El `busy` local evita doble click; un setTimeout corto al
+ * final relaja el estado por si el padre no actualiza la prop locked
+ * de forma síncrona (e.g. error de red).
+ */
+async function onToggleUnlock(unlocked) {
   if (busy.value || !props.item) return;
   busy.value = true;
   try {
-    emit("manual-unlock", props.item);
+    emit("manual-unlock", props.item, unlocked);
   } finally {
     setTimeout(() => (busy.value = false), 800);
+  }
+}
+
+async function onSetStake(stakeOrder) {
+  if (!props.item || updatingStake.value) return;
+
+  updatingStake.value = true;
+
+  try {
+    const result = await setStickerApplication(props.item.id, stakeOrder);
+
+    if (result && result.highest_stake_order !== undefined) {
+      emit("stake-updated", {
+        id: props.item.id,
+        highest_stake_order: result.highest_stake_order,
+      });
+    }
+  } catch (e) {
+    console.error("[ItemDetailPanel] set-stake failed:", e);
+
+    alert(
+      "No se pudo aplicar el sticker: " +
+        (e.response?.data?.message || e.message || "Error del servidor"),
+    );
+  } finally {
+    updatingStake.value = false;
   }
 }
 </script>
@@ -326,6 +384,16 @@ async function onManualUnlock() {
 
   &.manual-unlock-wrapper {
     --stroke-color: #22c55e;
+    margin-top: 4px;
+    margin-bottom: 12px;
+  }
+
+  /*
+   * Re-lock comparte estructura pero invierte la paleta: rojo cálido
+   * para señalar acción destructiva (volverá a bloquear el item).
+   */
+  &.manual-relock-wrapper {
+    --stroke-color: #ef4444;
     margin-top: 4px;
     margin-bottom: 12px;
   }
@@ -366,7 +434,8 @@ async function onManualUnlock() {
 .effect-box,
 .stat,
 .compat__tile,
-.manual-unlock {
+.manual-unlock,
+.manual-relock {
   position: relative;
   z-index: 1;
   @include pixel-clip-sm;
@@ -445,6 +514,36 @@ async function onManualUnlock() {
 
   &:hover:not(:disabled) {
     filter: brightness(1.2);
+  }
+  &:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+/*
+ * manual-relock: paleta roja para acción destructiva. Misma estructura
+ * y transiciones que manual-unlock para mantener la cohesión del
+ * sistema visual.
+ */
+.manual-relock {
+  width: 100%;
+  background: #401a1a;
+  color: #ef4444;
+  font-family: "m6x11plus", monospace;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition:
+    filter 0.15s,
+    transform 0.1s;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.25);
   }
   &:active:not(:disabled) {
     transform: scale(0.97);
