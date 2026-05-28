@@ -84,13 +84,16 @@
             locked. Las cuentas Steam no lo ven nunca.
           -->
           <button
-            v-if="canShowManualUnlock(ach)"
+            v-if="canShowManualToggle(ach)"
             type="button"
             class="row__unlock"
-            :disabled="unlocking === ach.id"
-            @click.stop="onManualUnlock(ach)"
+            :class="{ 'row__unlock--remove': !isLocked(ach) }"
+            :disabled="unlocking !== null"
+            @click.stop="onManualToggle(ach)"
           >
-            {{ unlocking === ach.id ? "DESBLOQUEANDO..." : "MARCAR COMO DESBLOQUEADO" }}
+            <template v-if="unlocking === ach.id"> PROCESANDO... </template>
+            <template v-else-if="isLocked(ach)"> MARCAR COMO DESBLOQUEADO </template>
+            <template v-else> MARCAR COMO BLOQUEADO </template>
           </button>
 
           <span class="row__dot" :class="{ 'row__dot--on': !isLocked(ach) }" />
@@ -206,24 +209,29 @@ const totalUnlocked = computed(() => achievements.value.filter((a) => !isLocked(
  * un botón "marcar como desbloqueado" sería contradictorio (y podría
  * crear conflicto con el próximo sync).
  */
-function canShowManualUnlock(ach) {
+function canShowManualToggle(ach) {
   if (!isAuthenticated.value) return false;
   if (user.value?.steam_id) return false;
-  return isLocked(ach);
+  return true; // Se muestra siempre si cumple las condiciones anteriores
 }
 
-async function onManualUnlock(ach) {
-  if (!ach) return;
+async function onManualToggle(ach) {
+  if (!ach || unlocking.value !== null) return;
 
   unlocking.value = ach.id;
 
-  try {
-    await unlockAchievement(ach.id);
+  // Si está bloqueado, queremos desbloquear (true). Si no, bloquear (false).
+  const targetState = isLocked(ach);
 
+  try {
+    // Enviamos el estado deseado a la API
+    await unlockAchievement(ach.id, targetState);
+
+    // Mutación local sin re-fetch
     const target = achievements.value.find((a) => a.id === ach.id);
     if (target) {
-      target.unlocked_for_me = true;
-      target.unlocked_at = new Date().toISOString();
+      target.unlocked_for_me = targetState;
+      target.unlocked_at = targetState ? new Date().toISOString() : null;
     }
   } catch (e) {
     console.error(e);
@@ -233,7 +241,9 @@ async function onManualUnlock(ach) {
       return;
     }
 
-    alert("No se pudo marcar como desbloqueado. " + (e.message || ""));
+    alert(
+      "No se pudo cambiar el estado del logro. " + (e.response?.data?.message || e.message || ""),
+    );
   } finally {
     unlocking.value = null;
   }
@@ -435,13 +445,28 @@ async function onManualUnlock(ach) {
     opacity 0.15s;
   @include pixel-clip-sm;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: $panel-medlight;
     opacity: 1; // El botón brilla al 100% (y gracias al :has, la fila también)
   }
 
-  &:active {
+  &:active:not(:disabled) {
     transform: scale(0.96);
+  }
+
+  // Estilo para cuando el botón sirve para volver a bloquear
+  &--remove {
+    color: #ef4444; // Rojo para indicar acción destructiva/retroceso
+    border-color: rgba(239, 68, 68, 0.3);
+
+    &:hover:not(:disabled) {
+      background: rgba(239, 68, 68, 0.15);
+    }
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
   }
 }
 

@@ -13,6 +13,10 @@
   El estado de desbloqueado real sigue siendo server-side (UserUnlock);
   el "available from start" es solo una whitelist visual del frontend
   basada en `unlock_condition` / `unlock_factor`.
+
+  Fase 2: `onManualUnlock` ahora acepta el flag `unlocked` y elige
+  entre unlockJoker (true) y relockJoker (false). El botón del
+  ItemDetailPanel es bidireccional.
 -->
 <template>
   <div class="jokers-view">
@@ -95,7 +99,7 @@ import { storeToRefs } from "pinia";
 import { useAuthStore } from "@/stores/auth";
 import { useSettingsStore } from "@/stores/settings";
 import { useBackgroundStore } from "@/stores/background";
-import { fetchAllJokers, unlockJoker } from "@/services/jokers";
+import { fetchAllJokers, unlockJoker, relockJoker } from "@/services/jokers";
 import { RARITY_ORDER } from "@/constants/rarity";
 import { useProgressionStore } from "@/stores/progression";
 
@@ -182,46 +186,49 @@ function isLocked(joker) {
   return !joker.unlocked_for_me;
 }
 
-// ── Manual unlock (botón en el panel de detalle) ─────────────────────
+// ── Manual unlock / re-lock (botón en el panel de detalle) ─────────
 /**
- * Marca un joker como desbloqueado para el usuario actual.
+ * Marca un joker como desbloqueado o lo vuelve a bloquear.
  *
- * Estrategia de update local (no full reload):
- *   - Antes hacíamos `await loadJokers()` tras el POST → todo el grid
- *     se re-renderizaba desde 0, la animación de "repartir cartas"
- *     volvía a dispararse, el scroll saltaba al principio y los
- *     filtros se mantenían pero la experiencia era abrupta.
- *   - Ahora mutamos solo el joker afectado en la lista reactiva.
- *     `selectedJoker.value` es la misma referencia que el item del
- *     array (lo asignamos así en `onSelect`), así que mutar uno
- *     mutarlos los dos — la imagen "desbloqueada" aparece al instante
- *     en la carta del grid y en el panel de detalle, sin re-render
- *     del catálogo. Mismo patrón que CollectionView.
+ * El ItemDetailPanel emite `manual-unlock` con dos argumentos:
+ *   - `joker`: la carta sobre la que actuar.
+ *   - `unlocked: boolean`: dirección del cambio (true → desbloquear,
+ *      false → re-bloquear).
+ *
+ * Elegimos servicio en consecuencia. Patrón de mutación local sin
+ * re-fetch (preserva animación, scroll y filtros) — mismo en ambas
+ * direcciones, solo cambia el valor que escribimos. CollectionView
+ * sigue el mismo patrón.
  *
  * Si el POST falla con 401 (sesión caducada), abrimos el AuthModal —
  * un alert técnico no ayuda al usuario a recuperarse, pero re-loguearse
  * sí. Otros errores caen al alert estándar con el detalle del backend.
  */
-async function onManualUnlock(joker) {
+async function onManualUnlock(joker, unlocked = true) {
   if (!joker) return;
   try {
-    await unlockJoker(joker.id);
+    if (unlocked) {
+      await unlockJoker(joker.id);
+    } else {
+      await relockJoker(joker.id);
+    }
     // Mutación local sin re-fetch — preserva animación, scroll y
     // filtros. Mismo patrón que CollectionView.mutateLocally().
     const target = jokers.value.find((j) => j.id === joker.id);
     if (target) {
-      target.unlocked_for_me = true;
-      target.unlocked_at = new Date().toISOString();
+      target.unlocked_for_me = unlocked;
+      target.unlocked_at = unlocked ? new Date().toISOString() : null;
     }
   } catch (e) {
-    console.error("[JokersView] no se pudo desbloquear manualmente", e);
+    console.error("[JokersView] toggle unlock failed", e);
     // 401 = sesión caducada. Abrimos el AuthModal en lugar de un alert
     // técnico — es la acción que el usuario necesita para recuperar.
     if (e?.response?.status === 401) {
       authStore.openAuthModal();
       return;
     }
-    alert("No se pudo marcar como desbloqueado. " + (e.message || ""));
+    const verb = unlocked ? "marcar como desbloqueado" : "volver a bloquear";
+    alert(`No se pudo ${verb}. ` + (e.message || ""));
   }
 }
 

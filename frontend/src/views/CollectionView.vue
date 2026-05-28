@@ -19,6 +19,11 @@
         SOBRES   → search + type (pack) + status + sort
         VALES    → search + sort
         MEJORAS  → search + type (section) + sort
+
+  Fase 2: `onManualUnlock` acepta el flag `unlocked` para soportar
+  re-lock desde el ItemDetailPanel (botón bidireccional). El backend
+  ya soporta `POST /api/me/unlocks { unlocked: false }` vía
+  `services/collection.relockItem`.
 -->
 <template>
   <div class="collection-view">
@@ -228,6 +233,7 @@ import {
   fetchAllBoosterPacks,
   fetchAllCardModifiers,
   unlockItem,
+  relockItem,
 } from "@/services/collection";
 import { isItemLocked } from "@/constants/items";
 import { useProgressionStore } from "@/stores/progression";
@@ -604,36 +610,45 @@ function onSelect(item, kind, modKey = null) {
 }
 
 /**
- * Desbloqueo manual desde el detail panel.
+ * Desbloqueo/Re-bloqueo manual desde el detail panel.
  *
- * POST /api/me/unlocks { unlockable_id, unlocked: true } — endpoint
+ * POST /api/me/unlocks { unlockable_id, unlocked } — endpoint
  * compartido para jokers/decks/vouchers/booster-packs (todos son
  * Unlockable). Card-modifiers no aplica (no son Unlockable), pero
  * nunca aparecen como locked, así que el botón ni se renderiza para
  * ellos.
  *
- * Tras el POST mutamos el item localmente (y selectedItem) añadiendo
- * `unlocked_for_me: true`. Eso hace que isItemLocked devuelva false al
- * instante y la carta se ve desbloqueada sin esperar a un re-fetch.
+ * Fase 2: el ItemDetailPanel emite con dos args (item, unlocked) para
+ * soportar el toggle bidireccional. Elegimos servicio en consecuencia.
+ *
+ * Tras el POST mutamos el item localmente (y selectedItem) ajustando
+ * `unlocked_for_me`. Eso hace que isItemLocked devuelva el valor nuevo
+ * al instante y la carta se ve actualizada sin esperar a un re-fetch.
  * Para decks el cambio persiste tras recargar (porque /api/me/decks
- * devuelve el overlay); para vouchers/packs persiste en BD pero no
- * se ve hasta que el backend exponga /api/me/vouchers y
- * /api/me/booster-packs.
+ * devuelve el overlay); para vouchers/packs persiste en BD y, gracias
+ * a /api/me/vouchers y /api/me/booster-packs, también se ve tras
+ * recargar.
  */
-async function onManualUnlock(item) {
+async function onManualUnlock(item, unlocked = true) {
   if (!item) return;
   try {
-    await unlockItem(item.id);
-    mutateLocally(item, { unlocked_for_me: true, unlocked_at: new Date().toISOString() });
+    if (unlocked) {
+      await unlockItem(item.id);
+      mutateLocally(item, { unlocked_for_me: true, unlocked_at: new Date().toISOString() });
+    } else {
+      await relockItem(item.id);
+      mutateLocally(item, { unlocked_for_me: false, unlocked_at: null });
+    }
   } catch (e) {
-    console.error("[CollectionView] manual unlock failed", e);
+    console.error("[CollectionView] toggle unlock failed", e);
     // 401 = sesión caducada. Abrimos el AuthModal — es la acción que
     // el usuario necesita; un alert técnico no le ayuda a recuperarse.
     if (e?.response?.status === 401) {
       authStore.openAuthModal();
       return;
     }
-    alert("No se pudo marcar como desbloqueado. " + (e.message || ""));
+    const verb = unlocked ? "marcar como desbloqueado" : "volver a bloquear";
+    alert(`No se pudo ${verb}. ` + (e.message || ""));
   }
 }
 
