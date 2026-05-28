@@ -55,7 +55,6 @@ from app.models import (
     Blind,
     CardModifier,
     ChallengeDeck,
-    PokerHand,
     Stake,
     Tag,
     Unlockable,
@@ -109,8 +108,6 @@ WIKITEXT_COLUMNS: list[WikitextColumn] = [
     WikitextColumn(Tag, "unlock_condition"),
     # Card modifier (effect en lugar de description)
     WikitextColumn(CardModifier, "effect"),
-    # Poker hand
-    WikitextColumn(PokerHand, "description"),
     # Stake
     WikitextColumn(Stake, "effect_description"),
 ]
