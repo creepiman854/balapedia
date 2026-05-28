@@ -3,7 +3,14 @@
     <Transition name="modal-fade">
       <div v-if="isOpen" class="modal-backdrop" @click.self="close">
         <div class="modal-panel">
-          <button class="close-btn" @click="close">✕</button>
+          <button
+            v-if="!isCriticalTask"
+            class="close-btn"
+            @click="close"
+            :disabled="busy || isCriticalTask"
+          >
+            <iconify-icon icon="pixel:window-close-solid" noobserver />
+          </button>
 
           <div v-if="!isAuthenticated">
             <header class="modal-header">
@@ -33,18 +40,31 @@
                     class="balatro-input"
                   />
                 </div>
-                <button type="submit" class="balatro-btn primary" :disabled="loading">
+                <button
+                  type="submit"
+                  class="balatro-btn primary"
+                  :disabled="loading || busy || deletingAccount"
+                >
                   {{ loading ? "CARGANDO..." : isSignup ? "REGISTRARME" : "ENTRAR" }}
                 </button>
               </form>
 
               <div class="divider"><span>o</span></div>
 
-              <button class="balatro-btn google-btn" @click="handleGoogleLogin" :disabled="loading">
+              <button
+                class="balatro-btn google-btn"
+                @click="handleGoogleLogin"
+                :disabled="loading || busy || deletingAccount"
+              >
                 CONTINUAR CON GOOGLE
               </button>
 
-              <button class="link-btn" type="button" @click="isSignup = !isSignup">
+              <button
+                class="link-btn"
+                type="button"
+                @click="isSignup = !isSignup"
+                :disabled="busy || deletingAccount"
+              >
                 {{ isSignup ? "¿Ya tienes cuenta? Inicia sesión" : "¿No tienes cuenta? Crea una" }}
               </button>
             </div>
@@ -97,31 +117,47 @@
                   @mouseleave="showTooltip = false"
                   ref="steamWrapperElement"
                 >
-                  <button class="balatro-btn steam-btn" @click="handleLinkSteam" :disabled="busy">
+                  <button
+                    class="balatro-btn steam-btn"
+                    @click="handleLinkSteam"
+                    :disabled="busy || deletingAccount"
+                  >
                     <iconify-icon icon="pixel:steam" noobserver /> VINCULAR STEAM
                   </button>
                 </div>
 
                 <template v-else>
                   <div class="btn-wrapper sync-wrapper">
-                    <button class="balatro-btn sync-btn" @click="handleSyncSteam" :disabled="busy">
+                    <button
+                      class="balatro-btn sync-btn"
+                      @click="handleSyncSteam"
+                      :disabled="busy || deletingAccount"
+                    >
                       <iconify-icon icon="pixel:refresh-double" noobserver />
                       {{ busy ? "SINCRONIZANDO..." : "SINCRONIZAR CON STEAM" }}
                     </button>
                   </div>
-                  <button class="balatro-btn secondary" @click="handleUnlinkSteam" :disabled="busy">
+                  <button
+                    class="balatro-btn secondary"
+                    @click="handleUnlinkSteam"
+                    :disabled="busy || deletingAccount"
+                  >
                     DESVINCULAR STEAM
                   </button>
                 </template>
 
-                <button class="balatro-btn danger" @click="handleLogout" :disabled="busy">
+                <button
+                  class="balatro-btn danger"
+                  @click="handleLogout"
+                  :disabled="busy || deletingAccount"
+                >
                   CERRAR SESIÓN
                 </button>
                 <div class="danger-zone">
                   <button
                     class="balatro-btn delete-account-btn"
                     @click="handleDeleteAccount"
-                    :disabled="busy"
+                    :disabled="busy || deletingAccount"
                   >
                     ELIMINAR CUENTA
                   </button>
@@ -149,7 +185,7 @@
 import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount } from "vue";
 import { storeToRefs } from "pinia";
 import { useAuthStore } from "@/stores/auth";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
 import { syncSteamAchievements, describeSyncError } from "@/services/steam_sync";
 
 const authStore = useAuthStore();
@@ -178,6 +214,16 @@ const suppressNextSyncError = ref(false);
 const showTooltip = ref(false);
 const tooltipElement = ref(null);
 const steamWrapperElement = ref(null);
+
+const deletingAccount = ref(false);
+const syncingSteam = ref(false);
+const isCriticalTask = computed(() => deletingAccount.value || syncingSteam.value);
+
+onBeforeRouteLeave(() => {
+  if (isCriticalTask.value) {
+    return false;
+  }
+});
 
 function updateTooltipPosition() {
   if (!showTooltip.value || !tooltipElement.value || !steamWrapperElement.value) return;
@@ -209,6 +255,8 @@ watch(showTooltip, (isOpen) => {
 });
 
 onBeforeUnmount(() => {
+  window.removeEventListener("beforeunload", preventUnload);
+
   window.removeEventListener("resize", updateTooltipPosition);
   window.removeEventListener("scroll", updateTooltipPosition);
 });
@@ -223,8 +271,10 @@ function resetNotices() {
 
 // ── Helpers de UI ──
 function close() {
+  // Durante tareas críticas NO puede cerrarse
+  if (isCriticalTask.value) return;
+
   authStore.closeAuthModal();
-  // Limpiamos los estados de error al cerrar para que no persistan en futuras aperturas
   authStore.error = null;
 
   resetNotices();
@@ -267,6 +317,7 @@ async function handleDeleteAccount() {
     return;
   }
 
+  deletingAccount.value = true;
   busy.value = true;
 
   try {
@@ -275,6 +326,7 @@ async function handleDeleteAccount() {
     close();
   } finally {
     busy.value = false;
+    deletingAccount.value = false;
   }
 }
 
@@ -326,16 +378,24 @@ async function handleSyncSteam({ suppressUnauthorized = false } = {}) {
 
   syncMessage.value = "";
   busy.value = true;
+  syncingSteam.value = true;
 
   try {
     const result = await syncSteamAchievements();
     const s = result.summary;
 
+    const achievementLabel =
+      s.newly_unlocked_count === 1 ? "new achievement unlocked" : "new achievements unlocked";
+
+    const itemLabel =
+      s.total_items_cascaded === 1
+        ? "new item added to your collection"
+        : "new items added to your collection";
+
     syncMessage.value =
-      `✓ Sincronización completada.\n` +
-      `${s.newly_unlocked_count} logros nuevos · ` +
-      `${s.total_items_cascaded} items en cascada · ` +
-      `${s.total_sticker_applications} stickers aplicados.`;
+      `✓ Steam sync completed.\n` +
+      `${s.newly_unlocked_count} ${achievementLabel}\n` +
+      `${s.total_items_cascaded} ${itemLabel}.`;
 
     syncClass.value = "success";
 
@@ -356,6 +416,7 @@ async function handleSyncSteam({ suppressUnauthorized = false } = {}) {
     syncClass.value = "error";
   } finally {
     busy.value = false;
+    syncingSteam.value = false;
   }
 }
 
@@ -426,11 +487,27 @@ watch(
     if (!isOpen.value) resetNotices();
   },
 );
+
 watch(isAuthenticated, (authenticated) => {
   if (!authenticated && !isOpen.value) {
     resetNotices();
   }
 });
+
+watch(isCriticalTask, (active) => {
+  if (active) {
+    window.addEventListener("beforeunload", preventUnload);
+  } else {
+    window.removeEventListener("beforeunload", preventUnload);
+  }
+});
+
+function preventUnload(event) {
+  if (!isCriticalTask.value) return;
+
+  event.preventDefault();
+  event.returnValue = "";
+}
 </script>
 
 <style lang="scss" scoped>
@@ -470,6 +547,11 @@ watch(isAuthenticated, (authenticated) => {
   right: 16px;
   background: transparent;
   border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   color: $text-3;
   font-family: "m6x11plus", monospace;
   font-size: 20px;
@@ -765,12 +847,6 @@ watch(isAuthenticated, (authenticated) => {
   gap: 10px;
   background: #2a4d6e;
   color: #9ecde6;
-}
-
-// El notice ya existe; le permitimos respetar saltos de línea para
-// que el mensaje multi-línea del sync no se vea todo seguido.
-.notice {
-  white-space: pre-line;
 }
 
 .steam-tooltip {

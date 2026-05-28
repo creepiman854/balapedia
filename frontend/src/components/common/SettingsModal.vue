@@ -3,7 +3,9 @@
     <Transition name="modal-fade">
       <div v-if="isOpen" class="modal-backdrop" @click.self="$emit('close')">
         <div class="modal-panel settings-panel">
-          <button class="close-btn" @click="$emit('close')">✕</button>
+          <button class="close-btn" @click="$emit('close')">
+            <iconify-icon icon="pixel:window-close-solid" noobserver />
+          </button>
 
           <header class="modal-header">
             <h2 class="modal-title">
@@ -51,6 +53,40 @@
               </div>
             </div>
 
+            <!--
+              Toggle "Mostrar bloqueados desvelados" (Fase 2).
+              OFF (default) → los Jokers/Vouchers/Decks bloqueados se
+                              ven con su asset "locked" oficial.
+              ON (modo spoiler) → se ve la imagen real, pero desaturada
+                              y con brillo reducido (la carta se sigue
+                              identificando como bloqueada).
+              No afecta a consumibles ni sobres (siempre visibles) ni al
+              panel de detalle.
+            -->
+            <div class="control control--toggle">
+              <button
+                type="button"
+                class="toggle-row"
+                :class="{ 'toggle-row--on': showSpoiledLocked }"
+                role="switch"
+                :aria-checked="showSpoiledLocked"
+                @click="setShowSpoiledLocked(!showSpoiledLocked)"
+              >
+                <span class="toggle-row__icon">
+                  <iconify-icon icon="pixel:eye-solid" noobserver />
+                </span>
+                <span class="toggle-row__text">
+                  <span class="toggle-row__label">Mostrar bloqueados desvelados</span>
+                  <span class="toggle-row__hint">
+                    Revela la imagen real de los items bloqueados (atenuada).
+                  </span>
+                </span>
+                <span class="toggle-switch" aria-hidden="true">
+                  <span class="toggle-switch__thumb" />
+                </span>
+              </button>
+            </div>
+
             <p class="hint">Los cambios se aplican automáticamente.</p>
           </div>
         </div>
@@ -71,8 +107,8 @@ const props = defineProps({
 });
 
 const settings = useSettingsStore();
-const { crtIntensity, gridColumns } = storeToRefs(settings);
-const { setCrtIntensity, setGridColumns } = settings;
+const { crtIntensity, gridColumns, showSpoiledLocked } = storeToRefs(settings);
+const { setCrtIntensity, setGridColumns, setShowSpoiledLocked } = settings;
 
 function handleEsc(e) {
   if (e.key === "Escape" && props.isOpen) {
@@ -114,11 +150,17 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleEsc));
   right: 16px;
   background: transparent;
   border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   color: $text-3;
   font-family: "m6x11plus", monospace;
   font-size: 20px;
   cursor: pointer;
   transition: color 0.15s;
+
   &:hover {
     color: #e8443a;
   }
@@ -227,6 +269,99 @@ iconify-icon {
   color: $text-3;
   text-align: center;
   margin-top: 4px;
+}
+
+/*
+ * Toggle row: imita el look de un switch sobre un control. El click en
+ * cualquier parte de la fila (icono / label / hint / switch) cambia el
+ * valor — feedback visual del switch a la derecha. role="switch" para
+ * accesibilidad.
+ */
+.control--toggle {
+  gap: 0;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: filter 0.15s;
+
+  &:hover {
+    filter: brightness(1.15);
+  }
+  &:active {
+    transform: scale(0.99);
+  }
+}
+
+.toggle-row__icon {
+  font-size: 18px;
+  line-height: 1;
+  color: $text-1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-row__text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.toggle-row__label {
+  font-family: "m6x11plus", monospace;
+  font-size: 15px;
+  color: $text-1;
+  letter-spacing: 0.5px;
+}
+
+.toggle-row__hint {
+  font-family: "m6x11plus", monospace;
+  font-size: 10px;
+  color: $text-3;
+  letter-spacing: 0.3px;
+  line-height: 1.3;
+}
+
+.toggle-switch {
+  flex-shrink: 0;
+  width: 36px;
+  height: 18px;
+  background: $panel-darkest;
+  position: relative;
+  transition: background 0.18s ease;
+}
+
+.toggle-switch__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: $panel-light;
+  transition:
+    left 0.18s ease,
+    background 0.18s ease;
+}
+
+.toggle-row--on .toggle-switch {
+  background: #22c55e;
+}
+
+.toggle-row--on .toggle-switch__thumb {
+  left: 20px;
+  background: #ffffff;
 }
 
 /* Transición del modal (misma que AuthModal) */
