@@ -20,26 +20,26 @@
  * (en vez de un genérico "no se pudo cargar"). Esto ahorra horas de
  * debug cuando un endpoint cambia de nombre o de filtros.
  */
-import { api } from './api'
+import { api } from "./api";
 
 function wrapError(e, contextPath) {
   if (e.response) {
-    const status = e.response.status
-    const data = e.response.data || {}
+    const status = e.response.status;
+    const data = e.response.data || {};
     const detail =
       (data.details && JSON.stringify(data.details)) ||
       data.message ||
       data.error ||
       e.response.statusText ||
-      `HTTP ${status}`
-    const err = new Error(`${contextPath} → ${status}: ${detail}`)
-    err.cause = e
-    return err
+      `HTTP ${status}`;
+    const err = new Error(`${contextPath} → ${status}: ${detail}`);
+    err.cause = e;
+    return err;
   }
   if (e.request) {
-    return new Error(`${contextPath} → sin respuesta del backend (¿flask corriendo en :8080?)`)
+    return new Error(`${contextPath} → sin respuesta del backend (¿flask corriendo en :8080?)`);
   }
-  return e
+  return e;
 }
 
 /**
@@ -48,25 +48,26 @@ function wrapError(e, contextPath) {
  * @returns {Promise<Array<object>>}
  */
 export async function fetchConsumablesByType(type) {
-  const path = '/api/consumables'
-  const params = { type, per_page: 100, page: 1 }
+  const path = "/api/consumables";
+  const params = { type, per_page: 100, page: 1 };
 
   try {
-    const first = await api.get(path, { params })
-    let items = [...first.data.items]
-    const totalPages = first.data.total_pages || 1
+    const first = await api.get(path, { params });
+    let items = [...first.data.items];
+    const totalPages = first.data.total_pages || 1;
 
     if (totalPages > 1) {
-      const rest = await Promise.all(
-        Array.from({ length: totalPages - 1 }, (_, i) =>
-          api.get(path, { params: { ...params, page: i + 2 } }),
-        ),
-      )
-      for (const r of rest) items = items.concat(r.data.items)
+      for (let page = 2; page <= totalPages; page++) {
+        const r = await api.get(path, {
+          params: { ...params, page },
+        });
+
+        items = items.concat(r.data.items);
+      }
     }
-    return items
+    return items;
   } catch (e) {
-    throw wrapError(e, `${path}?type=${type}`)
+    throw wrapError(e, `${path}?type=${type}`);
   }
 }
 
@@ -77,9 +78,9 @@ export async function fetchConsumablesByType(type) {
  */
 export async function fetchConsumableById(id) {
   try {
-    const { data } = await api.get(`/api/consumables/${id}`)
-    return data
+    const { data } = await api.get(`/api/consumables/${id}`);
+    return data;
   } catch (e) {
-    throw wrapError(e, `/api/consumables/${id}`)
+    throw wrapError(e, `/api/consumables/${id}`);
   }
 }

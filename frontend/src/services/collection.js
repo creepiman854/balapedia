@@ -1,25 +1,26 @@
 /**
  * Servicio de Colección.
  *
- * Endpoints consumidos (todos públicos, sin auth):
- *   - GET /api/decks
- *   - GET /api/vouchers
- *   - GET /api/booster-packs
- *   - GET /api/card-modifiers?modifier_type=ENHANCEMENT|EDITION|SEAL
- *
- * No hay equivalente `/api/me/*` para ninguno. Cuando exista (overlay
- * de "qué decks tengo Gold Sticker", "qué vouchers he usado"…), basta
- * con duplicar las funciones aquí con el path autenticado.
+ * Endpoints consumidos:
+ *   - GET  /api/decks            /  /api/me/decks
+ *   - GET  /api/vouchers         /  /api/me/vouchers
+ *   - GET  /api/booster-packs    /  /api/me/booster-packs
+ *   - GET  /api/card-modifiers   (sin /me/* — modifiers no son Unlockable)
+ *   - POST /api/me/unlocks       (compartido para todos los Unlockables;
+ *                                 incluye re-lock con unlocked=false)
  *
  * Forma de los items (heredan de Unlockable):
  *   id, type, item_number, name, description, image_url,
- *   unlock_condition, wiki_url, unlock_factor
+ *   unlock_condition, wiki_url, unlock_factor, locked_image_url?
  *   + campos propios de cada subclase:
  *     - Deck:        (sin extras, todo viene del padre)
- *     - Voucher:     voucher_tier ('BASE' | 'UPGRADED')
- *     - BoosterPack: pack_type ('ARCANA'|...), size ('NORMAL'|'JUMBO'|'MEGA'), cost
+ *     - Voucher:     voucher_tier ('BASE' | 'UPGRADED'), buy_price
+ *     - BoosterPack: pack_type ('ARCANA'|...), size ('NORMAL'|...), cost
  *     - CardModifier (no es subclase de Unlockable, tabla flat):
- *         modifier_type ('ENHANCEMENT' | 'EDITION' | 'SEAL'), name, description
+ *         modifier_type ('ENHANCEMENT' | 'EDITION' | 'SEAL'), name, effect
+ *
+ * `locked_image_url` (Fase 2) lo expone el backend solo para Jokers,
+ * Vouchers y Decks — los demás subtipos lo reciben como `undefined`.
  *
  * Errores: envolvemos los AxiosError en Error con status + mensaje del
  * backend para diagnosticar a la primera (igual que services/consumables.js).
@@ -77,12 +78,13 @@ async function fetchAllPages(path, extraParams = {}, contextLabel = null) {
     let items = [...first.data.items];
     const totalPages = first.data.total_pages || 1;
     if (totalPages > 1) {
-      const rest = await Promise.all(
-        Array.from({ length: totalPages - 1 }, (_, i) =>
-          api.get(path, { params: { ...params, page: i + 2 } }),
-        ),
-      );
-      for (const r of rest) items = items.concat(r.data.items);
+      for (let page = 2; page <= totalPages; page++) {
+        const r = await api.get(path, {
+          params: { ...params, page },
+        });
+
+        items = items.concat(r.data.items);
+      }
     }
     return items;
   } catch (e) {
@@ -185,7 +187,7 @@ export async function fetchAllCardModifiers() {
   return grouped;
 }
 
-// ── Manual unlock ─────────────────────────────────────────────────
+// ── Manual unlock / re-lock ───────────────────────────────────────
 /**
  * Marca un Unlockable como desbloqueado para el usuario actual.
  *
@@ -207,4 +209,24 @@ export async function fetchAllCardModifiers() {
  */
 export async function unlockItem(unlockableId) {
   await api.post("/api/me/unlocks", { unlockable_id: unlockableId, unlocked: true });
+}
+
+/**
+ * Re-bloquea un Unlockable que el usuario había desbloqueado
+ * manualmente (o por cascade de Steam). El backend lo persiste con
+ * `unlocked=false`; tras esto, `/api/me/<subtipo>` lo devolverá con
+ * `unlocked_for_me: false` y la cascade respeta `source=MANUAL` —
+ * los items que el usuario marcó a mano sobreviven al re-lock de
+ * achievements relacionados.
+ *
+ * Útil para corregir un click accidental, hacer pruebas, o revertir
+ * un cascade que el usuario no quiere ver completado en su catálogo.
+ *
+ * Mismo endpoint que `unlockItem` con la única diferencia del flag —
+ * el backend usa `set_unlock_for_user` con el `unlocked` recibido.
+ *
+ * @param {number} unlockableId
+ */
+export async function relockItem(unlockableId) {
+  await api.post("/api/me/unlocks", { unlockable_id: unlockableId, unlocked: false });
 }

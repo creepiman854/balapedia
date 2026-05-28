@@ -53,26 +53,26 @@
  * y crear UserAchievement por cada `achieved=1`). El frontend lo único
  * que hace es ocultar el botón manual cuando detecta `user.steam_id`.
  */
-import { api } from './api'
+import { api } from "./api";
 
 function wrapError(e, contextPath) {
   if (e.response) {
-    const status = e.response.status
-    const data = e.response.data || {}
+    const status = e.response.status;
+    const data = e.response.data || {};
     const detail =
       (data.details && JSON.stringify(data.details)) ||
       data.message ||
       data.error ||
       e.response.statusText ||
-      `HTTP ${status}`
-    const err = new Error(`${contextPath} → ${status}: ${detail}`)
-    err.cause = e
-    return err
+      `HTTP ${status}`;
+    const err = new Error(`${contextPath} → ${status}: ${detail}`);
+    err.cause = e;
+    return err;
   }
   if (e.request) {
-    return new Error(`${contextPath} → sin respuesta del backend (¿flask corriendo?)`)
+    return new Error(`${contextPath} → sin respuesta del backend (¿flask corriendo?)`);
   }
-  return e
+  return e;
 }
 
 /**
@@ -82,12 +82,12 @@ function wrapError(e, contextPath) {
  */
 async function withColdStartRetry(fn) {
   try {
-    return await fn()
+    return await fn();
   } catch (e) {
-    const is500 = e?.response?.status === 500
-    if (!is500) throw e
-    await new Promise((r) => setTimeout(r, 700))
-    return await fn()
+    const is500 = e?.response?.status === 500;
+    if (!is500) throw e;
+    await new Promise((r) => setTimeout(r, 700));
+    return await fn();
   }
 }
 
@@ -96,23 +96,24 @@ async function withColdStartRetry(fn) {
  * en paralelo. Devuelve la lista concatenada de `items`.
  */
 async function fetchAllPages(path, extraParams = {}, contextLabel = null) {
-  const ctx = contextLabel ?? path
-  const params = { per_page: 100, page: 1, ...extraParams }
+  const ctx = contextLabel ?? path;
+  const params = { per_page: 100, page: 1, ...extraParams };
   try {
-    const first = await withColdStartRetry(() => api.get(path, { params }))
-    let items = [...first.data.items]
-    const totalPages = first.data.total_pages || 1
+    const first = await withColdStartRetry(() => api.get(path, { params }));
+    let items = [...first.data.items];
+    const totalPages = first.data.total_pages || 1;
     if (totalPages > 1) {
-      const rest = await Promise.all(
-        Array.from({ length: totalPages - 1 }, (_, i) =>
-          api.get(path, { params: { ...params, page: i + 2 } }),
-        ),
-      )
-      for (const r of rest) items = items.concat(r.data.items)
+      for (let page = 2; page <= totalPages; page++) {
+        const r = await api.get(path, {
+          params: { ...params, page },
+        });
+
+        items = items.concat(r.data.items);
+      }
     }
-    return items
+    return items;
   } catch (e) {
-    throw wrapError(e, ctx)
+    throw wrapError(e, ctx);
   }
 }
 
@@ -125,8 +126,8 @@ async function fetchAllPages(path, extraParams = {}, contextLabel = null) {
  * @returns {Promise<Array<object>>}
  */
 export async function fetchAllAchievements({ authenticated = false } = {}) {
-  const path = authenticated ? '/api/me/achievements' : '/api/achievements'
-  return fetchAllPages(path)
+  const path = authenticated ? "/api/me/achievements" : "/api/achievements";
+  return fetchAllPages(path);
 }
 
 /**
@@ -137,9 +138,9 @@ export async function fetchAllAchievements({ authenticated = false } = {}) {
  * @param {number} achievementId
  * @returns {Promise<void>}
  */
-export async function unlockAchievement(achievementId) {
-  await api.post('/api/me/achievements/unlock', {
+export async function unlockAchievement(achievementId, unlocked = true) {
+  await api.post("/api/me/achievements/unlock", {
     achievement_id: achievementId,
-    unlocked: true,
-  })
+    unlocked,
+  });
 }

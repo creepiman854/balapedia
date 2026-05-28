@@ -13,7 +13,7 @@
  * El interceptor de `src/services/api.js` inyecta el ID Token de Firebase
  * en cada petición autenticada, así que aquí no hace falta tocar headers.
  */
-import { api } from './api'
+import { api } from "./api";
 
 /**
  * Recolecta TODAS las páginas de jokers en una sola lista.
@@ -23,23 +23,24 @@ import { api } from './api'
  * @returns {Promise<Array<object>>}
  */
 export async function fetchAllJokers({ authenticated = false, rarity } = {}) {
-  const path = authenticated ? '/api/me/jokers' : '/api/jokers'
-  const params = { per_page: 100, page: 1 }
-  if (rarity) params.rarity = rarity
+  const path = authenticated ? "/api/me/jokers" : "/api/jokers";
+  const params = { per_page: 100, page: 1 };
+  if (rarity) params.rarity = rarity;
 
-  const first = await api.get(path, { params })
-  let items = [...first.data.items]
-  const totalPages = first.data.total_pages || 1
+  const first = await api.get(path, { params });
+  let items = [...first.data.items];
+  const totalPages = first.data.total_pages || 1;
 
   if (totalPages > 1) {
-    const rest = await Promise.all(
-      Array.from({ length: totalPages - 1 }, (_, i) =>
-        api.get(path, { params: { ...params, page: i + 2 } }),
-      ),
-    )
-    for (const r of rest) items = items.concat(r.data.items)
+    for (let page = 2; page <= totalPages; page++) {
+      const r = await api.get(path, {
+        params: { ...params, page },
+      });
+
+      items = items.concat(r.data.items);
+    }
   }
-  return items
+  return items;
 }
 
 /**
@@ -48,8 +49,8 @@ export async function fetchAllJokers({ authenticated = false, rarity } = {}) {
  * @returns {Promise<object>}
  */
 export async function fetchJokerById(id) {
-  const { data } = await api.get(`/api/jokers/${id}`)
-  return data
+  const { data } = await api.get(`/api/jokers/${id}`);
+  return data;
 }
 
 /**
@@ -57,8 +58,8 @@ export async function fetchJokerById(id) {
  * @returns {Promise<object>}
  */
 export async function fetchMySummary() {
-  const { data } = await api.get('/api/me/summary')
-  return data
+  const { data } = await api.get("/api/me/summary");
+  return data;
 }
 
 /**
@@ -78,7 +79,7 @@ export async function fetchMySummary() {
  * @returns {Promise<void>}
  */
 export async function unlockJoker(jokerId) {
-  await api.post('/api/me/unlocks', { unlockable_id: jokerId, unlocked: true })
+  await api.post("/api/me/unlocks", { unlockable_id: jokerId, unlocked: true });
 }
 
 /**
@@ -88,5 +89,5 @@ export async function unlockJoker(jokerId) {
  * @param {number} jokerId
  */
 export async function relockJoker(jokerId) {
-  await api.post('/api/me/unlocks', { unlockable_id: jokerId, unlocked: false })
+  await api.post("/api/me/unlocks", { unlockable_id: jokerId, unlocked: false });
 }
