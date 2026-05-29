@@ -215,6 +215,8 @@ class Voucher(db.Model):
         db.ForeignKey("unlockables.id"),
         nullable=True,
     )
+    
+    buy_price = db.Column(db.Integer, nullable=True)
 
     unlockable = db.relationship(
         "Unlockable",

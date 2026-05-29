@@ -1,40 +1,44 @@
 <!--
   Vista de COLECCIÓN.
 
-  Pase 2:
-    · Carga TODOS los sub-tabs en mount (Promise.all) — necesario para
-      calcular la barra de progreso global. Coste: 4 requests
-      paralelas al cargar; tras eso, los datos se cachean en refs.
-    · Lock state por item (helper isItemLocked): cuando hay sesión y
-      el item no es "Available from start", se marca locked salvo que
-      el backend devuelva `unlocked_for_me: true`.
-    · Sub-tabs reposicionados a la IZQUIERDA del FilterBar (toolbar
-      flex). Encima de la toolbar, ProgressBar global cuando hay
-      sesión.
-    · SOBRES en grid de 2 columnas (ARCANA+CELESTIAL, STANDARD+BUFFOON;
-      SPECTRAL solo en su propia fila ocupando todo el ancho).
-    · MAZOS recibe `:stack="true"` para mostrar el efecto pila detrás.
-    · Filtros por sub-tab:
-        DECKS    → search + status + sort
-        SOBRES   → search + type (pack) + status + sort
-        VALES    → search + sort
-        MEJORAS  → search + type (section) + sort
+  Subtabs (Fase 3):
+    DECKS         → barajas regulares + sección Challenge Decks abajo.
+    BOOSTER PACKS → 5 grupos por pack_type.
+    VOUCHERS      → base/upgraded.
+    CARD MODIFIERS → Enhancements/Editions/Seals.
+    BLINDS        → fila destacada (Small + Big) + grid Boss/Finisher.
+    TAGS          → grid de 24 tags.
+
+  Reglas de diseño preservadas:
+    · Carga sub-tabs en SECUENCIA (max_user_connections=5 del pool MySQL).
+    · BLINDS y TAGS no son Unlockable: cuentan en la barra de progreso
+      global como "siempre desbloqueados" (decisión de UX para que la %
+      refleje la presencia total en la app).
+    · Challenge Decks SÍ son Unlockable: contribuyen al lock-state real
+      vía Rule Breaker (BAL_23) o desbloqueo manual.
+    · El detail-col se oculta en BLINDS y TAGS — la info se sirve
+      exclusivamente via tooltip flotante (ItemTooltip con kind='blind'
+      o kind='tag'). En el resto, ItemDetailPanel como hasta ahora.
+
+  Lock-state:
+    · Para Unlockables (decks/vouchers/packs/challenge-decks) → isItemLocked
+    · Para Blinds/Tags → siempre false (no son Unlockable).
 -->
 <template>
   <div class="collection-view">
-    <div class="layout">
+    <div class="layout" :class="{ 'layout--full': isFullWidth }">
       <!-- ── Columna izquierda ── -->
-      <div class="grid-col">
-        <!-- Progress bar global (suma de los 4 sub-tabs) -->
+      <div class="grid-col" style="position: relative">
+        <!-- Progress bar global (suma de todos los sub-tabs) -->
         <ProgressBar
           v-if="isAuthenticated && globalTotal > 0"
           :value="globalUnlocked"
           :max="globalTotal"
           color="#22c55e"
-          label="COLECCIÓN DESBLOQUEADA"
+          label="COLLECTION UNLOCKED"
         />
 
-        <!-- Toolbar: sub-tabs a la izquierda + filtros llenando la fila -->
+        <!-- Toolbar: sub-tabs + filtros -->
         <div class="toolbar">
           <div class="subtabs">
             <button
@@ -56,39 +60,88 @@
             v-model="filters"
             :enabled="enabledFilters"
             :type-options="typeOptions"
-            :sort-options="sortOptions"
-            :search-placeholder="`Buscar ${currentSubLabel.toLowerCase()}...`"
+            :size-options="sizeOptions"
+            :search-placeholder="`Search ${currentSubLabel.toLowerCase()}...`"
           />
         </div>
 
         <div class="count">
-          <template v-if="loading">Cargando colección...</template>
+          <template v-if="loading">Loading collection...</template>
           <template v-else-if="error">{{ error }}</template>
-          <template v-else>{{ subtabCount }} elementos</template>
+          <template v-else>{{ subtabCount }} items found</template>
         </div>
 
+        <BalatroLoader v-if="showLoader" :is-loading="loading" @hidden="showLoader = false" />
+
         <div class="grid-scroll">
-          <!-- ============ MAZOS ============ -->
-          <div
-            v-if="!loading && !error && currentSub === 'decks'"
-            class="grid"
-            :style="{ gridTemplateColumns: `repeat(${DECK_COLS}, 1fr)` }"
-          >
-            <ItemCard
-              v-for="(item, idx) in filteredDecks"
-              :key="item.id"
-              class="card-deal-anim"
-              :style="{ animationDelay: `${Math.min(idx, 50) * 35}ms` }"
-              :item="item"
-              :is-locked="isLocked(item)"
-              :is-selected="selectedItem?.id === item.id && selectedItem?._kind === 'deck'"
-              :col-index="idx % DECK_COLS"
-              :col-count="DECK_COLS"
-              :stack="true"
-              @select="onSelect($event, 'deck')"
-              @hover="onHover"
-              @leave="onLeave"
-            />
+          <!-- ============ MAZOS + CHALLENGE DECKS ============ -->
+          <div v-if="!loading && !error && currentSub === 'decks'" class="sectioned">
+            <!-- Sección BARAJAS regulares -->
+            <section
+              v-if="!filters.type || filters.type === 'all' || filters.type === 'normal'"
+              class="mod-section"
+            >
+              <header class="mod-section__head" style="color: #e84040">
+                DECKS
+                <span class="mod-section__count">{{ filteredDecks.length }}</span>
+              </header>
+              <div
+                v-if="filteredDecks.length"
+                class="grid mod-section__grid"
+                :style="{ gridTemplateColumns: `repeat(${DECK_COLS}, 1fr)` }"
+              >
+                <ItemCard
+                  v-for="(item, idx) in filteredDecks"
+                  :key="`deck-${item.id}`"
+                  class="card-deal-anim"
+                  :style="{ animationDelay: `${Math.min(idx, 30) * 35}ms` }"
+                  :item="item"
+                  :is-locked="isLocked(item)"
+                  :is-selected="selectedItem?.id === item.id && selectedItem?._kind === 'deck'"
+                  :col-index="idx % DECK_COLS"
+                  :col-count="DECK_COLS"
+                  :stack="true"
+                  @select="onSelect($event, 'deck')"
+                  @hover="onHover"
+                  @leave="onLeave"
+                />
+              </div>
+              <p v-else class="mod-section__empty">— no items —</p>
+            </section>
+
+            <!-- Sección CHALLENGE DECKS -->
+            <section
+              v-if="!filters.type || filters.type === 'all' || filters.type === 'challenge'"
+              class="mod-section"
+            >
+              <header class="mod-section__head" style="color: #8b5cf6">
+                CHALLENGE DECKS
+                <span class="mod-section__count">{{ filteredChallengeDecks.length }}</span>
+              </header>
+              <div
+                v-if="filteredChallengeDecks.length"
+                class="grid mod-section__grid"
+                :style="{ gridTemplateColumns: `repeat(${DECK_COLS}, 1fr)` }"
+              >
+                <ItemCard
+                  v-for="(item, idx) in filteredChallengeDecks"
+                  :key="`challenge-${item.id}`"
+                  class="card-deal-anim"
+                  :style="{ animationDelay: `${Math.min(idx, 30) * 35}ms` }"
+                  :item="item"
+                  :is-locked="isLocked(item)"
+                  :is-selected="
+                    selectedItem?.id === item.id && selectedItem?._kind === 'challenge_deck'
+                  "
+                  :col-index="idx % DECK_COLS"
+                  :col-count="DECK_COLS"
+                  @select="onSelect($event, 'challenge_deck')"
+                  @hover="onHover"
+                  @leave="onLeave"
+                />
+              </div>
+              <p v-else class="mod-section__empty">— no items —</p>
+            </section>
           </div>
 
           <!-- ============ SOBRES (booster packs) ============ -->
@@ -103,6 +156,7 @@
                   {{ group.label }}
                 </header>
                 <div
+                  v-if="group.items.length"
                   class="grid pack-section__grid"
                   :style="{ gridTemplateColumns: `repeat(${PACK_COLS}, 1fr)` }"
                 >
@@ -121,30 +175,34 @@
                     @leave="onLeave"
                   />
                 </div>
+                <p v-else class="mod-section__empty">— no items —</p>
               </section>
             </div>
           </div>
 
           <!-- ============ VALES (vouchers) ============ -->
-          <div
-            v-else-if="!loading && !error && currentSub === 'vouchers'"
-            class="grid"
-            :style="{ gridTemplateColumns: `repeat(${VOUCHER_COLS}, 1fr)` }"
-          >
-            <ItemCard
-              v-for="(item, idx) in filteredVouchers"
-              :key="item.id"
-              class="card-deal-anim"
-              :style="{ animationDelay: `${Math.min(idx, 50) * 35}ms` }"
-              :item="item"
-              :is-locked="isLocked(item)"
-              :is-selected="selectedItem?.id === item.id && selectedItem?._kind === 'voucher'"
-              :col-index="idx % VOUCHER_COLS"
-              :col-count="VOUCHER_COLS"
-              @select="onSelect($event, 'voucher')"
-              @hover="onHover"
-              @leave="onLeave"
-            />
+          <div v-else-if="!loading && !error && currentSub === 'vouchers'">
+            <div
+              v-if="filteredVouchers.length"
+              class="grid"
+              :style="{ gridTemplateColumns: `repeat(${VOUCHER_COLS}, 1fr)` }"
+            >
+              <ItemCard
+                v-for="(item, idx) in filteredVouchers"
+                :key="item.id"
+                class="card-deal-anim"
+                :style="{ animationDelay: `${Math.min(idx, 50) * 35}ms` }"
+                :item="item"
+                :is-locked="isLocked(item)"
+                :is-selected="selectedItem?.id === item.id && selectedItem?._kind === 'voucher'"
+                :col-index="idx % VOUCHER_COLS"
+                :col-count="VOUCHER_COLS"
+                @select="onSelect($event, 'voucher')"
+                @hover="onHover"
+                @leave="onLeave"
+              />
+            </div>
+            <p v-else class="mod-section__empty">— no items —</p>
           </div>
 
           <!-- ============ MEJORAS (card modifiers) ============ -->
@@ -182,14 +240,123 @@
                   @leave="onLeave"
                 />
               </div>
-              <p v-else class="mod-section__empty">— sin elementos —</p>
+              <p v-else class="mod-section__empty">— no items —</p>
             </section>
+          </div>
+
+          <!-- ============ BLINDS ============ -->
+          <div v-else-if="!loading && !error && currentSub === 'blinds'" class="blinds-wrapper">
+            <!-- Tabla lateral de Antes -->
+            <aside class="ante-sidebar">
+              <header class="ante-sidebar__head">
+                <span style="color: #f0a020">ANTE</span>
+                <span style="color: #e84040">BASE</span>
+              </header>
+              <ul class="ante-sidebar__list">
+                <li v-for="row in ANTE_TABLE" :key="row.ante" class="ante-row">
+                  <span class="ante-row__num">{{ row.ante }}</span>
+                  <span class="ante-row__base" :style="{ color: row.color }">
+                    <span class="ante-row__chip"></span>
+                    {{ row.base }}
+                  </span>
+                </li>
+              </ul>
+            </aside>
+
+            <!-- Contenedor principal de los Blinds -->
+            <div class="blinds-layout">
+              <section v-if="!filters.type || filters.type === 'all'" class="blinds-hero">
+                <header class="mod-section__head" style="color: #cfd6d8">
+                  ANTE
+                  <span class="mod-section__count">{{ heroBlinds.length }}</span>
+                </header>
+                <div v-if="heroBlinds.length" class="blinds-hero__row">
+                  <BlindCard
+                    v-for="blind in heroBlinds"
+                    :key="`hero-${blind.id}`"
+                    :item="blind"
+                    variant="hero"
+                    @hover="onHoverBlind"
+                    @leave="onLeave"
+                  />
+                </div>
+                <p v-else class="mod-section__empty">— no items —</p>
+              </section>
+
+              <section
+                v-if="!filters.type || filters.type === 'all' || filters.type === 'BOSS'"
+                class="mod-section"
+              >
+                <header class="mod-section__head" style="color: #e84040">
+                  BOSS BLINDS
+                  <span class="mod-section__count">{{ normalBossBlinds.length }}</span>
+                </header>
+                <div
+                  v-if="normalBossBlinds.length"
+                  class="grid mod-section__grid"
+                  :style="{ gridTemplateColumns: `repeat(${BLIND_COLS}, 1fr)`, gap: '12px' }"
+                >
+                  <BlindCard
+                    v-for="blind in normalBossBlinds"
+                    :key="`boss-${blind.id}`"
+                    :item="blind"
+                    variant="grid"
+                    @hover="onHoverBlind"
+                    @leave="onLeave"
+                  />
+                </div>
+                <p v-else class="mod-section__empty">— no items —</p>
+              </section>
+
+              <section
+                v-if="!filters.type || filters.type === 'all' || filters.type === 'FINISHER'"
+                class="mod-section"
+              >
+                <header class="mod-section__head" style="color: #f0a020">
+                  FINISHER BLINDS
+                  <span class="mod-section__count">{{ finisherBossBlinds.length }}</span>
+                </header>
+                <div
+                  v-if="finisherBossBlinds.length"
+                  class="grid mod-section__grid"
+                  :style="{ gridTemplateColumns: `repeat(${BLIND_COLS}, 1fr)`, gap: '12px' }"
+                >
+                  <BlindCard
+                    v-for="blind in finisherBossBlinds"
+                    :key="`finisher-${blind.id}`"
+                    :item="blind"
+                    variant="grid"
+                    @hover="onHoverBlind"
+                    @leave="onLeave"
+                  />
+                </div>
+                <p v-else class="mod-section__empty">— no items —</p>
+              </section>
+            </div>
+          </div>
+
+          <!-- ============ TAGS ============ -->
+          <div v-else-if="!loading && !error && currentSub === 'tags'">
+            <div
+              v-if="filteredTags.length"
+              class="grid"
+              :style="{ gridTemplateColumns: `repeat(${TAG_COLS}, 1fr)`, gap: '12px' }"
+            >
+              <TagCard
+                v-for="tag in filteredTags"
+                :key="tag.id"
+                :item="tag"
+                @hover="onHoverTag"
+                @leave="onLeave"
+              />
+            </div>
+            <p v-else class="mod-section__empty">— no items —</p>
           </div>
         </div>
       </div>
 
-      <!-- ── Columna derecha ── -->
-      <div class="detail-col">
+      <!-- ── Columna derecha (oculta en blinds/tags) ── -->
+      <div v-if="!isFullWidth" class="detail-col">
         <div class="detail-col__head">
           <span>{{
             selectedItem ? selectedItem.name.toUpperCase() : currentSubLabel.toUpperCase()
@@ -207,12 +374,14 @@
       </div>
     </div>
 
+    <!-- Tooltip flotante: comparte componente para unlockable/blind/tag -->
     <ItemTooltip
       v-if="tooltip"
       :item="tooltip.item"
-      :is-locked="isLocked(tooltip.item)"
+      :is-locked="tooltip.kind === 'unlockable' && isLocked(tooltip.item)"
       :card-center-x="tooltip.cardCenterX"
       :card-top="tooltip.cardTop"
+      :kind="tooltip.kind"
     />
   </div>
 </template>
@@ -226,17 +395,26 @@ import {
   fetchAllDecks,
   fetchAllVouchers,
   fetchAllBoosterPacks,
+  fetchAllChallengeDecks,
   fetchAllCardModifiers,
   unlockItem,
+  relockItem,
 } from "@/services/collection";
+import { fetchAllBlinds, fetchAllTags } from "@/services/reference";
+import { fetchAllJokers } from "@/services/jokers";
+import { fetchAllConsumables } from "@/services/consumables";
 import { isItemLocked } from "@/constants/items";
 import { useProgressionStore } from "@/stores/progression";
+import { useDictionaryStore } from "@/stores/dictionary";
+import { setStickerApplication } from "@/services/progression";
 
 import FilterBar from "@/components/common/FilterBar.vue";
 import ProgressBar from "@/components/common/ProgressBar.vue";
 import ItemCard from "@/components/items/ItemCard.vue";
 import ItemDetailPanel from "@/components/items/ItemDetailPanel.vue";
 import ItemTooltip from "@/components/items/ItemTooltip.vue";
+import BlindCard from "@/components/items/BlindCard.vue";
+import TagCard from "@/components/items/TagCard.vue";
 
 const authStore = useAuthStore();
 const { isAuthenticated, lastSyncedAt } = storeToRefs(authStore);
@@ -245,16 +423,20 @@ const bgStore = useBackgroundStore();
 const progStore = useProgressionStore();
 
 const SUBTABS = [
-  { id: "decks", label: "MAZOS", color: "#e84040" },
-  { id: "booster-packs", label: "SOBRES", color: "#f59e0b" },
-  { id: "vouchers", label: "VALES", color: "#3b82f6" },
-  { id: "card-modifiers", label: "MEJORAS", color: "#22c55e" },
+  { id: "decks", label: "DECKS", color: "#e84040" },
+  { id: "booster-packs", label: "PACKS", color: "#f59e0b" },
+  { id: "vouchers", label: "VOUCHERS", color: "#3b82f6" },
+  { id: "card-modifiers", label: "MODIFIERS", color: "#22c55e" },
+  { id: "blinds", label: "BLINDS", color: "#cf3535" },
+  { id: "tags", label: "TAGS", color: "#22c55e" },
 ];
 
 const DECK_COLS = 6;
-const PACK_COLS = 3; // dentro de cada grupo pack_type
+const PACK_COLS = 3;
 const VOUCHER_COLS = 6;
 const MOD_COLS = 8;
+const BLIND_COLS = 5;
+const TAG_COLS = 6;
 
 const PACK_TYPES = [
   { id: "ARCANA", label: "ARCANA", color: "#D8B062" },
@@ -271,23 +453,51 @@ const MOD_SECTIONS = [
   { key: "seals", label: "SEALS", color: "#f59e0b" },
 ];
 
+const ANTE_TABLE = [
+  { ante: 1, base: "300", color: "#e84040" },
+  { ante: 2, base: "800", color: "#e84040" },
+  { ante: 3, base: "2,000", color: "#e84040" },
+  { ante: 4, base: "5,000", color: "#e84040" },
+  { ante: 5, base: "11,000", color: "#e84040" },
+  { ante: 6, base: "20,000", color: "#e84040" },
+  { ante: 7, base: "35,000", color: "#e84040" },
+  { ante: 8, base: "50,000", color: "#e84040" },
+  { ante: 9, base: "110,000", color: "#e84040" },
+  { ante: 10, base: "560,000", color: "#e84040" },
+  { ante: 11, base: "7,200,000", color: "#e84040" },
+  { ante: 12, base: "300,000,000", color: "#e84040" },
+  { ante: 13, base: "47,000,000,000", color: "#a8c4c8" },
+  { ante: 14, base: "2.900e13", color: "#a8c4c8" },
+  { ante: 15, base: "7.700e16", color: "#a8c4c8" },
+  { ante: 16, base: "8.600e20", color: "#a8c4c8" },
+];
+
 // ── Estado ────────────────────────────────────────────────────────
+import BalatroLoader from "@/components/common/BalatroLoader.vue";
+
 const currentSub = ref("decks");
 const loading = ref(false);
+const showLoader = ref(true);
 const error = ref("");
 
 const decks = ref([]);
 const vouchers = ref([]);
 const boosterPacks = ref([]);
+const challengeDecks = ref([]);
 const modifiers = ref({ enhancements: [], editions: [], seals: [] });
+const blinds = ref([]);
+const tags = ref([]);
 
 const currentSubLabel = computed(() => SUBTABS.find((s) => s.id === currentSub.value)?.label || "");
 
-function defaultFilters(sub = currentSub.value) {
-  // Vouchers arrancan en 'name' (A-Z) porque su sortOptions no
-  // incluye 'id'. El resto usa 'id' como sort por defecto.
-  const defaultSort = sub === "vouchers" ? "name" : "id";
-  return { search: "", sort: defaultSort, status: "all", type: "all" };
+/**
+ * Sub-tabs sin detail-col (full-width grid). BLINDS y TAGS muestran
+ * info solo en tooltip flotante; sus tarjetas no se "seleccionan".
+ */
+const isFullWidth = computed(() => currentSub.value === "blinds" || currentSub.value === "tags");
+
+function defaultFilters() {
+  return { search: "", sort: "id", status: "all", type: "all", size: "all" };
 }
 
 function selectSub(id) {
@@ -301,39 +511,37 @@ function selectSub(id) {
 
 // ── Carga ─────────────────────────────────────────────────────────
 /**
- * Cargamos los 4 sub-tabs en SECUENCIA, no en paralelo.
- *
- * Por qué: el plan de hosting actual del backend permite solo 5
- * conexiones simultáneas por usuario MySQL (max_user_connections=5).
- * Promise.all con 4 sub-tabs disparaba 4 conexiones a la vez; si el
- * usuario tenía otras pestañas/requests abiertas (auth, /api/me/*),
- * se llegaba a 5+ y MySQL devolvía 1226 → el backend respondía 500.
- *
- * Secuencial cierra cada conexión antes de abrir la siguiente, así
- * nunca hay más de 1 conexión activa de esta vista a la vez. Coste:
- * ~400-600 ms más en la primera carga, una sola vez.
+ * Cargamos los sub-tabs en SECUENCIA, no en paralelo (max_user_connections=5).
+ * Coste: ~600-800 ms total en la primera carga; aceptable.
  */
 async function loadAll() {
   loading.value = true;
+  showLoader.value = true;
   error.value = "";
   try {
     decks.value = await fetchAllDecks({ authenticated: isAuthenticated.value });
-    // Vouchers también necesita el endpoint autenticado para que la
-    // cascade del Steam sync (BAL_07 → Nacho Tong, BAL_08 → Recyclomancy)
-    // sea visible en la UI. Sin esto, el cascade SÍ crea las filas
-    // UserUnlock pero el frontend lee del endpoint público sin overlay
-    // y los vouchers parecen siempre locked.
     vouchers.value = await fetchAllVouchers({ authenticated: isAuthenticated.value });
-    // Booster packs también van por el endpoint autenticado para
-    // mantener la simetría con jokers/decks/vouchers. En vanilla
-    // Balatro no cambia nada (no hay sobres con unlock_factor), pero
-    // si en el futuro un mod añade sobres desbloqueables, ya
-    // funciona sin tocar más código.
     boosterPacks.value = await fetchAllBoosterPacks({ authenticated: isAuthenticated.value });
+    challengeDecks.value = await fetchAllChallengeDecks({
+      authenticated: isAuthenticated.value,
+    });
     modifiers.value = await fetchAllCardModifiers();
+    blinds.value = await fetchAllBlinds();
+    tags.value = await fetchAllTags();
+
+    // Fetch silencioso en background alimentando el diccionario
+    const dictStore = useDictionaryStore();
+    dictStore.registerItems(blinds.value);
+    dictStore.registerItems(tags.value);
+    fetchAllJokers()
+      .then((items) => dictStore.registerItems(items))
+      .catch(() => {});
+    fetchAllConsumables()
+      .then((items) => dictStore.registerItems(items))
+      .catch(() => {});
   } catch (e) {
     console.error("[CollectionView] error completo:", e, e.cause || "");
-    error.value = e.message || "Error desconocido al cargar la colección.";
+    error.value = e.message || "Unknown error loading collection.";
   } finally {
     loading.value = false;
   }
@@ -345,19 +553,23 @@ onMounted(() => {
   loadAll();
 });
 
-// Si la sesión cambia, recargamos para que decks/vouchers recojan el
-// overlay (/api/me/decks, /api/me/vouchers) y los demás se reajusten
-// al nuevo lock state.
 watch(isAuthenticated, loadAll);
-
-// Si el authStore notifica un sync de Steam (sync exitoso O unlink),
-// recargamos para reflejar los nuevos unlocks o el re-lock de items
-// que vinieron de STEAM_SYNC. Es el mecanismo simétrico al que ya
-// usan JokersView y AchievementsView.
 watch(lastSyncedAt, loadAll);
 
 // ── Lock state ───────────────────────────────────────────────────
 function isLocked(item) {
+  if (String(item?.type || "").toUpperCase() === "CHALLENGE_DECK") {
+    const defaultUnlocked = [
+      "THE OMELETTE",
+      "15 MINUTE CITY",
+      "RICH GET RICHER",
+      "ON A KNIFE'S EDGE",
+      "X-RAY VISION",
+    ];
+    if (defaultUnlocked.includes(String(item.name || "").toUpperCase())) {
+      return false; // Siempre desbloqueados
+    }
+  }
   return isItemLocked(item, isAuthenticated.value);
 }
 
@@ -365,71 +577,80 @@ function isLocked(item) {
 const filters = ref(defaultFilters());
 
 const enabledFilters = computed(() => {
-  // Filtros base por sub-tab.
-  //   SOBRES y MEJORAS: solo type (sort no aporta — ya vienen
-  //   alfabéticos del backend y agrupados visualmente).
-  //   VALES: status + sort (con sort options custom — ver
-  //   sortOptions abajo).
   const base = (() => {
     switch (currentSub.value) {
       case "decks":
-        return ["search", "status", "sort"];
+        return ["search", "status", "sort", "type"];
       case "booster-packs":
-        return ["search", "type"];
+        return ["search", "type", "size"];
       case "vouchers":
-        return ["search", "status", "sort"];
+        return ["search", "status", "type"];
       case "card-modifiers":
         return ["search", "type"];
+      case "blinds":
+        return ["search", "type"];
+      case "tags":
+        return ["search"];
       default:
         return ["search", "sort"];
     }
   })();
-  // El filtro 'status' (unlocked/locked) no tiene sentido sin sesión
-  // — todo se ve. Lo eliminamos del array para que ni siquiera
-  // aparezca el select.
   if (!isAuthenticated.value) {
     return base.filter((f) => f !== "status");
   }
   return base;
 });
 
-/**
- * Opciones del select de ORDEN por sub-tab.
- *   VALES: A-Z (default) / BASE / UPGRADED.
- *     'base' y 'upgraded' actúan como filtro+orden: muestran solo los
- *     vouchers de ese tier, ordenados alfabéticamente. Conviene
- *     ponerlos en el select de "Orden" porque conceptualmente
- *     reordenan/filtran la lista igual que los otros sorts.
- *   El resto: vacío → FilterBar usa las opciones por defecto.
- */
-const sortOptions = computed(() => {
-  if (currentSub.value === "vouchers") {
+const sizeOptions = computed(() => {
+  if (currentSub.value === "booster-packs") {
     return [
-      { value: "name", label: "Orden: A-Z" },
-      { value: "base", label: "Orden: BASE" },
-      { value: "upgraded", label: "Orden: UPGRADED" },
+      { value: "all", label: "Size: All" },
+      { value: "NORMAL", label: "Normal" },
+      { value: "JUMBO", label: "Jumbo" },
+      { value: "MEGA", label: "Mega" },
     ];
   }
   return [];
 });
 
 const typeOptions = computed(() => {
+  if (currentSub.value === "decks") {
+    return [
+      { value: "all", label: "Type: All" },
+      { value: "normal", label: "Normal" },
+      { value: "challenge", label: "Challenge" },
+    ];
+  }
   if (currentSub.value === "booster-packs") {
     return [
-      { value: "all", label: "Tipo: Todos" },
-      { value: "ARCANA", label: "Tipo: Arcana" },
-      { value: "CELESTIAL", label: "Tipo: Celestial" },
-      { value: "STANDARD", label: "Tipo: Standard" },
-      { value: "BUFFOON", label: "Tipo: Buffoon" },
-      { value: "SPECTRAL", label: "Tipo: Spectral" },
+      { value: "all", label: "Type: All" },
+      { value: "ARCANA", label: "Arcana" },
+      { value: "CELESTIAL", label: "Celestial" },
+      { value: "STANDARD", label: "Standard" },
+      { value: "BUFFOON", label: "Buffoon" },
+      { value: "SPECTRAL", label: "Spectral" },
+    ];
+  }
+  if (currentSub.value === "vouchers") {
+    return [
+      { value: "all", label: "Type: All" },
+      { value: "BASE", label: "Base" },
+      { value: "UPGRADED", label: "Upgraded" },
     ];
   }
   if (currentSub.value === "card-modifiers") {
     return [
-      { value: "all", label: "Tipo: Todos" },
-      { value: "enhancements", label: "Tipo: Enhancements" },
-      { value: "editions", label: "Tipo: Editions" },
-      { value: "seals", label: "Tipo: Seals" },
+      { value: "all", label: "Type: All" },
+      { value: "enhancements", label: "Enhancements" },
+      { value: "editions", label: "Editions" },
+      { value: "seals", label: "Seals" },
+    ];
+  }
+  if (currentSub.value === "blinds") {
+    return [
+      { value: "all", label: "Type: All" },
+      { value: "BOSS", label: "Boss" },
+      { value: "FINISHER", label: "Finisher" },
     ];
   }
   return [];
@@ -464,46 +685,51 @@ function applyBaseFilters(arr) {
   });
 }
 
+// ── Decks regulares ───────────────────────────────────────────────
 const filteredDecks = computed(() => {
+  if (filters.value.type === "challenge") return [];
   let list = applyBaseFilters(decks.value);
   list = list.filter(statusMatches);
   return sortItems(list);
 });
 
-/**
- * VALES tienen su propia lógica de filtrado/orden:
- *   · search + status (heredados)
- *   · sort: 'name' = A-Z, 'base' = solo voucher_tier=BASE, 'upgraded'
- *           = solo voucher_tier=UPGRADED. En los dos últimos también
- *           ordenamos alfabético.
- *
- * Antes faltaba `statusMatches` (bug reportado: el filtro estado se
- * mostraba pero no afectaba a la lista).
- */
+// ── Challenge Decks ───────────────────────────────────────────────
+const filteredChallengeDecks = computed(() => {
+  if (filters.value.type === "normal") return [];
+  let list = applyBaseFilters(challengeDecks.value);
+  list = list.filter(statusMatches);
+  return sortItems(list);
+});
+
+// ── Vouchers ─────────────────────────────────────────────────────
 const filteredVouchers = computed(() => {
   let list = applyBaseFilters(vouchers.value);
   list = list.filter(statusMatches);
-  if (filters.value.sort === "base") {
+  if (filters.value.type === "BASE") {
     list = list.filter((v) => String(v.voucher_tier).toUpperCase() === "BASE");
-  } else if (filters.value.sort === "upgraded") {
+  } else if (filters.value.type === "UPGRADED") {
     list = list.filter((v) => String(v.voucher_tier).toUpperCase() === "UPGRADED");
   }
-  // Cualquier opción (incluido 'name') ordena alfabéticamente.
   return [...list].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 });
 
-/**
- * Booster packs: tras filtros base y status, agrupar por pack_type
- * respetando el orden visual de PACK_TYPES. Si hay filtro `type`,
- * solo se devuelve el grupo correspondiente.
- */
+// ── Booster Packs ────────────────────────────────────────────────
 const groupedBoosterPacks = computed(() => {
   let list = applyBaseFilters(boosterPacks.value);
   list = list.filter(statusMatches);
-  if (filters.value.type && filters.value.type !== "all") {
-    list = list.filter((p) => String(p.pack_type).toUpperCase() === filters.value.type);
+
+  // Filtrar por tamaño de sobre
+  if (filters.value.size && filters.value.size !== "all") {
+    list = list.filter((p) => String(p.size).toUpperCase() === filters.value.size);
   }
-  return PACK_TYPES.map((t) => {
+
+  // Filtramos qué SECCIONES mostrar según el desplegable
+  const activeTypes = PACK_TYPES.filter((t) => {
+    if (!filters.value.type || filters.value.type === "all") return true;
+    return String(t.id).toUpperCase() === filters.value.type;
+  });
+
+  return activeTypes.map((t) => {
     const items = list
       .filter((p) => String(p.pack_type).toUpperCase() === t.id)
       .sort((a, b) => {
@@ -513,7 +739,7 @@ const groupedBoosterPacks = computed(() => {
         return (a.item_number ?? a.id) - (b.item_number ?? b.id);
       });
     return { packType: t.id, label: t.label, color: t.color, items };
-  }).filter((g) => g.items.length);
+  });
 });
 
 function enrichedPackName(pack) {
@@ -521,13 +747,6 @@ function enrichedPackName(pack) {
   return { ...pack, name: sized };
 }
 
-/**
- * Agrupa los grupos de pack-types de 2 en 2 para renderizarlos en
- * filas de 2 columnas. El último grupo, si el número es impar, queda
- * solo en su fila (la CSS de .packs-row--solo lo centra con la misma
- * anchura que una columna en una fila normal — así SPECTRAL se ve
- * IGUAL de grande que ARCANA, CELESTIAL, etc., no más pequeño).
- */
 const packRows = computed(() => {
   const groups = groupedBoosterPacks.value;
   const rows = [];
@@ -537,6 +756,7 @@ const packRows = computed(() => {
   return rows;
 });
 
+// ── Card Modifiers ───────────────────────────────────────────────
 const filteredModifierGroups = computed(() => {
   return MOD_SECTIONS.filter((sec) => {
     if (filters.value.type === "all") return true;
@@ -548,24 +768,121 @@ const filteredModifierGroups = computed(() => {
   });
 });
 
+// ── Blinds ───────────────────────────────────────────────────────
+/**
+ * Search aplicable a blinds (busca en name + description).
+ */
+function applyBlindSearch(arr) {
+  const search = filters.value.search.toLowerCase();
+  return arr.filter((b) => {
+    if (search) {
+      const match =
+        (b.name || "").toLowerCase().includes(search) ||
+        (b.description || "").toLowerCase().includes(search);
+      if (!match) return false;
+    }
+    return true;
+  });
+}
+
+/**
+ * Filtro de tipo para BLINDS:
+ *   - 'all': todos los tipos (sin filtro).
+ *   - 'BOSS': solo BOSS no-finisher (ante != "8").
+ *   - 'FINISHER': solo BOSS con ante == "8".
+ * Small y Big siempre se muestran si el filtro es 'all' (caen como
+ * hero tiles aparte) o se filtran fuera si el tipo es BOSS/FINISHER.
+ */
+function applyBlindTypeFilter(arr, type) {
+  if (!type || type === "all") return arr;
+  if (type === "BOSS") {
+    return arr.filter((b) => String(b.blind_type || "").toUpperCase() === "BOSS");
+  }
+  if (type === "FINISHER") {
+    return arr.filter((b) => String(b.blind_type || "").toUpperCase() === "SHOWDOWN");
+  }
+  return arr;
+}
+
+/**
+ * Hero blinds: Small + Big (los únicos blinds no-Boss). El filtro de
+ * tipo BOSS/FINISHER los esconde — coherente con que el usuario está
+ * buscando uno de los Boss específicos en ese caso.
+ */
+const heroBlinds = computed(() => {
+  const filtered = applyBlindSearch(blinds.value);
+  if (filters.value.type === "BOSS" || filters.value.type === "FINISHER") return [];
+  return filtered
+    .filter((b) => {
+      const t = String(b.blind_type || "").toUpperCase();
+      return t === "SMALL" || t === "BIG";
+    })
+    .sort((a, b) => {
+      // SMALL antes que BIG. El score_multiplier ordena correctamente
+      // (Small=1, Big=1.5) pero por si los datos cambian, fallback
+      // alfabético.
+      const oa = a.score_multiplier ?? 0;
+      const ob = b.score_multiplier ?? 0;
+      return oa - ob;
+    });
+});
+
+const normalBossBlinds = computed(() => {
+  const filtered = applyBlindSearch(blinds.value);
+  const typed = applyBlindTypeFilter(filtered, filters.value.type);
+  return typed
+    .filter((b) => String(b.blind_type || "").toUpperCase() === "BOSS")
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+});
+
+const finisherBossBlinds = computed(() => {
+  const filtered = applyBlindSearch(blinds.value);
+  const typed = applyBlindTypeFilter(filtered, filters.value.type);
+  return typed
+    .filter((b) => String(b.blind_type || "").toUpperCase() === "SHOWDOWN")
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+});
+
+// ── Tags ─────────────────────────────────────────────────────────
+const filteredTags = computed(() => {
+  const search = filters.value.search.toLowerCase();
+  return tags.value
+    .filter((t) => {
+      if (search) {
+        const match =
+          (t.name || "").toLowerCase().includes(search) ||
+          (t.description || "").toLowerCase().includes(search);
+        if (!match) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+});
+
 // ── Counters ─────────────────────────────────────────────────────
 const subtabCount = computed(() => {
-  if (currentSub.value === "decks") return filteredDecks.value.length;
+  if (currentSub.value === "decks")
+    return filteredDecks.value.length + filteredChallengeDecks.value.length;
   if (currentSub.value === "vouchers") return filteredVouchers.value.length;
   if (currentSub.value === "booster-packs")
     return groupedBoosterPacks.value.reduce((acc, g) => acc + g.items.length, 0);
   if (currentSub.value === "card-modifiers")
     return filteredModifierGroups.value.reduce((acc, g) => acc + g.items.length, 0);
+  if (currentSub.value === "blinds")
+    return (
+      heroBlinds.value.length + normalBossBlinds.value.length + finisherBossBlinds.value.length
+    );
+  if (currentSub.value === "tags") return filteredTags.value.length;
   return 0;
 });
 
 /**
- * Total y desbloqueados a través de los 4 sub-tabs — para la
- * ProgressBar global. Se calcula sobre las listas COMPLETAS (sin
- * filtros) para que el porcentaje refleje el estado real, no el
- * filtrado.
+ * Total y desbloqueados a través de TODOS los sub-tabs — para la
+ * ProgressBar global. BLINDS y TAGS cuentan como "siempre desbloqueados"
+ * porque no son Unlockables y queremos que la % refleje la presencia
+ * completa de información en la app.
  */
-const allItems = computed(() => [
+const allUnlockableItems = computed(() => [
   ...decks.value,
   ...vouchers.value,
   ...boosterPacks.value,
@@ -573,8 +890,18 @@ const allItems = computed(() => [
   ...(modifiers.value.editions || []),
   ...(modifiers.value.seals || []),
 ]);
-const globalTotal = computed(() => allItems.value.length);
-const globalUnlocked = computed(() => allItems.value.filter((it) => !isLocked(it)).length);
+
+const globalTotal = computed(
+  () => allUnlockableItems.value.length + blinds.value.length + tags.value.length,
+);
+
+const globalUnlocked = computed(() => {
+  // Unlockables reales: los que no están locked según isItemLocked
+  const realUnlocked = allUnlockableItems.value.filter((it) => !isLocked(it)).length;
+  // Blinds y Tags suman su total entero (siempre desbloqueados)
+  const referenceUnlocked = blinds.value.length + tags.value.length;
+  return realUnlocked + referenceUnlocked;
+});
 
 // ── Selección + tooltip ──────────────────────────────────────────
 const selectedItem = ref(null);
@@ -582,18 +909,17 @@ const tooltip = ref(null);
 let hoverTimer = null;
 
 function onSelect(item, kind, modKey = null) {
-  // Comprobación estricta para evitar toggle
+  // Toggle protection
   if (
     selectedItem.value &&
     selectedItem.value.id === item.id &&
     selectedItem.value._kind === kind
   ) {
-    return; // Ya está seleccionado, no hagas nada
+    return;
   }
 
   const enriched = { ...item, _kind: kind, _modKey: modKey };
 
-  // Lógica para traer el preview de vouchers si aplica
   if (kind === "voucher" && item.next_voucher_id) {
     const upgrade = vouchers.value.find((v) => v.id === item.next_voucher_id);
     if (upgrade) {
@@ -604,60 +930,94 @@ function onSelect(item, kind, modKey = null) {
 }
 
 /**
- * Desbloqueo manual desde el detail panel.
+ * Desbloqueo/Re-bloqueo manual desde el detail panel.
  *
- * POST /api/me/unlocks { unlockable_id, unlocked: true } — endpoint
- * compartido para jokers/decks/vouchers/booster-packs (todos son
- * Unlockable). Card-modifiers no aplica (no son Unlockable), pero
- * nunca aparecen como locked, así que el botón ni se renderiza para
- * ellos.
- *
- * Tras el POST mutamos el item localmente (y selectedItem) añadiendo
- * `unlocked_for_me: true`. Eso hace que isItemLocked devuelva false al
- * instante y la carta se ve desbloqueada sin esperar a un re-fetch.
- * Para decks el cambio persiste tras recargar (porque /api/me/decks
- * devuelve el overlay); para vouchers/packs persiste en BD pero no
- * se ve hasta que el backend exponga /api/me/vouchers y
- * /api/me/booster-packs.
+ * El ItemDetailPanel emite (item, unlocked); elegimos servicio.
+ * Mutamos localmente — preserva animación y scroll. Para
+ * challenge_deck escribimos al array correspondiente.
  */
-async function onManualUnlock(item) {
+async function onManualUnlock(item, unlocked = true) {
   if (!item) return;
   try {
-    await unlockItem(item.id);
-    mutateLocally(item, { unlocked_for_me: true, unlocked_at: new Date().toISOString() });
+    if (unlocked) {
+      await unlockItem(item.id);
+      mutateLocally(item, { unlocked_for_me: true, unlocked_at: new Date().toISOString() });
+    } else {
+      await relockItem(item.id);
+      mutateLocally(item, { unlocked_for_me: false, unlocked_at: null });
+    }
   } catch (e) {
-    console.error("[CollectionView] manual unlock failed", e);
-    // 401 = sesión caducada. Abrimos el AuthModal — es la acción que
-    // el usuario necesita; un alert técnico no le ayuda a recuperarse.
+    console.error("[CollectionView] toggle unlock failed", e);
     if (e?.response?.status === 401) {
       authStore.openAuthModal();
       return;
     }
-    alert("No se pudo marcar como desbloqueado. " + (e.message || ""));
+    const verb = unlocked ? "mark as unlocked" : "lock again";
+    alert(`Could not ${verb}. ` + (e.message || ""));
   }
 }
 
-function onStakeUpdated(data) {
-  // data viene de { id, highest_stake_order }
-
-  // 1. Identificamos el array correcto según la pestaña actual
+async function onStakeUpdated(data) {
   let targetArray;
   if (currentSub.value === "decks") {
-    targetArray = decks.value;
+    if (selectedItem.value?._kind === "challenge_deck") {
+      targetArray = challengeDecks.value;
+    } else {
+      targetArray = decks.value;
+    }
   } else {
-    // Si no es un mazo, no tenemos nada que actualizar en esta vista
     return;
   }
 
-  // 2. Buscamos el item en la lista y lo actualizamos
   const item = targetArray.find((i) => i.id === data.id);
+
   if (item) {
-    item.highest_stake_order = data.highest_stake_order;
+    const oldStake = item.highest_stake_order || 0;
+    // Forzamos que los null/undefined se conviertan matemáticamente en 0
+    const newStake = data.highest_stake_order || 0;
+    item.highest_stake_order = newStake;
+
+    if (selectedItem.value?._kind === "challenge_deck") {
+      const challenges = [...challengeDecks.value].sort(
+        (a, b) => (a.item_number ?? a.id) - (b.item_number ?? b.id),
+      );
+
+      if (newStake === 1 && oldStake === 0) {
+        // Desbloquear el siguiente
+        const nextLocked = challenges.find((c) => isLocked(c));
+        if (nextLocked) {
+          await unlockItem(nextLocked.id);
+          mutateLocally(nextLocked, {
+            unlocked_for_me: true,
+            unlocked_at: new Date().toISOString(),
+          });
+        }
+      } else if (newStake === 0 && oldStake === 1) {
+        // Bloquear el último
+        const unlockedChallenges = challenges.filter((c) => !isLocked(c));
+
+        if (unlockedChallenges.length > 5) {
+          const lastUnlocked = unlockedChallenges[unlockedChallenges.length - 1];
+
+          if (lastUnlocked.highest_stake_order === 1) {
+            try {
+              await setStickerApplication(lastUnlocked.id, 0);
+              lastUnlocked.highest_stake_order = 0;
+            } catch (e) {
+              console.error("Failed to uncomplete the cascaded challenge", e);
+            }
+          }
+
+          await relockItem(lastUnlocked.id);
+          mutateLocally(lastUnlocked, { unlocked_for_me: false, unlocked_at: null });
+        }
+      }
+    }
   }
 
-  // 3. Si el item está seleccionado en el panel derecho, actualizamos también el panel
+  // Comprobación de seguridad
   if (selectedItem.value && selectedItem.value.id === data.id) {
-    selectedItem.value.highest_stake_order = data.highest_stake_order;
+    selectedItem.value.highest_stake_order = data.highest_stake_order || 0;
   }
 }
 
@@ -667,25 +1027,44 @@ function mutateLocally(item, patch) {
   if (kind === "deck") arr = decks.value;
   else if (kind === "voucher") arr = vouchers.value;
   else if (kind === "pack") arr = boosterPacks.value;
+  else if (kind === "challenge_deck") arr = challengeDecks.value;
   if (arr) {
     const target = arr.find((x) => x.id === item.id);
     if (target) Object.assign(target, patch);
   }
-  if (selectedItem.value) {
+
+  // Solo actualizar selectedItem si es EXACTAMENTE la misma carta mutada
+  if (selectedItem.value && selectedItem.value.id === item.id) {
     selectedItem.value = { ...selectedItem.value, ...patch };
   }
 }
 
-function onHover({ item, target }) {
+// ── Hover handlers ───────────────────────────────────────────────
+/**
+ * Tres handlers de hover (uno por kind) para que el tooltip flotante
+ * reciba el `kind` correcto. Mismo timing y misma cancelación.
+ */
+function setTooltipFromHover({ item, target }, kind) {
   clearTimeout(hoverTimer);
   hoverTimer = setTimeout(() => {
     const rect = target.getBoundingClientRect();
     tooltip.value = {
       item,
+      kind,
       cardCenterX: rect.left + rect.width / 2,
       cardTop: rect.top,
     };
   }, 120);
+}
+
+function onHover(payload) {
+  setTooltipFromHover(payload, "unlockable");
+}
+function onHoverBlind(payload) {
+  setTooltipFromHover(payload, "blind");
+}
+function onHoverTag(payload) {
+  setTooltipFromHover(payload, "tag");
 }
 
 function onLeave() {
@@ -717,14 +1096,13 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
   padding-left: 4px;
 }
 
-/* Toolbar: subtabs + FilterBar en la misma fila ──────────────── */
+/* Toolbar */
 .toolbar {
   display: flex;
   gap: 10px;
   margin-bottom: 12px;
   align-items: stretch;
 
-  /* FilterBar es un componente hijo, scope-cross con :deep. */
   :deep(.filterbar) {
     flex: 1;
     min-width: 0;
@@ -762,27 +1140,37 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
   }
 }
 .subtab--decks {
-  background: #e84040;
+  background: #3ac58c;
 }
 .subtab--booster-packs {
-  background: #f59e0b;
+  background: #bf8940;
 }
 .subtab--vouchers {
-  background: #3b82f6;
+  background: #5a89a5;
 }
 .subtab--card-modifiers {
-  background: #22c55e;
+  background: #9f3dc2;
+}
+.subtab--blinds {
+  background: #cf3535;
+}
+.subtab--tags {
+  background: #29d634;
 }
 .subtab--active {
   filter: brightness(1.25);
 }
 
-/* Layout ────────────────────────────────────────────────────── */
+/* Layout */
 .layout {
   display: flex;
   gap: 12px;
   flex: 1;
   min-height: 0;
+}
+/* Full-width: el grid ocupa todo, sin detail-col */
+.layout--full .grid-col {
+  flex: 1;
 }
 
 .grid-col {
@@ -804,13 +1192,26 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
 
 .grid-scroll {
   flex: 1;
+  min-height: 0;
+
   overflow-y: auto;
   overflow-x: hidden;
+
+  display: flex;
+  flex-direction: column;
+
   padding: 28px 22px 32px;
   background: rgba(26, 42, 46, 0.6);
+
   scrollbar-width: thin;
   scrollbar-color: $panel-mid transparent;
+
   @include pixel-clip;
+}
+
+/* En BLINDS el scroll deja de estar aquí */
+.layout--full:has(.blinds-wrapper) .grid-scroll {
+  overflow: hidden;
 }
 
 .grid {
@@ -819,32 +1220,17 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
   row-gap: 16px;
 }
 
-/* Booster packs ────────────────────────────────────────────────
- * Render en filas explícitas (computed packRows) en lugar de un grid
- * 2D con grid-column: 1/-1. Más fácil de controlar y SPECTRAL queda
- * EXACTAMENTE del mismo tamaño que las otras secciones cuando se
- * queda solo en su fila (no es "más pequeño" como decía el feedback).
- */
+/* Booster packs */
 .packs-rows {
   display: flex;
   flex-direction: column;
   gap: 28px;
 }
-
 .packs-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 28px;
 }
-
-/*
- * Fila con UN solo grupo (típicamente SPECTRAL al final).
- * Usamos flex con justify-content: center y forzamos al hijo a la
- * misma anchura que tendría como columna en una fila 1fr 1fr:
- * `(100% - 28) / 2` = `calc(50% - 14px)`.
- * El tamaño final del section solo y de las internas (cartas) queda
- * idéntico a los grupos de filas pareadas.
- */
 .packs-row--solo {
   display: flex;
   justify-content: center;
@@ -868,13 +1254,11 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
     align-items: center;
     gap: 10px;
   }
-
   &__count {
     font-size: 12px;
     color: $text-3;
     margin-left: auto;
   }
-
   &__empty {
     font-family: "m6x11plus", monospace;
     font-size: 13px;
@@ -891,7 +1275,137 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
   gap: 28px;
 }
 
-/* Detail column ────────────────────────────────────────────── */
+/* ── BLINDS ────────────────────────────────────────────────────── */
+/*
+ * Layout específico de la subtab BLINDS:
+ *   .blinds-hero → fila destacada "apuesta inicial" con Small+Big.
+ *   .mod-section → secciones BOSS BLINDS / FINISHER BLINDS reusan el
+ *                  estilo de divisiones MEJORAS para coherencia.
+ */
+.blinds-wrapper {
+  flex: 1;
+  min-height: 0;
+
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 24px;
+
+  align-items: stretch;
+
+  overflow: hidden;
+}
+
+.blinds-layout {
+  min-width: 0;
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  padding-right: 6px;
+
+  scrollbar-width: thin;
+  scrollbar-color: $panel-mid transparent;
+}
+
+.blinds-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.blinds-hero__row {
+  display: grid;
+  /* Hasta 4 tiles para futura expansión (mods); por ahora Small + Big
+     → 2 columnas centradas. */
+  grid-template-columns: repeat(auto-fit, minmax(180px, 220px));
+  justify-content: center;
+  gap: 16px;
+}
+
+/* Tabla lateral "ANTE / BASE" */
+/* Sidebar fijo visualmente */
+.ante-sidebar {
+  min-height: 0;
+  height: 100%;
+
+  background: rgba(0, 0, 0, 0.35);
+  padding: 18px 22px;
+
+  display: flex;
+  flex-direction: column;
+
+  overflow: hidden;
+
+  @include pixel-clip-sm;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+
+  &__head {
+    display: flex;
+    justify-content: space-between;
+    font-family: "m6x11plus", monospace;
+    font-size: clamp(16px, 1vw, 20px);
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.05);
+    flex-shrink: 0;
+  }
+
+  &__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+
+    flex: 1;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+
+    min-height: 0;
+  }
+}
+
+.ante-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex: 1;
+  min-height: 0;
+  font-family: "m6x11plus", monospace;
+  font-size: clamp(12px, 0.85vw, 16px);
+  line-height: 1;
+
+  &__num {
+    color: #f0a020;
+    font-size: 25px;
+  }
+
+  &__base {
+    display: flex;
+    align-items: center;
+    gap: clamp(4px, 0.4vw, 8px);
+    letter-spacing: 0.3px;
+    font-size: 20px;
+  }
+
+  &__chip {
+    display: inline-block;
+    width: clamp(6px, 0.55vw, 10px);
+    height: clamp(6px, 0.55vw, 10px);
+    background: #cfd6d8;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 2px #2a3a3e;
+    opacity: 0.85;
+  }
+}
+
+/* ── Detail column ─────────────────────────────────────────────── */
 .detail-col {
   width: 340px;
   flex-shrink: 0;
@@ -913,20 +1427,16 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
       font-size: 14px;
       color: $text-1;
       letter-spacing: 1px;
+      font-size: 20px;
     }
   }
-
   &__body {
     flex: 1;
     overflow: hidden;
   }
 }
 
-/* ── Animaciones de Entrada ───────────────────────────────────────── */
-/*
- * Animación estilo "repartir carta" (Deal) para la vista de colección.
- * Cae verticalmente con escala elástica protegiendo los transforms del arco.
- */
+/* Animaciones de entrada */
 .card-deal-anim {
   animation: dealCard 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.15) backwards;
 }

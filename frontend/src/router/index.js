@@ -1,9 +1,9 @@
 /**
- * Router de Balapedia.
+ * Balapedia Router.
  *
- * Rutas principales del diseño (Jokers / Consumibles / Logros / Colección).
- * `/` redirige a `/jokers` que es la vista por defecto.
- * El login y el perfil ahora se gestionan mediante un Modal global.
+ * Main views (Jokers / Consumables / Achievements / Collection).
+ * `/` redirects to `/jokers` as the default view.
+ * Login and Profile are handled via the global AuthModal.
  */
 import { createRouter, createWebHistory } from "vue-router";
 
@@ -16,9 +16,9 @@ const routes = [
     component: () => import("@/views/JokersView.vue"),
   },
   {
-    path: "/consumibles",
-    name: "consumibles",
-    component: () => import("@/views/ConsumiblesView.vue"),
+    path: "/consumables",
+    name: "consumables",
+    component: () => import("@/views/ConsumablesView.vue"),
   },
   {
     path: "/collection",

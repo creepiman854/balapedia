@@ -13,35 +13,39 @@
   El estado de desbloqueado real sigue siendo server-side (UserUnlock);
   el "available from start" es solo una whitelist visual del frontend
   basada en `unlock_condition` / `unlock_factor`.
+
+  Fase 2: `onManualUnlock` ahora acepta el flag `unlocked` y elige
+  entre unlockJoker (true) y relockJoker (false). El botón del
+  ItemDetailPanel es bidireccional.
 -->
 <template>
   <div class="jokers-view">
     <div class="jokers-layout">
       <!-- ── Columna izquierda: grid ── -->
-      <div class="jokers-grid-col">
+      <div class="jokers-grid-col" style="position: relative">
         <ProgressBar
           v-if="isAuthenticated && jokers.length"
           :value="totalUnlocked"
           :max="jokers.length"
           color="#3b82f6"
-          label="COMODINES DESBLOQUEADOS"
+          label="UNLOCKED JOKERS"
         />
 
         <FilterBar v-model="filters" :enabled="enabledFilters" />
 
         <div class="count">
-          <template v-if="loading">Cargando comodines...</template>
+          <template v-if="loading">Loading jokers...</template>
           <template v-else-if="error">{{ error }}</template>
-          <template v-else>{{ filtered.length }} comodines encontrados</template>
+          <template v-else>{{ filtered.length }} jokers found</template>
         </div>
+
+        <BalatroLoader v-if="showLoader" :is-loading="loading" @hidden="showLoader = false" />
 
         <div class="grid-scroll">
           <div
-            v-if="!loading && !error"
+            v-if="!loading && !error && filtered.length > 0"
             class="grid"
-            :style="{
-              gridTemplateColumns: `repeat(${settings.gridColumns}, 1fr)`,
-            }"
+            :style="{ gridTemplateColumns: `repeat(${settings.gridColumns}, 1fr)` }"
           >
             <ItemCard
               v-for="(joker, idx) in filtered"
@@ -58,13 +62,16 @@
               @leave="onLeave"
             />
           </div>
+          <div v-if="!loading && !error && filtered.length === 0" class="empty">
+            No jokers found with those filters.
+          </div>
         </div>
       </div>
 
       <!-- ── Columna derecha: detalle ── -->
       <div class="detail-col">
         <div class="detail-col__head">
-          <span>{{ selectedJoker ? selectedJoker.name.toUpperCase() : "COMODÍN" }}</span>
+          <span>{{ selectedJoker ? selectedJoker.name.toUpperCase() : "JOKER" }}</span>
         </div>
         <div class="detail-col__body">
           <ItemDetailPanel
@@ -95,7 +102,7 @@ import { storeToRefs } from "pinia";
 import { useAuthStore } from "@/stores/auth";
 import { useSettingsStore } from "@/stores/settings";
 import { useBackgroundStore } from "@/stores/background";
-import { fetchAllJokers, unlockJoker } from "@/services/jokers";
+import { fetchAllJokers, unlockJoker, relockJoker } from "@/services/jokers";
 import { RARITY_ORDER } from "@/constants/rarity";
 import { useProgressionStore } from "@/stores/progression";
 
@@ -108,6 +115,7 @@ import FilterBar from "@/components/common/FilterBar.vue";
 import ItemCard from "@/components/items/ItemCard.vue";
 import ItemDetailPanel from "@/components/items/ItemDetailPanel.vue";
 import ItemTooltip from "@/components/items/ItemTooltip.vue";
+import BalatroLoader from "@/components/common/BalatroLoader.vue";
 
 const authStore = useAuthStore();
 const { isAuthenticated, lastSyncedAt } = storeToRefs(authStore);
@@ -118,10 +126,12 @@ const progStore = useProgressionStore();
 // ── Datos ─────────────────────────────────────────────────────────────
 const jokers = ref([]);
 const loading = ref(false);
+const showLoader = ref(true);
 const error = ref("");
 
 async function loadJokers() {
   loading.value = true;
+  showLoader.value = true;
   error.value = "";
   try {
     jokers.value = await fetchAllJokers({ authenticated: isAuthenticated.value });
@@ -129,8 +139,8 @@ async function loadJokers() {
       selectedJoker.value = jokers.value[0];
     }
   } catch (e) {
-    console.error("[JokersView] no se pudieron cargar los jokers", e);
-    error.value = "No se pudieron cargar los comodines. ¿Backend caído?";
+    console.error("[JokersView] jokers could not be loaded", e);
+    error.value = "Could not load jokers. Server offline?";
   } finally {
     loading.value = false;
   }
@@ -182,46 +192,49 @@ function isLocked(joker) {
   return !joker.unlocked_for_me;
 }
 
-// ── Manual unlock (botón en el panel de detalle) ─────────────────────
+// ── Manual unlock / re-lock (botón en el panel de detalle) ─────────
 /**
- * Marca un joker como desbloqueado para el usuario actual.
+ * Marca un joker como desbloqueado o lo vuelve a bloquear.
  *
- * Estrategia de update local (no full reload):
- *   - Antes hacíamos `await loadJokers()` tras el POST → todo el grid
- *     se re-renderizaba desde 0, la animación de "repartir cartas"
- *     volvía a dispararse, el scroll saltaba al principio y los
- *     filtros se mantenían pero la experiencia era abrupta.
- *   - Ahora mutamos solo el joker afectado en la lista reactiva.
- *     `selectedJoker.value` es la misma referencia que el item del
- *     array (lo asignamos así en `onSelect`), así que mutar uno
- *     mutarlos los dos — la imagen "desbloqueada" aparece al instante
- *     en la carta del grid y en el panel de detalle, sin re-render
- *     del catálogo. Mismo patrón que CollectionView.
+ * El ItemDetailPanel emite `manual-unlock` con dos argumentos:
+ *   - `joker`: la carta sobre la que actuar.
+ *   - `unlocked: boolean`: dirección del cambio (true → desbloquear,
+ *      false → re-bloquear).
+ *
+ * Elegimos servicio en consecuencia. Patrón de mutación local sin
+ * re-fetch (preserva animación, scroll y filtros) — mismo en ambas
+ * direcciones, solo cambia el valor que escribimos. CollectionView
+ * sigue el mismo patrón.
  *
  * Si el POST falla con 401 (sesión caducada), abrimos el AuthModal —
  * un alert técnico no ayuda al usuario a recuperarse, pero re-loguearse
  * sí. Otros errores caen al alert estándar con el detalle del backend.
  */
-async function onManualUnlock(joker) {
+async function onManualUnlock(joker, unlocked = true) {
   if (!joker) return;
   try {
-    await unlockJoker(joker.id);
+    if (unlocked) {
+      await unlockJoker(joker.id);
+    } else {
+      await relockJoker(joker.id);
+    }
     // Mutación local sin re-fetch — preserva animación, scroll y
     // filtros. Mismo patrón que CollectionView.mutateLocally().
     const target = jokers.value.find((j) => j.id === joker.id);
     if (target) {
-      target.unlocked_for_me = true;
-      target.unlocked_at = new Date().toISOString();
+      target.unlocked_for_me = unlocked;
+      target.unlocked_at = unlocked ? new Date().toISOString() : null;
     }
   } catch (e) {
-    console.error("[JokersView] no se pudo desbloquear manualmente", e);
+    console.error("[JokersView] toggle unlock failed", e);
     // 401 = sesión caducada. Abrimos el AuthModal en lugar de un alert
     // técnico — es la acción que el usuario necesita para recuperar.
     if (e?.response?.status === 401) {
       authStore.openAuthModal();
       return;
     }
-    alert("No se pudo marcar como desbloqueado. " + (e.message || ""));
+    const verb = unlocked ? "mark as unlocked" : "lock again";
+    alert(`Could not ${verb}. ` + (e.message || ""));
   }
 }
 
@@ -444,6 +457,14 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
     flex: 1;
     overflow: hidden;
   }
+}
+
+.empty {
+  color: $text-3;
+  font-family: "m6x11plus", monospace;
+  font-size: 14px;
+  text-align: center;
+  padding: 24px 0;
 }
 
 /*

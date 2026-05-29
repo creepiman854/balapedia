@@ -51,7 +51,7 @@ class UserStickerApplication(db.Model):
     user = db.relationship("User", back_populates="sticker_applications")
     unlockable = db.relationship("Unlockable", back_populates="sticker_applications")
 
-    ALLOWED_UNLOCKABLE_TYPES = {"JOKER", "DECK"}
+    ALLOWED_UNLOCKABLE_TYPES = {"JOKER", "DECK", "CHALLENGE_DECK"}
 
     @validates("unlockable")
     def _validate_unlockable_type(self, key, value):

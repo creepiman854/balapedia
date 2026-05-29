@@ -3,11 +3,18 @@
     <Transition name="modal-fade">
       <div v-if="isOpen" class="modal-backdrop" @click.self="close">
         <div class="modal-panel">
-          <button class="close-btn" @click="close">✕</button>
+          <button
+            v-if="!isCriticalTask"
+            class="close-btn"
+            @click="close"
+            :disabled="busy || isCriticalTask"
+          >
+            <iconify-icon icon="pixel:window-close-solid" noobserver />
+          </button>
 
           <div v-if="!isAuthenticated">
             <header class="modal-header">
-              <h2 class="modal-title">{{ isSignup ? "CREAR CUENTA" : "INICIAR SESIÓN" }}</h2>
+              <h2 class="modal-title">{{ isSignup ? "SIGN UP" : "LOG IN" }}</h2>
             </header>
 
             <div class="modal-body">
@@ -26,33 +33,49 @@
                   <input
                     v-model="password"
                     type="password"
-                    placeholder="Contraseña"
+                    placeholder="Password"
                     required
                     minlength="6"
                     :autocomplete="isSignup ? 'new-password' : 'current-password'"
                     class="balatro-input"
                   />
                 </div>
-                <button type="submit" class="balatro-btn primary" :disabled="loading">
-                  {{ loading ? "CARGANDO..." : isSignup ? "REGISTRARME" : "ENTRAR" }}
+                <button
+                  type="submit"
+                  class="balatro-btn primary"
+                  :disabled="loading || busy || deletingAccount"
+                >
+                  {{ loading ? "LOADING..." : isSignup ? "SIGN UP" : "LOG IN" }}
                 </button>
               </form>
 
-              <div class="divider"><span>o</span></div>
+              <div class="divider"><span>or</span></div>
 
-              <button class="balatro-btn google-btn" @click="handleGoogleLogin" :disabled="loading">
-                CONTINUAR CON GOOGLE
+              <button
+                class="balatro-btn google-btn"
+                @click="handleGoogleLogin"
+                :disabled="loading || busy || deletingAccount"
+              >
+                <iconify-icon icon="pixel:google" noobserver />
+                CONTINUE WITH GOOGLE
               </button>
 
-              <button class="link-btn" type="button" @click="isSignup = !isSignup">
-                {{ isSignup ? "¿Ya tienes cuenta? Inicia sesión" : "¿No tienes cuenta? Crea una" }}
+              <button
+                class="link-btn"
+                type="button"
+                @click="isSignup = !isSignup"
+                :disabled="busy || deletingAccount"
+              >
+                {{
+                  isSignup ? "Already have an account? Log in" : "Don't have an account? Create one"
+                }}
               </button>
             </div>
           </div>
 
           <div v-else>
             <header class="modal-header">
-              <h2 class="modal-title">MI PERFIL</h2>
+              <h2 class="modal-title">MY PROFILE</h2>
             </header>
 
             <div class="modal-body">
@@ -76,7 +99,7 @@
                   <span class="value">{{ user?.email || "—" }}</span>
                 </div>
                 <div class="info-row">
-                  <span class="label">Nombre:</span>
+                  <span class="label">Name:</span>
                   <span class="value">
                     {{ user?.display_name || user?.email || "—" }}
                   </span>
@@ -84,7 +107,7 @@
                 <div class="info-row">
                   <span class="label">Steam ID:</span>
                   <span class="value" :class="{ 'steam-linked': user?.steam_id }">
-                    {{ user?.steam_id || "No vinculada" }}
+                    {{ user?.steam_id || "Not linked" }}
                   </span>
                 </div>
               </div>
@@ -97,33 +120,49 @@
                   @mouseleave="showTooltip = false"
                   ref="steamWrapperElement"
                 >
-                  <button class="balatro-btn steam-btn" @click="handleLinkSteam" :disabled="busy">
-                    <iconify-icon icon="pixel:steam" noobserver /> VINCULAR STEAM
+                  <button
+                    class="balatro-btn steam-btn"
+                    @click="handleLinkSteam"
+                    :disabled="busy || deletingAccount"
+                  >
+                    <iconify-icon icon="pixel:steam" noobserver /> LINK STEAM
                   </button>
                 </div>
 
                 <template v-else>
                   <div class="btn-wrapper sync-wrapper">
-                    <button class="balatro-btn sync-btn" @click="handleSyncSteam" :disabled="busy">
+                    <button
+                      class="balatro-btn sync-btn"
+                      @click="handleSyncSteam"
+                      :disabled="busy || deletingAccount"
+                    >
                       <iconify-icon icon="pixel:refresh-double" noobserver />
-                      {{ busy ? "SINCRONIZANDO..." : "SINCRONIZAR CON STEAM" }}
+                      {{ busy ? "SYNCING..." : "SYNC WITH STEAM" }}
                     </button>
                   </div>
-                  <button class="balatro-btn secondary" @click="handleUnlinkSteam" :disabled="busy">
-                    DESVINCULAR STEAM
+                  <button
+                    class="balatro-btn secondary"
+                    @click="handleUnlinkSteam"
+                    :disabled="busy || deletingAccount"
+                  >
+                    UNLINK STEAM
                   </button>
                 </template>
 
-                <button class="balatro-btn danger" @click="handleLogout" :disabled="busy">
-                  CERRAR SESIÓN
+                <button
+                  class="balatro-btn danger"
+                  @click="handleLogout"
+                  :disabled="busy || deletingAccount"
+                >
+                  LOG OUT
                 </button>
                 <div class="danger-zone">
                   <button
                     class="balatro-btn delete-account-btn"
                     @click="handleDeleteAccount"
-                    :disabled="busy"
+                    :disabled="busy || deletingAccount"
                   >
-                    ELIMINAR CUENTA
+                    DELETE ACCOUNT
                   </button>
                 </div>
               </div>
@@ -137,9 +176,8 @@
 
     <Transition name="modal-fade">
       <div v-if="showTooltip" class="steam-tooltip" ref="tooltipElement">
-        Al vincular tu Steam, los logros que tengas desbloqueados allí se sincronizarán
-        automáticamente y desbloquearán los Jokers, Vales y Mazos correspondientes en sus
-        respectivas vistas.
+        By linking your Steam account, your unlocked achievements will automatically sync, unlocking
+        the corresponding Jokers, Vouchers, and Decks in their respective sections.
       </div>
     </Transition>
   </Teleport>
@@ -149,10 +187,11 @@
 import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount } from "vue";
 import { storeToRefs } from "pinia";
 import { useAuthStore } from "@/stores/auth";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
 import { syncSteamAchievements, describeSyncError } from "@/services/steam_sync";
 
 const authStore = useAuthStore();
+const { lockNavigation, unlockNavigation } = authStore;
 const route = useRoute();
 const router = useRouter();
 
@@ -178,6 +217,16 @@ const suppressNextSyncError = ref(false);
 const showTooltip = ref(false);
 const tooltipElement = ref(null);
 const steamWrapperElement = ref(null);
+
+const deletingAccount = ref(false);
+const syncingSteam = ref(false);
+const isCriticalTask = computed(() => deletingAccount.value || syncingSteam.value);
+
+onBeforeRouteLeave(() => {
+  if (isCriticalTask.value) {
+    return false;
+  }
+});
 
 function updateTooltipPosition() {
   if (!showTooltip.value || !tooltipElement.value || !steamWrapperElement.value) return;
@@ -209,8 +258,12 @@ watch(showTooltip, (isOpen) => {
 });
 
 onBeforeUnmount(() => {
+  window.removeEventListener("beforeunload", preventUnload);
+
   window.removeEventListener("resize", updateTooltipPosition);
   window.removeEventListener("scroll", updateTooltipPosition);
+
+  window.removeEventListener("keydown", handleEsc);
 });
 
 function resetNotices() {
@@ -223,8 +276,10 @@ function resetNotices() {
 
 // ── Helpers de UI ──
 function close() {
+  // Durante tareas críticas NO puede cerrarse
+  if (isCriticalTask.value) return;
+
   authStore.closeAuthModal();
-  // Limpiamos los estados de error al cerrar para que no persistan en futuras aperturas
   authStore.error = null;
 
   resetNotices();
@@ -258,15 +313,16 @@ async function handleLogout() {
 
 async function handleDeleteAccount() {
   const confirmation = prompt(
-    "¿Seguro que quieres eliminar tu cuenta?\n\n" +
-      "Perderás todo el progreso guardado, desbloqueos y sincronizaciones.\n\n" +
-      "Escribe ELIMINAR para confirmar.",
+    "Are you sure you want to delete your account?\n\n" +
+      "You will lose all your saved progress, unlocks, and syncs.\n\n" +
+      "Type DELETE to confirm.",
   );
 
-  if (confirmation !== "ELIMINAR") {
+  if (confirmation !== "DELETE") {
     return;
   }
 
+  deletingAccount.value = true;
   busy.value = true;
 
   try {
@@ -275,6 +331,7 @@ async function handleDeleteAccount() {
     close();
   } finally {
     busy.value = false;
+    deletingAccount.value = false;
   }
 }
 
@@ -293,7 +350,7 @@ async function handleLinkSteam() {
 }
 
 async function handleUnlinkSteam() {
-  if (!confirm("¿Seguro que quieres desvincular tu cuenta de Steam?")) return;
+  if (!confirm("Are you sure you want to unlink your Steam account?")) return;
 
   busy.value = true;
 
@@ -306,7 +363,7 @@ async function handleUnlinkSteam() {
   try {
     await authStore.unlinkSteam();
 
-    steamLinkMessage.value = "Cuenta Steam desvinculada.";
+    steamLinkMessage.value = "Steam account unlinked.";
     steamLinkClass.value = "success";
 
     authStore.notifySteamSync();
@@ -326,16 +383,24 @@ async function handleSyncSteam({ suppressUnauthorized = false } = {}) {
 
   syncMessage.value = "";
   busy.value = true;
+  syncingSteam.value = true;
 
   try {
     const result = await syncSteamAchievements();
     const s = result.summary;
 
+    const achievementLabel =
+      s.newly_unlocked_count === 1 ? "new achievement unlocked" : "new achievements unlocked";
+
+    const itemLabel =
+      s.total_items_cascaded === 1
+        ? "new item added to your collection"
+        : "new items added to your collection";
+
     syncMessage.value =
-      `✓ Sincronización completada.\n` +
-      `${s.newly_unlocked_count} logros nuevos · ` +
-      `${s.total_items_cascaded} items en cascada · ` +
-      `${s.total_sticker_applications} stickers aplicados.`;
+      `✓ Steam sync completed.\n` +
+      `${s.newly_unlocked_count} ${achievementLabel}\n` +
+      `${s.total_items_cascaded} ${itemLabel}.`;
 
     syncClass.value = "success";
 
@@ -356,8 +421,23 @@ async function handleSyncSteam({ suppressUnauthorized = false } = {}) {
     syncClass.value = "error";
   } finally {
     busy.value = false;
+    syncingSteam.value = false;
   }
 }
+
+function handleEsc(event) {
+  if (event.key !== "Escape") return;
+
+  if (isCriticalTask.value) return;
+
+  close();
+}
+
+onMounted(() => {
+  checkSteamRedirect();
+
+  window.addEventListener("keydown", handleEsc);
+});
 
 /**
  * Listener de redirección de Steam.
@@ -373,18 +453,18 @@ async function checkSteamRedirect() {
   authStore.openAuthModal();
 
   const STATUS_MAP = {
-    success: { msg: "✓ Cuenta Steam vinculada correctamente.", cls: "success" },
-    missing_token: { msg: "Falta el token de vinculación.", cls: "error" },
+    success: { msg: "✓ Steam account linked successfully.", cls: "success" },
+    missing_token: { msg: "Linking token is missing.", cls: "error" },
     expired_token: {
-      msg: "El token de vinculación ha expirado. Vuelve a intentarlo.",
+      msg: "The linking token has expired. Please try again.",
       cls: "error",
     },
-    invalid_token: { msg: "Token de vinculación inválido.", cls: "error" },
-    user_not_found: { msg: "Usuario no encontrado.", cls: "error" },
-    verification_failed: { msg: "No se pudo verificar la respuesta de Steam.", cls: "error" },
-    invalid_claim: { msg: "Steam rechazó la verificación. Vuelve a intentarlo.", cls: "error" },
-    invalid_steam_id: { msg: "No se pudo extraer tu Steam ID.", cls: "error" },
-    already_linked: { msg: "Esa cuenta Steam ya está vinculada a otro usuario.", cls: "error" },
+    invalid_token: { msg: "Invalid linking token.", cls: "error" },
+    user_not_found: { msg: "User not found.", cls: "error" },
+    verification_failed: { msg: "Could not verify Steam response.", cls: "error" },
+    invalid_claim: { msg: "Steam verification rejected. Please try again.", cls: "error" },
+    invalid_steam_id: { msg: "Could not retrieve your Steam ID.", cls: "error" },
+    already_linked: { msg: "That Steam account is already linked to another user.", cls: "error" },
   };
 
   const entry = STATUS_MAP[status] || { msg: `Resultado: ${status}`, cls: "info" };
@@ -426,11 +506,31 @@ watch(
     if (!isOpen.value) resetNotices();
   },
 );
+
 watch(isAuthenticated, (authenticated) => {
   if (!authenticated && !isOpen.value) {
     resetNotices();
   }
 });
+
+watch(isCriticalTask, (active) => {
+  if (active) {
+    lockNavigation();
+
+    window.addEventListener("beforeunload", preventUnload);
+  } else {
+    unlockNavigation();
+
+    window.removeEventListener("beforeunload", preventUnload);
+  }
+});
+
+function preventUnload(event) {
+  if (!isCriticalTask.value) return;
+
+  event.preventDefault();
+  event.returnValue = "";
+}
 </script>
 
 <style lang="scss" scoped>
@@ -470,6 +570,11 @@ watch(isAuthenticated, (authenticated) => {
   right: 16px;
   background: transparent;
   border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   color: $text-3;
   font-family: "m6x11plus", monospace;
   font-size: 20px;
@@ -578,6 +683,10 @@ watch(isAuthenticated, (authenticated) => {
   &.google-btn {
     background: #fff;
     color: #111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
   }
 
   &.steam-btn {
@@ -767,12 +876,6 @@ watch(isAuthenticated, (authenticated) => {
   color: #9ecde6;
 }
 
-// El notice ya existe; le permitimos respetar saltos de línea para
-// que el mensaje multi-línea del sync no se vea todo seguido.
-.notice {
-  white-space: pre-line;
-}
-
 .steam-tooltip {
   position: absolute; // Anclado a body, z-index funciona
   width: 260px;
@@ -780,7 +883,7 @@ watch(isAuthenticated, (authenticated) => {
   background: #1b2838; /* Mismo color de fondo que el botón de Steam */
   color: #9ecde6;
   font-family: "m6x11plus", monospace;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.45;
   text-align: left;
   white-space: normal;

@@ -14,7 +14,7 @@
 -->
 <template>
   <div v-if="items.length" class="stake-sel">
-    <div class="stake-sel__label">PROGRESO</div>
+    <div class="stake-sel__label">PROGRESS</div>
     <div class="stake-sel__grid">
       <div
         v-for="entry in items"
@@ -26,11 +26,16 @@
           'stake-sel__item--clickable': canInteract && entry.order > currentOrder,
         }"
         :title="entry.name + (entry.description ? ': ' + entry.description : '')"
-        @click="onClickStake(entry.order, $event)"
         @click.stop="onClickStake(entry.order)"
       >
+        <iconify-icon
+          v-if="entry.iconify"
+          :icon="entry.iconify"
+          class="stake-sel__iconify"
+          noobserver
+        />
         <img
-          v-if="entry.image_url"
+          v-else-if="entry.image_url"
           :src="entry.image_url"
           :alt="entry.name"
           class="stake-sel__img"
@@ -52,7 +57,6 @@ import { useAuthStore } from "@/stores/auth";
 import { useProgressionStore } from "@/stores/progression";
 
 const props = defineProps({
-  /** El item seleccionado (joker o deck, con type y highest_stake_order). */
   item: { type: Object, default: null },
 });
 
@@ -64,22 +68,28 @@ const progStore = useProgressionStore();
 
 onMounted(() => progStore.init());
 
-/** Usuarios autenticados siempre pueden promocionar manualmente. */
 const canInteract = computed(() => true);
 
 const currentOrder = computed(() => props.item?.highest_stake_order || 0);
 
 const itemType = computed(() => {
   const t = String(props.item?.type || "").toUpperCase();
-  return t === "JOKER" || t === "DECK" ? t : null;
+  return t === "JOKER" || t === "DECK" || t === "CHALLENGE_DECK" ? t : null;
 });
 
-/**
- * Lista de 8 entradas ordenadas por stake_order, con la imagen
- * apropiada según el tipo de item (sticker para joker, stake para deck).
- */
 const items = computed(() => {
   if (!itemType.value || !progStore.loaded) return [];
+
+  if (itemType.value === "CHALLENGE_DECK") {
+    return [
+      {
+        order: 1,
+        iconify: "pixel:check-circle-solid",
+        name: "COMPLETED",
+        description: "Mark this challenge as completed to unlock the next one.",
+      },
+    ];
+  }
 
   if (itemType.value === "JOKER") {
     return progStore.progressionStickers.map((s) => ({
@@ -90,7 +100,6 @@ const items = computed(() => {
     }));
   }
 
-  // DECK
   return progStore.sortedStakes.map((s) => ({
     order: s.stake_order,
     image_url: s.image_url,
@@ -101,10 +110,7 @@ const items = computed(() => {
 
 function onClickStake(order) {
   if (!canInteract.value) return;
-
-  // Toggle off: si clicka el que ya tiene, lo bajamos a 0
   const newOrder = order === currentOrder.value ? 0 : order;
-
   emit("set-stake", newOrder);
 }
 </script>
@@ -155,7 +161,6 @@ function onClickStake(order) {
       opacity: 1;
     }
 
-    /* El efecto Gold lo aplicamos a la imagen mediante filtro en lugar de sombra de caja */
     &--gold {
       filter: drop-shadow(0 0 6px #f0a020);
     }
@@ -166,6 +171,18 @@ function onClickStake(order) {
     }
   }
 
+  &__iconify {
+    font-size: 26px;
+    color: #4d6870;
+    transition:
+      color 0.2s,
+      filter 0.2s;
+  }
+  &__item--active &__iconify {
+    color: #22c55e;
+    filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.6));
+  }
+
   &__img {
     width: 100%;
     height: 100%;
@@ -173,7 +190,6 @@ function onClickStake(order) {
     image-rendering: pixelated;
     pointer-events: none;
 
-    /* Zoom específico para stickers de Jokers */
     &--sticker {
       object-fit: cover;
       object-position: top right;

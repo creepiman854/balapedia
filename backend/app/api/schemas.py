@@ -14,6 +14,15 @@ Para las subclases CTI de Unlockable (Joker, Deck, etc.), los schemas
 asumen que se les pasa una instancia de la SUBCLASE (no del padre):
 `Joker.query.all()`, `Deck.query.all()`, etc. Los campos comunes del
 padre se hacen pull-up via `attribute="unlockable.X"`.
+
+Locked image URL (Fase 2):
+  Joker, Voucher y Deck exponen `locked_image_url` — la URL del asset
+  oficial de la wiki que sirve de "card back" mientras el item no se ha
+  descubierto. La fuente de verdad vive en `app/services/locked_assets.py`
+  y es constante por subtipo, así que aquí se cablea via `fields.Function`
+  con resolución a la carga del módulo (no hay coste por request).
+  El frontend usa este URL cuando `isLocked && !settings.showSpoiledLocked`;
+  el resto del tiempo pinta `image_url` normal o desaturado.
 """
 
 from __future__ import annotations
@@ -30,6 +39,7 @@ from app.models.enums import (
     UnlockableType,
     VoucherTier,
 )
+from app.services.locked_assets import LOCKED_IMAGE_URLS
 
 # =============================================================================
 # Schemas compartidos / nested
@@ -103,6 +113,12 @@ class JokerSchema(Schema):
         UnlockFactorSchema, attribute="unlockable.unlock_factor", allow_none=True
     )
 
+    # Asset "locked" (card back oficial). Constante por subtipo —
+    # resolución a la carga del módulo, no por instancia.
+    locked_image_url = fields.Function(
+        lambda obj: LOCKED_IMAGE_URLS[UnlockableType.JOKER]
+    )
+
 
 class ConsumableSchema(Schema):
     """Consumable (Tarot, Planet o Spectral). Pull-up del padre Unlockable.
@@ -110,6 +126,9 @@ class ConsumableSchema(Schema):
     El `type` del padre (TAROT / PLANET / SPECTRAL) discrimina entre los
     tres. El schema no diferencia: el endpoint filtra por tipo si es
     necesario.
+
+    No expone `locked_image_url` — los consumables son "available from
+    start" en vanilla Balatro y nunca se renderizan con dorso.
     """
 
     id = fields.Int()
@@ -153,6 +172,11 @@ class DeckSchema(Schema):
         UnlockFactorSchema, attribute="unlockable.unlock_factor", allow_none=True
     )
 
+    # Asset "locked" (card back oficial).
+    locked_image_url = fields.Function(
+        lambda obj: LOCKED_IMAGE_URLS[UnlockableType.DECK]
+    )
+
 
 class VoucherSchema(Schema):
     """Voucher (subclase Unlockable). Incluye tier y enlace al siguiente
@@ -167,6 +191,7 @@ class VoucherSchema(Schema):
     item_number = fields.Int(attribute="unlockable.item_number")
     name = fields.Str(attribute="unlockable.name")
     description = fields.Str(attribute="unlockable.description", allow_none=True)
+    buy_price = fields.Int(allow_none=True)
     image_url = fields.Str(attribute="unlockable.image_url", allow_none=True)
     unlock_condition = fields.Str(
         attribute="unlockable.unlock_condition", allow_none=True
@@ -176,9 +201,18 @@ class VoucherSchema(Schema):
         UnlockFactorSchema, attribute="unlockable.unlock_factor", allow_none=True
     )
 
+    # Asset "locked" (card back oficial).
+    locked_image_url = fields.Function(
+        lambda obj: LOCKED_IMAGE_URLS[UnlockableType.VOUCHER]
+    )
+
 
 class BoosterPackSchema(Schema):
-    """Booster Pack (subclase Unlockable). Tipo de pack + tamaño + coste."""
+    """Booster Pack (subclase Unlockable). Tipo de pack + tamaño + coste.
+
+    No expone `locked_image_url` — en vanilla Balatro los sobres son
+    "available from start" sin asset locked oficial.
+    """
 
     id = fields.Int()
 
@@ -199,7 +233,12 @@ class BoosterPackSchema(Schema):
 
 class ChallengeDeckSchema(Schema):
     """Challenge Deck (subclase Unlockable). Modificadores + starter +
-    banned + descripción de la baraja base."""
+    banned + descripción de la baraja base.
+
+    No expone `locked_image_url` — los challenge decks no tienen asset
+    locked oficial; cuando estén bloqueados, la UI los pinta con el
+    mismo dorso genérico "?" que usa el resto de fallbacks sin imagen.
+    """
 
     id = fields.Int()
 
@@ -215,6 +254,10 @@ class ChallengeDeckSchema(Schema):
     image_url = fields.Str(attribute="unlockable.image_url", allow_none=True)
     unlock_condition = fields.Str(
         attribute="unlockable.unlock_condition", allow_none=True
+    )
+    # Asset "locked" (card back oficial).
+    locked_image_url = fields.Function(
+        lambda obj: LOCKED_IMAGE_URLS[UnlockableType.CHALLENGE_DECK]
     )
     wiki_url = fields.Str(attribute="unlockable.wiki_url", allow_none=True)
 
@@ -259,22 +302,6 @@ class CardModifierSchema(Schema):
     modifier_type = fields.Enum(ModifierType)
     effect = fields.Str(allow_none=True)
     image_url = fields.Str(allow_none=True)
-    wiki_url = fields.Str(allow_none=True)
-
-
-class PokerHandSchema(Schema):
-    """Poker Hand (jugada de poker reconocida por el juego)."""
-
-    id = fields.Int()
-    name = fields.Str()
-    base_chips = fields.Int()
-    base_mult = fields.Int()
-    chips_per_level = fields.Int()
-    mult_per_level = fields.Int()
-    planet_card_name = fields.Str(allow_none=True)
-    description = fields.Str(allow_none=True)
-    hidden = fields.Bool()
-    hand_order = fields.Int()
     wiki_url = fields.Str(allow_none=True)
 
 

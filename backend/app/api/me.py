@@ -3,10 +3,13 @@
 Cubre las vistas que el frontend necesita para mostrar al usuario su
 estado de avance en el juego:
 
-  - GET /api/me/summary       -> stats agregados (dashboard / profile)
-  - GET /api/me/jokers        -> catálogo + overlay de progreso por joker
-  - GET /api/me/decks         -> catálogo + overlay (sticker dorado)
-  - GET /api/me/achievements  -> catálogo + overlay (unlocked + timestamp)
+  - GET /api/me/summary           -> stats agregados (dashboard / profile)
+  - GET /api/me/jokers            -> catálogo + overlay de progreso por joker
+  - GET /api/me/decks             -> catálogo + overlay (sticker dorado)
+  - GET /api/me/vouchers          -> catálogo + overlay
+  - GET /api/me/booster-packs     -> catálogo + overlay (forward-compat)
+  - GET /api/me/challenge-decks   -> catálogo + overlay (cascade Rule Breaker)
+  - GET /api/me/achievements      -> catálogo + overlay (unlocked + timestamp)
 
 Todos requieren autenticación Firebase (`@require_auth`) — el `user_id`
 sale del token JWT, no de query params.
@@ -39,6 +42,7 @@ from app.api.auth import require_auth
 from app.api.schemas import (
     AchievementSchema,
     BoosterPackSchema,
+    ChallengeDeckSchema,
     DeckSchema,
     JokerSchema,
     VoucherSchema,
@@ -47,6 +51,7 @@ from app.extensions import db
 from app.models import (
     Achievement,
     BoosterPack,
+    ChallengeDeck,
     Deck,
     Joker,
     Unlockable,
@@ -244,6 +249,18 @@ def _overlay_unlockable_progress(
         "Available from start.",
         "Unlocked from start",
     )
+
+    # EXCEPCIÓN FRONTEND-BACKEND: Los 5 primeros Challenge Decks son base_unlocked
+    if item_dict.get("type") == "CHALLENGE_DECK":
+        if str(item_dict.get("name", "")).upper() in [
+            "THE OMELETTE",
+            "15 MINUTE CITY",
+            "RICH GET RICHER",
+            "ON A KNIFE'S EDGE",
+            "X-RAY VISION",
+        ]:
+            is_base_unlocked = True
+
     is_visually_unlocked = item_dict["unlocked_for_me"] or is_base_unlocked
 
     item_dict["highest_stake_order"] = (
@@ -493,6 +510,60 @@ def list_my_booster_packs():
 
 
 # =============================================================================
+# GET /api/me/challenge-decks
+# =============================================================================
+
+
+_CHALLENGE_DECK_SORTS = {
+    "item_number": Unlockable.item_number,
+    "name": Unlockable.name,
+}
+
+
+@me_progress_bp.route("/challenge-decks", methods=["GET"])
+@require_auth
+def list_my_challenge_decks():
+    """Catálogo completo de Challenge Decks + overlay de progreso.
+
+    Endpoint hermano de los demás `/api/me/<subtipo>`. Existe porque sin
+    él la cascade de Rule Breaker (BAL_23) NO es visible en el frontend:
+    la cascade crea correctamente las filas UserUnlock para los 20
+    challenge decks pero CollectionView leería de `/api/challenge-decks`
+    (público, sin overlay) y verían siempre `unlocked_for_me=false`
+    aunque el usuario tenga el achievement completado.
+
+    Los challenge decks soportarían `highest_stake_order` (son del
+    namespace de Unlockable y su FK funciona) pero no se aplican stickers
+    sobre ellos en el juego — el overlay seguirá devolviendo null para
+    ese campo en todos los casos. Lo dejamos uniforme con el resto por
+    consistencia del contrato.
+    """
+    user = g.user
+
+    query = _build_unlockable_subclass_query(ChallengeDeck)
+    query = apply_sort(query, _CHALLENGE_DECK_SORTS, default_sort="item_number")
+    paginated = paginate_query(query, schema=None)
+
+    challenges = paginated["items"]
+    challenge_ids = [c.id for c in challenges]
+    unlocks_map, stickers_map = _fetch_user_progress_for_unlockables(
+        user.id, challenge_ids
+    )
+
+    schema = ChallengeDeckSchema()
+    items_data = [
+        _overlay_unlockable_progress(
+            schema.dump(challenge),
+            unlocks_map.get(challenge.id),
+            stickers_map.get(challenge.id),
+        )
+        for challenge in challenges
+    ]
+    paginated["items"] = items_data
+    return jsonify(paginated)
+
+
+# =============================================================================
 # GET /api/me/achievements
 # =============================================================================
 
@@ -661,12 +732,6 @@ def set_my_achievement_unlock():
     de entrada al lifecycle de `UserAchievement`, simétrico al de
     `set_unlock_for_user` para `UserUnlock`.
 
-    Diferencia con el endpoint de unlocks: aquí NO aceptamos
-    `unlocked: false`. El verbo `/unlock` en la ruta implica acción;
-    el service que lo respalda solo soporta SET-to-true (un
-    achievement "des-desbloqueado" no tiene sentido semántico). Si en
-    el futuro hace falta, será un endpoint distinto (`/relock`) con
-    su propia función de servicio.
     """
     payload = request.get_json(silent=True) or {}
 
@@ -674,23 +739,46 @@ def set_my_achievement_unlock():
     if isinstance(raw_id, bool) or not isinstance(raw_id, int):
         raise ValidationError({"achievement_id": "required int (the Achievement.id)"})
 
+    raw_unlocked = payload.get("unlocked", True)
+    if not isinstance(raw_unlocked, bool):
+        raise ValidationError({"unlocked": "must be a boolean"})
+
+    if not raw_unlocked:
+        # Re-lock path
+        from app.services.achievements import lock_achievement_for_user
+
+        relock_result = lock_achievement_for_user(
+            user_id=g.user.id,
+            achievement_id=raw_id,
+        )
+        return jsonify(
+            {
+                "ok": True,
+                "unlocked_for_me": False,
+                "unlocked_at": None,
+                **relock_result,
+            }
+        )
+
     try:
         result = unlock_achievement_for_user(
             user_id=g.user.id,
             achievement_id=raw_id,
             source=UnlockSource.MANUAL,
         )
-    except ValueError:
-        # `unlock_achievement_for_user` lanza ValueError si el id no
-        # existe — lo traducimos a 404 con el mismo formato que el
-        # resto de "not_found" del API.
-        return (
-            jsonify(
-                error="not_found",
-                message=f"Achievement {raw_id} not found",
-            ),
-            404,
-        )
+    except ValueError as e:
+        # Solo devolvemos 404 si el ValueError viene de que no existe el logro.
+        # Si es un error de validación de SQLAlchemy, dejamos que explote con 500
+        # para poder verlo en la terminal.
+        if "no encontrado" in str(e) or "not found" in str(e):
+            return (
+                jsonify(
+                    error="not_found",
+                    message=f"Achievement {raw_id} not found",
+                ),
+                404,
+            )
+        raise e
 
     # Re-query del UserAchievement para devolver el `unlocked_at`
     # final. El service devuelve `UnlockAchievementResult` centrado en
@@ -786,12 +874,16 @@ def set_my_sticker_application():
     # Solo Jokers y Decks soportan stickers (validación del modelo
     # UserStickerApplication dispara un error si el tipo es incorrecto,
     # pero atraparlo antes da un mensaje más claro al frontend).
-    if unlockable.type not in (UnlockableType.JOKER, UnlockableType.DECK):
+    if unlockable.type not in (
+        UnlockableType.JOKER,
+        UnlockableType.DECK,
+        UnlockableType.CHALLENGE_DECK,
+    ):
         raise ValidationError(
             {
                 "unlockable_id": (
                     f"Type {unlockable.type.name} does not support stickers. "
-                    f"Only JOKER and DECK are valid."
+                    f"Only JOKER, DECK and CHALLENGE_DECK are valid."
                 )
             }
         )

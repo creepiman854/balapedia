@@ -1,30 +1,34 @@
 /**
  * Servicio de Colección.
  *
- * Endpoints consumidos (todos públicos, sin auth):
- *   - GET /api/decks
- *   - GET /api/vouchers
- *   - GET /api/booster-packs
- *   - GET /api/card-modifiers?modifier_type=ENHANCEMENT|EDITION|SEAL
- *
- * No hay equivalente `/api/me/*` para ninguno. Cuando exista (overlay
- * de "qué decks tengo Gold Sticker", "qué vouchers he usado"…), basta
- * con duplicar las funciones aquí con el path autenticado.
+ * Endpoints consumidos:
+ *   - GET  /api/decks               /  /api/me/decks
+ *   - GET  /api/vouchers            /  /api/me/vouchers
+ *   - GET  /api/booster-packs       /  /api/me/booster-packs
+ *   - GET  /api/challenge-decks     /  /api/me/challenge-decks
+ *   - GET  /api/card-modifiers      (sin /me/* — modifiers no son Unlockable)
+ *   - POST /api/me/unlocks          (compartido para todos los Unlockables;
+ *                                    incluye re-lock con unlocked=false)
  *
  * Forma de los items (heredan de Unlockable):
  *   id, type, item_number, name, description, image_url,
- *   unlock_condition, wiki_url, unlock_factor
+ *   unlock_condition, wiki_url, unlock_factor, locked_image_url?
  *   + campos propios de cada subclase:
- *     - Deck:        (sin extras, todo viene del padre)
- *     - Voucher:     voucher_tier ('BASE' | 'UPGRADED')
- *     - BoosterPack: pack_type ('ARCANA'|...), size ('NORMAL'|'JUMBO'|'MEGA'), cost
+ *     - Deck:          (sin extras, todo viene del padre)
+ *     - Voucher:       voucher_tier ('BASE' | 'UPGRADED'), buy_price
+ *     - BoosterPack:   pack_type ('ARCANA'|...), size ('NORMAL'|...), cost
+ *     - ChallengeDeck: modifier, starter, banned, deck_description
  *     - CardModifier (no es subclase de Unlockable, tabla flat):
- *         modifier_type ('ENHANCEMENT' | 'EDITION' | 'SEAL'), name, description
+ *         modifier_type ('ENHANCEMENT' | 'EDITION' | 'SEAL'), name, effect
+ *
+ * `locked_image_url` (Fase 2) lo expone el backend solo para Jokers,
+ * Vouchers y Decks — los demás subtipos lo reciben como `undefined`.
  *
  * Errores: envolvemos los AxiosError en Error con status + mensaje del
  * backend para diagnosticar a la primera (igual que services/consumables.js).
  */
 import { api } from "./api";
+import { useDictionaryStore } from "@/stores/dictionary";
 
 function wrapError(e, contextPath) {
   if (e.response) {
@@ -41,7 +45,7 @@ function wrapError(e, contextPath) {
     return err;
   }
   if (e.request) {
-    return new Error(`${contextPath} → sin respuesta del backend (¿flask corriendo en :5000?)`);
+    return new Error(`${contextPath} → no response from backend (is Flask running on :8080?)`);
   }
   return e;
 }
@@ -66,8 +70,9 @@ async function withColdStartRetry(fn) {
 }
 
 /**
- * Helper paginador. Pide la primera página y, si hay más, las restantes
- * en paralelo. Devuelve la lista concatenada de `items`.
+ * Helper paginador. Pide las páginas en SECUENCIA. NO usar Promise.all:
+ * el plan de hosting actual del backend tiene `max_user_connections=5`
+ * y abrir 4+ conexiones a la vez desde una sola vista satura el pool.
  */
 async function fetchAllPages(path, extraParams = {}, contextLabel = null) {
   const ctx = contextLabel ?? path;
@@ -77,13 +82,14 @@ async function fetchAllPages(path, extraParams = {}, contextLabel = null) {
     let items = [...first.data.items];
     const totalPages = first.data.total_pages || 1;
     if (totalPages > 1) {
-      const rest = await Promise.all(
-        Array.from({ length: totalPages - 1 }, (_, i) =>
-          api.get(path, { params: { ...params, page: i + 2 } }),
-        ),
-      );
-      for (const r of rest) items = items.concat(r.data.items);
+      for (let page = 2; page <= totalPages; page++) {
+        const r = await api.get(path, { params: { ...params, page } });
+        items = items.concat(r.data.items);
+      }
     }
+    const dictStore = useDictionaryStore();
+    dictStore.registerItems(items);
+
     return items;
   } catch (e) {
     throw wrapError(e, ctx);
@@ -94,11 +100,6 @@ async function fetchAllPages(path, extraParams = {}, contextLabel = null) {
 /**
  * Si `authenticated` es true se pide /api/me/decks (con overlay
  * `unlocked_for_me`); si no, /api/decks (público, sin overlay).
- *
- * Es el único sub-tab con overlay autenticado a día de hoy — vouchers,
- * booster-packs y card-modifiers no tienen equivalente /api/me/*
- * todavía, así que la vista los trata como locked-por-defecto cuando
- * tienen unlock method no-default (ver `isItemLocked`).
  */
 export async function fetchAllDecks({ authenticated = false } = {}) {
   const path = authenticated ? "/api/me/decks" : "/api/decks";
@@ -113,11 +114,8 @@ export async function fetchAllDecks({ authenticated = false } = {}) {
  *
  * Importante para el cascade de Steam sync: BAL_07 (Card Player) y
  * BAL_08 (Card Discarder) comparten unlock_factor con Nacho Tong y
- * Recyclomancy respectivamente. La cascade del backend crea las filas
- * UserUnlock correctamente cuando esos logros se sincronizan, pero
- * SIN este endpoint autenticado el frontend no las puede ver — leería
- * de /api/vouchers (público) y los vouchers parecerían siempre locked
- * aunque el usuario tenga ambos logros completados en Steam.
+ * Recyclomancy respectivamente. Sin el endpoint autenticado el cascade
+ * crea las filas UserUnlock pero el frontend no las puede ver.
  */
 export async function fetchAllVouchers({ authenticated = false } = {}) {
   const path = authenticated ? "/api/me/vouchers" : "/api/vouchers";
@@ -126,25 +124,31 @@ export async function fetchAllVouchers({ authenticated = false } = {}) {
 
 // ── Booster Packs ─────────────────────────────────────────────────
 /**
- * Devuelve TODOS los booster packs. La tabla `booster_pack` tiene
- * UNA fila por combinación `(pack_type, size)` — con la seed actual
- * son ~15 filas. La vista los agrupa por `pack_type` y muestra los 3
- * tamaños (NORMAL/JUMBO/MEGA) por cada clase.
- *
- * Si en el futuro se modela "variantes visuales" por combo (ej. 4
- * imágenes distintas para ARCANA NORMAL), o el shape cambia, este
- * fetch sigue valiendo — solo cambia la lógica de presentación.
- *
  * Si `authenticated` es true se pide /api/me/booster-packs (overlay
- * `unlocked_for_me`); si no, /api/booster-packs. Mismo patrón que
- * fetchAllDecks / fetchAllVouchers. En vanilla Balatro los sobres
- * son "available from start" sin unlock_factor, así que el overlay
- * siempre devolverá unlocked_for_me=false — pero exponer el endpoint
- * mantiene la simetría de la API y deja la puerta abierta a mods
- * comunitarios con sobres con condiciones de desbloqueo.
+ * `unlocked_for_me`); si no, /api/booster-packs.
+ *
+ * En vanilla Balatro los sobres son "available from start" sin
+ * unlock_factor, así que el overlay siempre devuelve unlocked_for_me=false.
+ * Exponer el endpoint mantiene la simetría de la API y deja la puerta
+ * abierta a mods comunitarios con sobres con condiciones de desbloqueo.
  */
 export async function fetchAllBoosterPacks({ authenticated = false } = {}) {
   const path = authenticated ? "/api/me/booster-packs" : "/api/booster-packs";
+  return fetchAllPages(path);
+}
+
+// ── Challenge Decks ───────────────────────────────────────────────
+/**
+ * Si `authenticated` es true se pide /api/me/challenge-decks (overlay
+ * `unlocked_for_me`); si no, /api/challenge-decks (público).
+ *
+ * Crítico para el cascade de Rule Breaker (BAL_23) sea visible:
+ * cuando el achievement se desbloquea, el resolver del backend crea las
+ * filas UserUnlock para los 20 challenge decks, pero SIN este endpoint
+ * autenticado el frontend leería del público y los vería siempre locked.
+ */
+export async function fetchAllChallengeDecks({ authenticated = false } = {}) {
+  const path = authenticated ? "/api/me/challenge-decks" : "/api/challenge-decks";
   return fetchAllPages(path);
 }
 
@@ -164,13 +168,6 @@ export async function fetchCardModifiers(modifierType) {
  * Trae TODOS los card modifiers en una sola request (sin filtro de tipo)
  * y los agrupa por `modifier_type` en el cliente.
  *
- * Antes hacíamos 3 requests en paralelo (una por tipo), pero el plan
- * de hosting actual tiene `max_user_connections=5` y al sumarse a las
- * otras 3 del CollectionView (decks/vouchers/packs) podían llegar 6
- * conexiones simultáneas → 1226 OperationalError del pool MySQL → 500
- * al frontend. Una request única evita el problema y, además, es más
- * eficiente porque el backend solo abre UN cursor.
- *
  * @returns {Promise<{enhancements: Array, editions: Array, seals: Array}>}
  */
 export async function fetchAllCardModifiers() {
@@ -185,7 +182,7 @@ export async function fetchAllCardModifiers() {
   return grouped;
 }
 
-// ── Manual unlock ─────────────────────────────────────────────────
+// ── Manual unlock / re-lock ───────────────────────────────────────
 /**
  * Marca un Unlockable como desbloqueado para el usuario actual.
  *
@@ -194,17 +191,20 @@ export async function fetchAllCardModifiers() {
  * tabla padre `unlockables`, así que `POST /api/me/unlocks` con
  * `{ unlockable_id, unlocked }` cubre los seis subtipos.
  *
- * El upsert backend (`services/unlocks_service.set_unlock_for_user`)
- * es idempotente: re-marcar el mismo estado responde 200 sin tocar
- * `unlocked_at`. El mismo upsert lo usará el sync de Steam, así que
- * un item que ya estuviese desbloqueado por Steam permanece igual.
- *
- * NOTA: Card Modifiers (Enhancement/Edition/Seal) NO son Unlockable,
- * son tabla flat, así que esta función no aplica a ellos. La vista
- * ya evita que aparezcan como locked, así que el botón ni se renderiza.
- *
  * @param {number} unlockableId
  */
 export async function unlockItem(unlockableId) {
   await api.post("/api/me/unlocks", { unlockable_id: unlockableId, unlocked: true });
+}
+
+/**
+ * Re-bloquea un Unlockable que el usuario había desbloqueado
+ * manualmente (o por cascade de Steam). El backend lo persiste con
+ * `unlocked=false`; tras esto, `/api/me/<subtipo>` lo devolverá con
+ * `unlocked_for_me: false`.
+ *
+ * @param {number} unlockableId
+ */
+export async function relockItem(unlockableId) {
+  await api.post("/api/me/unlocks", { unlockable_id: unlockableId, unlocked: false });
 }

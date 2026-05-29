@@ -38,7 +38,6 @@ HEADERS = {"User-Agent": USER_AGENT}
 COLOR_DISCARD_TEMPLATES = {"hl", "c", "color", "fc", "clr", "textcolor"}
 IDENTITY_TEMPLATES = {
     "suit",
-    "ph",
     "v",
     "j",
     "tarot",
@@ -89,10 +88,60 @@ DESCRIPTION_OVERRIDES: dict[str, str] = {
     "Spectral Pack": "Choose 1 of up to 2 Spectral cards",
     # Decks
     "Anaglyph Deck": "After defeating each Boss Blind, gain a Double Tag",
+    "Black Deck": "+1 Joker slot\n-1 hand every round",
+    "Nebula Deck": "Start run with the Telescope voucher\n-1 consumable slot",
+    "Plasma Deck": "Balance Chips and Mult when calculating score for played hand\nX2 base Blind size",
     # Card Modifiers
     "Glass Card": "x2 Mult. 1 in 4 chance to destroy card",
     "Stone Card": "+50. Chips no rank or suit",
     "Lucky Card": "1 in 5 chance for +20 Mult. 1 in 15 chance to win $20",
+    # Tags
+    "Double Tag": "Gives a copy of the next selected Tag <small>Double Tag excluded</small>",
+    "Garbage Tag": "Gives $1 per unused discard this run",
+    "Handy Tag": "Gives $1 per played hand this run",
+    "Speed Tag": "Gives $5 per skipped Blind this run",
+}
+
+# Overrides manuales de Challenge Decks
+CHALLENGE_MODIFIER_OVERRIDES: dict[str, str] = {
+    "The Omelette": "All Blinds give no reward money\nExtra Hands no longer earn money\nEarn no Interest at end of round",
+    "Rich get Richer": "Chips cannot exceed the current $\nStart with $100",
+    "Mad World": "Extra Hands no longer earn money\nEarn no Interest at end of round",
+    "Luxury Tax": "Hold -1 cards in hand for every $5 you have\n10 hand size",
+    "Typecast": "When ante 4 boss is defeated:\n- all Jokers become eternal\n- set Joker slots to 0",
+    "Blast Off": "2 hands per round\n2 discards per round\n4 Joker Slots",
+    "Five-Card Draw": "6 discards per round\n5 hand size\n7 Joker slots",
+    "Golden Needle": "Discards each cost $1\n\n1 hands per round\n6 discards per round\nStart with $10",
+    "Cruelty": "Small Blinds give no reward money\nBig Blinds give no reward money\n\n3 Joker Slots",
+    "Jokerless": "Jokers no longer appear in the shop\n\n0 Joker Slots",
+}
+
+CHALLENGE_STARTER_OVERRIDES: dict[str, str] = {
+    "15 Minute City": "Eternal Ride the Bus\nEternal Shortcut",
+    "Rich get Richer": "Seed Money\nMoney Tree",
+    "On a Knife's Edge": "Eternal, Pinned Ceremonial Dagger\nThe Pinned Joker is always in the leftmost position",
+    "Mad World": "Eternal, Negative Pareidolia\nEternal Business Card",
+    "Medusa": "Eternal Marble Joker",
+    "Inflation": "Credit Card",
+    "Bram Poker": "Eternal Vampire\nThe Emperor,  The Empress\nMagic Trick,  Illusion",
+    "Fragile": "2x Eternal, Negative Oops! All 6s",
+    "Monolith": "Eternal Obelisk\nEternal Negative Marble Joker",
+    "Blast Off": "Eternal Constellation\nEternal Rocket\nPlanet Merchant\nPlanet Tycoon",
+    "Five-Card Draw": "Card Sharp\nJoker",
+    "Golden Needle": "Credit Card",
+}
+
+CHALLENGE_BANNED_OVERRIDES: dict[str, str] = {
+    "The Omelette": "Banned Vouchers:\nSeed Money\nMoney Tree\n\nBanned Jokers:\n To the Moon\n Rocket\n Golden Joker\n Satellite",
+    "Mad World": "Banned Blinds:\nThe Plant",
+    "Non-Perishable": "Banned Jokers:  \nGros Michel, Cavendish\nIce Cream, Turtle Bean\nRamen, Diet Cola\nSeltzer, Popcorn\nMr. Bones, Invisible Joker\nLuchador\n\nBanned Blinds:\nVerdant Leaf",
+    "Typecast": "Banned Blinds:\nVerdant Leaf",
+    "Inflation": "Banned Vouchers:\nClearance Sale\nLiquidation",
+    "Fragile": "All methods of adding non-glass cards or removing glass enhancements are banned:\n\n- Jokers:  \nMarble Joker, Vampire\nMidas Mask, Certificate\n\n- Tarot cards:\nThe Magician, The Empress\nThe Hierophant, The Chariot\nThe Devil, The Tower\nThe Lovers\n\n- Spectral cards:\nIncantation, Grim\nFamiliar\n\n- Vouchers:\nMagic Trick, Illusion\n\n- Booster Packs: \nStandard Pack\n\n- Tags:\nStandard Tag",
+    "Blast Off": "Banned Vouchers:  \nGrabber, Nacho Tong\n\nBanned Jokers:\nBurglar",
+    "Five-Card Draw": "Banned Jokers:\nJuggler, Troubadour\nTurtle Bean",
+    "Golden Needle": "Banned Jokers:\nBurglar\n\nBanned Vouchers:\nGrabber\nNacho Tong",
+    "Jokerless": "All methods of acquiring Jokers:\n\n- Tarot cards:\nJudgement\n\n- Spectral cards:\nWraith, The Soul\n\n- Tags:\nUncommon Tag,  Rare Tag\nNegative Tag, Foil Tag\nHolographic Tag, Polychrome Tag\nBuffoon Tag, Top-up Tag\n\n- Blinds:\nCrimson Heart, Verdant Leaf\nAmber Acorn\n\n- Vouchers:\nAntimatter\n\n- Booster Packs:\nall 4 Buffoon Packs",
 }
 
 # ──────────────────────────────────────────────────────────────────────
@@ -412,6 +461,7 @@ def parse_voucher(wikitext: str) -> Optional[dict]:
         "unlock_condition": render_wikitext(
             _field(tpl, "unlock", "Available from start.")
         ),
+        "buy_price": extract_leading_int(_field(tpl, "buyprice")),
     }
 
 
@@ -420,20 +470,31 @@ def parse_challenge_deck(wikitext: str) -> Optional[dict]:
     if not tpl:
         return None
     name = _field(tpl, "title")
+
+    modifier_text = CHALLENGE_MODIFIER_OVERRIDES.get(
+        name, render_wikitext(_field(tpl, "modifier"))
+    )
+
+    starter_text = CHALLENGE_STARTER_OVERRIDES.get(name)
+    if starter_text is None:
+        starter_text = (
+            render_wikitext(_field(tpl, "starter")) if _field(tpl, "starter") else None
+        )
+
+    banned_text = CHALLENGE_BANNED_OVERRIDES.get(name)
+    if banned_text is None:
+        banned_text = (
+            render_wikitext(_field(tpl, "banned")) if _field(tpl, "banned") else None
+        )
+
     return {
         "type": "challenge_deck",
         "item_number": extract_leading_int(_field(tpl, "number")),
         "name": name,
         "image_filename": None,
-        "modifier": apply_description_override(
-            name, render_wikitext(_field(tpl, "modifier"))
-        ),
-        "starter": (
-            render_wikitext(_field(tpl, "starter")) if _field(tpl, "starter") else None
-        ),
-        "banned": (
-            render_wikitext(_field(tpl, "banned")) if _field(tpl, "banned") else None
-        ),
+        "modifier": modifier_text,
+        "starter": starter_text,
+        "banned": banned_text,
         "deck_description": (
             render_wikitext(_field(tpl, "deck")) if _field(tpl, "deck") else None
         ),
@@ -513,71 +574,6 @@ def _parse_booster_pack_row(cells: list[str], pack_type: str) -> Optional[dict]:
     }
 
 
-def parse_poker_hands_page(wikitext: str) -> list[dict]:
-    hands = []
-    hand_order = 0
-    for section_name, is_hidden in [
-        ("Regular Poker Hands", False),
-        ("Secret Poker Hands", True),
-    ]:
-        match = re.search(
-            r"==\s*" + re.escape(section_name) + r"\s*==.*?(\{\|.*?\|\})",
-            wikitext,
-            re.DOTALL,
-        )
-        if not match:
-            continue
-        for row in match.group(1).split("\n|-"):
-            if "Poker Hand" in row and "Base Scoring" in row:
-                continue
-            cells = _split_wikitable_cells(row)
-            if len(cells) < 4:
-                continue
-            hand_order += 1
-            hand = _parse_poker_hand_row(cells, is_hidden, hand_order)
-            if hand:
-                hands.append(hand)
-    return hands
-
-
-def _parse_poker_hand_row(
-    cells: list[str], is_hidden: bool, hand_order: int
-) -> Optional[dict]:
-    id_match = re.search(r'id="([^"]+)"', cells[0])
-    if not id_match:
-        return None
-
-    name = id_match.group(1)
-    # Aplicamos override
-    description = apply_description_override(name, render_wikitext(cells[3]))
-
-    chips = re.search(r"\{\{Chips\|(\d+)\}\}", cells[1])
-    mult = re.search(r"\{\{Mult\|(\d+)\}\}", cells[1])
-    if not chips or not mult:
-        return None
-
-    planet = re.search(r"\{\{Planet\|([^}|]+)", cells[2])
-    return {
-        "name": id_match.group(1),
-        "base_chips": int(chips.group(1)),
-        "base_mult": int(mult.group(1)),
-        "chips_per_level": (
-            int(re.search(r"\{\{chips\|\+?(\d+)\}\}", cells[2]).group(1))
-            if re.search(r"\{\{chips\|\+?(\d+)\}\}", cells[2])
-            else 0
-        ),
-        "mult_per_level": (
-            int(re.search(r"\{\{mult\|\+?(\d+)\}\}", cells[2]).group(1))
-            if re.search(r"\{\{mult\|\+?(\d+)\}\}", cells[2])
-            else 0
-        ),
-        "planet_card_name": planet.group(1).strip() if planet else None,
-        "description": render_wikitext(cells[3]),
-        "hidden": is_hidden,
-        "hand_order": hand_order,
-    }
-
-
 def parse_stakes_page(wikitext: str) -> list[dict]:
     match = re.search(r"==\s*List of stakes\s*==.*?(\{\|.*?\|\})", wikitext, re.DOTALL)
     if not match:
@@ -634,7 +630,7 @@ def parse_blind(wikitext: str) -> Optional[dict]:
         "name": _field(tpl, "title"),
         "image_filename": _field(tpl, "image"),
         "blind_type": _field(tpl, "type", "Boss"),
-        "description": render_wikitext(_field(tpl, "description")),
+        "description": description,
         "ante": _field(tpl, "ante"),
         "score_multiplier": score,
         "reward_money": extract_leading_int(_field(tpl, "reward")),
@@ -656,7 +652,7 @@ def parse_tag(wikitext: str) -> Optional[dict]:
     return {
         "name": _field(tpl, "title"),
         "image_filename": _field(tpl, "image"),
-        "description": render_wikitext(_field(tpl, "description")),
+        "description": description,
         "ante": _field(tpl, "ante"),
         "unlock_condition": (
             render_wikitext(_field(tpl, "unlock")) if _field(tpl, "unlock") else None

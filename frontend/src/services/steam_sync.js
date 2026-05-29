@@ -70,7 +70,7 @@ export async function syncSteamAchievements() {
 export function describeSyncError(err) {
   // 401 = sesión caducada — el caller debería abrir el AuthModal.
   if (err?.response?.status === 401) {
-    return { code: 'unauthorized', message: 'Sesión caducada. Vuelve a iniciar sesión.' }
+    return { code: 'unauthorized', message: 'Session expired. Please log in again.' }
   }
   // Backend con respuesta semántica.
   const data = err?.response?.data
@@ -84,12 +84,12 @@ export function describeSyncError(err) {
   if (!err?.response) {
     return {
       code: 'network_error',
-      message: 'No se pudo conectar con el backend. ¿Está corriendo Flask?',
+      message: 'Could not connect to the backend. Is Flask running?',
     }
   }
   // 5xx no clasificado.
   return {
     code: 'unknown_error',
-    message: err.message || 'Error desconocido al sincronizar con Steam.',
+    message: err.message || 'Unknown error while syncing with Steam.',
   }
 }

@@ -93,7 +93,7 @@ class ModifierType(str, Enum):
     Los tres tipos se aplican a cartas pero con mecánicas distintas:
       - Enhancement: modifica la carta jugadora (chips, mult, dinero...).
       - Edition: efecto visual + scoring sobre cualquier carta (Joker,
-        consumible, playing card).
+        consumable, playing card).
       - Seal: marcador especial en una playing card con efecto al jugarla.
     """
 

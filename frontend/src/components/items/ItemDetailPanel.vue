@@ -1,23 +1,28 @@
 <!--
   Panel derecho con el detalle del item seleccionado.
 
-  Genérico para joker / consumible / (otros en futuro). Las secciones
-  que no aplican a un tipo concreto se ocultan con v-if:
+  Genérico para joker / consumable / deck / voucher / booster-pack /
+  challenge-deck. Las secciones que no aplican a un tipo concreto se
+  ocultan con v-if:
     - RAREZA / TIPO → siempre una (rareza si es joker; tipo si es
-      consumible), nunca ambas.
+      consumable), nunca ambas.
     - EFECTO → siempre (la descripción).
     - DESBLOQUEO → si hay unlock_condition o unlock_factor.
-    - (MI PROGRESO se eliminó: el estado visual de la carta — imagen
-      vs dorso — ya comunica el unlock state al usuario.)
-    - ESTADÍSTICAS → buy/sell siempre; effect_type/activation solo si
-      el shape los trae (jokers).
+    - CHALLENGE DECK (4 secciones) → solo si itemType === 'CHALLENGE_DECK':
+      MODIFICADOR, INICIO, BANEADO, BARAJA BASE.
+    - ESTADÍSTICAS → buy/sell (jokers/consumables/vouchers) o COSTE
+      (booster packs). effect_type/activation solo si jokers.
     - COMPATIBILIDAD → solo si alguno de is_copyable/perishable/eternal
       es true (jokers).
+
+  Botón unlock/re-lock (Fase 2):
+    Toggle bidireccional. El padre emite `manual-unlock` con
+    `(item, unlocked)` y elige qué servicio llamar.
 -->
 <template>
   <div v-if="!item" class="empty">
     <div class="empty__icon">?</div>
-    <p class="empty__text">Selecciona una<br />carta para ver<br />los detalles</p>
+    <p class="empty__text">Select an item<br />to view the<br />details</p>
   </div>
 
   <div v-else class="detail">
@@ -28,33 +33,69 @@
       </div>
       <!-- Solo para jokers y decks autenticados -->
       <StakeSelector
-        v-if="isAuthenticated && !isLocked && (itemType === 'JOKER' || itemType === 'DECK')"
+        v-if="
+          isAuthenticated &&
+          !isLocked &&
+          (itemType === 'JOKER' || itemType === 'DECK' || itemType === 'CHALLENGE_DECK')
+        "
         :item="item"
         @set-stake="onSetStake"
       />
     </div>
 
     <div class="detail__body">
-      <!-- Desbloqueo manual (solo si está locked Y el padre admite el evento) -->
-      <div v-if="isLocked && canUnlock" class="stroke-wrapper manual-unlock-wrapper">
-        <button class="manual-unlock" :disabled="busy" @click="onManualUnlock">
-          {{ busy ? "Desbloqueando..." : "Marcar como desbloqueado" }}
+      <!-- Botón unlock (cuando bloqueado) o re-lock (cuando desbloqueado). No aparece en Challege Deck -->
+      <div
+        v-if="isAuthenticated && isLocked && canUnlock && itemType !== 'CHALLENGE_DECK'"
+        class="stroke-wrapper manual-unlock-wrapper"
+      >
+        <button class="manual-unlock" :disabled="busy" @click="onToggleUnlock(true)">
+          {{ busy ? "Unlocking..." : "Mark as unlocked" }}
+        </button>
+      </div>
+      <div
+        v-else-if="
+          isAuthenticated && !isLocked && canUnlock && isRelockable && itemType !== 'CHALLENGE_DECK'
+        "
+        class="stroke-wrapper manual-relock-wrapper"
+      >
+        <button class="manual-relock" :disabled="busy" @click="onToggleUnlock(false)">
+          {{ busy ? "Locking..." : "Lock again" }}
         </button>
       </div>
 
       <!-- EFECTO -->
       <section class="section">
-        <header class="section__head" :style="{ borderLeftColor: accent.color }">
-          <span class="section__icon"><iconify-icon icon="pixel:bolt-solid" noobserver /></span>
-          <span :style="{ color: accent.color }">EFECTO</span>
+        <header
+          class="section__head"
+          :style="{ borderLeftColor: itemType === 'CHALLENGE_DECK' ? '#8b5cf6' : accent.color }"
+        >
+          <span class="section__icon">
+            <iconify-icon
+              :icon="itemType === 'CHALLENGE_DECK' ? 'pixel:warning' : 'pixel:bolt-solid'"
+              noobserver
+            />
+          </span>
+          <span :style="{ color: itemType === 'CHALLENGE_DECK' ? '#8b5cf6' : accent.color }">
+            {{ itemType === "CHALLENGE_DECK" ? "RULES & MODIFIERS" : "EFFECT" }}
+          </span>
         </header>
         <div class="section__body">
-          <div class="stroke-wrapper" :style="{ '--stroke-color': `${accent.color}40` }">
+          <div
+            class="stroke-wrapper"
+            :style="{
+              '--stroke-color': itemType === 'CHALLENGE_DECK' ? '#8b5cf640' : `${accent.color}40`,
+            }"
+          >
             <div
               class="effect-box"
               :style="{
-                '--tint-color': `${accent.color}15`,
-                color: isLocked ? '#4D6870' : accent.color,
+                '--tint-color': itemType === 'CHALLENGE_DECK' ? '#8b5cf615' : `${accent.color}15`,
+                color: isLocked
+                  ? '#4D6870'
+                  : itemType === 'CHALLENGE_DECK'
+                    ? '#8b5cf6'
+                    : accent.color,
               }"
             >
               <ColoredDescription :text="displayEffect" />
@@ -67,7 +108,7 @@
       <section v-if="badgeLabel" class="section">
         <header class="section__head" :style="{ borderLeftColor: accent.color }">
           <span class="section__icon">◆</span>
-          <span :style="{ color: accent.color }">{{ item.rarity ? "RAREZA" : "TIPO" }}</span>
+          <span :style="{ color: accent.color }">{{ item.rarity ? "RARITY" : "TYPE" }}</span>
         </header>
         <div class="section__body section__body--center">
           <div :style="{ filter: `drop-shadow(0 0 8px ${accent.glow})` }">
@@ -80,7 +121,7 @@
       <section v-if="unlockText" class="section">
         <header class="section__head" style="border-left-color: #708387">
           <span class="section__icon"><iconify-icon icon="pixel:unlock" noobserver /></span>
-          <span>DESBLOQUEO</span>
+          <span>UNLOCK REQUIREMENT</span>
         </header>
         <div class="section__body section__body--unlock">
           {{ unlockText }}
@@ -88,17 +129,48 @@
       </section>
 
       <!--
-        Sección "MI PROGRESO" eliminada: el usuario ya sabe si una
-        carta está desbloqueada o no por su propia imagen — si se ve,
-        está desbloqueada; si aparece el dorso "?", está bloqueada.
-        El bloque sobraba.
+        ── CHALLENGE DECK SECTIONS ──
+        Cuatro bloques exclusivos del tipo CHALLENGE_DECK. Aparecen solo
+        si el campo correspondiente tiene contenido (todos pueden ser
+        NULL en BD salvo `modifier` que es required).
       -->
+      <template v-if="itemType === 'CHALLENGE_DECK' && !isLocked">
+        <section v-if="item.starter" class="section">
+          <header class="section__head" style="border-left-color: #22c55e">
+            <span class="section__icon"><iconify-icon icon="pixel:play-solid" noobserver /></span>
+            <span style="color: #22c55e">STARTING CONDITIONS</span>
+          </header>
+          <div class="section__body section__body--challenge">
+            <ColoredDescription :text="item.starter" />
+          </div>
+        </section>
+
+        <section v-if="item.banned" class="section">
+          <header class="section__head" style="border-left-color: #ef4444">
+            <span class="section__icon"><iconify-icon icon="pixel:cross" noobserver /></span>
+            <span style="color: #ef4444">RESTRICTIONS</span>
+          </header>
+          <div class="section__body section__body--challenge">
+            <ColoredDescription :text="item.banned" />
+          </div>
+        </section>
+
+        <section v-if="item.deck_description" class="section">
+          <header class="section__head" style="border-left-color: #3b82f6">
+            <span class="section__icon"><iconify-icon icon="pixel:card-solid" noobserver /></span>
+            <span style="color: #3b82f6">BASE DECK</span>
+          </header>
+          <div class="section__body section__body--challenge">
+            {{ item.deck_description }}
+          </div>
+        </section>
+      </template>
 
       <!-- MEJORA A (vouchers base con next_voucher_id) -->
       <section v-if="item._nextVoucher" class="section">
         <header class="section__head" style="border-left-color: #3b82f6">
           <span class="section__icon">⬆</span>
-          <span style="color: #3b82f6">MEJORA A</span>
+          <span style="color: #3b82f6">UPGRADES TO</span>
         </header>
         <div class="section__body upgrade-box">
           <img
@@ -117,32 +189,50 @@
       <section v-if="hasStats" class="section">
         <header class="section__head" style="border-left-color: #c09020">
           <span class="section__icon"><iconify-icon icon="pixel:notebook-solid" noobserver /></span>
-          <span style="color: #c09020">ESTADÍSTICAS</span>
+          <span style="color: #c09020">STATS</span>
         </header>
         <div class="section__body stats">
-          <div class="stats__row">
+          <!--
+            Booster Packs solo tienen `cost`, no buy/sell. Mostramos un
+            único bloque "COSTE" ocupando toda la fila para que la
+            tarjeta no se vea desbalanceada con un solo precio.
+          -->
+          <div v-if="itemType === 'BOOSTER_PACK'" class="stats__row">
+            <div class="stroke-wrapper stat-wrapper--buy stat-wrapper--full">
+              <div class="stat stat--buy">
+                <div class="stat__label">COST</div>
+                <div class="stat__value">{{ formatPrice(item.cost) }}</div>
+              </div>
+            </div>
+          </div>
+          <!--
+            Resto (jokers / consumables / vouchers): par COMPRA / VENTA
+            como hasta ahora.
+          -->
+          <div v-else class="stats__row">
             <div class="stroke-wrapper stat-wrapper--buy">
               <div class="stat stat--buy">
-                <div class="stat__label">COMPRA</div>
+                <div class="stat__label">BUY PRICE</div>
                 <div class="stat__value">{{ formatPrice(item.buy_price) }}</div>
-
-                <div v-if="!item.in_shop" class="stat__sublabel">(cannot be found in shop)</div>
+                <div v-if="item.in_shop === false" class="stat__sublabel">
+                  (cannot be found in shop)
+                </div>
               </div>
             </div>
             <div class="stroke-wrapper stat-wrapper--sell">
               <div class="stat stat--sell">
-                <div class="stat__label">VENTA</div>
+                <div class="stat__label">SELL PRICE</div>
                 <div class="stat__value">{{ formatPrice(item.sell_price) }}</div>
               </div>
             </div>
           </div>
           <div v-if="hasEffectMeta" class="stats__row">
             <div v-if="item.effect_type" class="stat stat--info">
-              <div class="stat__label">TIPO</div>
+              <div class="stat__label">TYPE</div>
               <div class="stat__value stat__value--sm">{{ item.effect_type }}</div>
             </div>
             <div v-if="item.activation" class="stat stat--info">
-              <div class="stat__label">ACTIV.</div>
+              <div class="stat__label">ACTIVATION</div>
               <div class="stat__value stat__value--sm">{{ item.activation }}</div>
             </div>
           </div>
@@ -153,19 +243,19 @@
       <section v-if="hasCompat" class="section">
         <header class="section__head" style="border-left-color: #708387">
           <span class="section__icon"><iconify-icon icon="pixel:cog-solid" noobserver /></span>
-          <span>COMPATIBILIDAD</span>
+          <span>COMPATIBILITY</span>
         </header>
         <div class="section__body compat">
           <div v-if="item.is_copyable" class="stroke-wrapper compat-wrapper--copy">
             <div class="compat__tile compat__tile--copy">
               <div class="compat__symbol"><iconify-icon icon="pixel:copy" noobserver /></div>
-              <div class="compat__label">Copiable</div>
+              <div class="compat__label">Copyable</div>
             </div>
           </div>
           <div v-if="item.is_perishable" class="stroke-wrapper compat-wrapper--perish">
             <div class="compat__tile compat__tile--perish">
               <div class="compat__symbol"><iconify-icon icon="pixel:clock" noobserver /></div>
-              <div class="compat__label">Perece</div>
+              <div class="compat__label">PERISHABLE</div>
             </div>
           </div>
           <div v-if="item.is_eternal" class="stroke-wrapper compat-wrapper--eternal">
@@ -173,7 +263,7 @@
               <div class="compat__symbol">
                 <iconify-icon icon="famicons:infinite-sharp" noobserver />
               </div>
-              <div class="compat__label">Eterno</div>
+              <div class="compat__label">ETERNAL</div>
             </div>
           </div>
         </div>
@@ -193,82 +283,58 @@ import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
 import { setStickerApplication } from "@/services/progression";
 
-const itemType = computed(() => String(props.item?.type || "").toUpperCase());
-const updatingStake = ref(false);
-
-const authStore = useAuthStore();
-const { isAuthenticated } = storeToRefs(authStore);
-
-async function onSetStake(stakeOrder) {
-  if (!props.item || updatingStake.value) return;
-
-  updatingStake.value = true;
-
-  try {
-    const result = await setStickerApplication(props.item.id, stakeOrder);
-
-    if (result && result.highest_stake_order !== undefined) {
-      emit("stake-updated", {
-        id: props.item.id,
-        highest_stake_order: result.highest_stake_order,
-      });
-    }
-  } catch (e) {
-    console.error("[ItemDetailPanel] set-stake failed:", e);
-
-    alert(
-      "No se pudo aplicar el sticker: " +
-        (e.response?.data?.message || e.message || "Error del servidor"),
-    );
-  } finally {
-    updatingStake.value = false;
-  }
-}
-
 const props = defineProps({
   item: { type: Object, default: null },
   isLocked: { type: Boolean, default: false },
   /**
-   * Si true, muestra el botón de "desbloqueo manual" cuando isLocked.
-   * Para jokers va a true; para consumibles, false mientras no exista
-   * el endpoint correspondiente.
+   * Si true, muestra el botón de unlock/relock cuando aplique.
+   * Para jokers/decks/vouchers/packs/challenges va a true; para card
+   * modifiers, false (no son Unlockable).
    */
   canUnlock: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(["manual-unlock", "stake-updated"]);
 
+const itemType = computed(() => String(props.item?.type || "").toUpperCase());
+const updatingStake = ref(false);
+
+const authStore = useAuthStore();
+const { isAuthenticated } = storeToRefs(authStore);
+
 const busy = ref(false);
 
 const accent = computed(() => (props.item ? getItemAccent(props.item) : {}));
 const badgeLabel = computed(() => getItemBadgeLabel(props.item));
-// `description` (jokers, decks, vouchers, packs) o `effect`
-// (card modifiers). El helper centraliza la resolución.
-/**
- * Texto a mostrar en la sección EFECTO.
- *
- * Antes hacíamos `safe(effectText)` en la plantilla pero pasar un
- * ref (`effectText`) como argumento de función dentro de una
- * expresión `{{ }}` puede no des-envolverse automáticamente en
- * todos los escenarios (Vue 3 lo hace en accesos top-level pero
- * la garantía decae cuando se anida en otras expresiones).
- *
- * Lo movemos a un único computed que devuelve directamente la
- * cadena final ('???' si locked, '—' si vacío, el efecto en
- * cualquier otro caso).
- */
+
 const displayEffect = computed(() => {
   if (props.isLocked) return "???";
+
+  if (itemType.value === "CHALLENGE_DECK") {
+    const mod = props.item.modifier;
+    // Fallback dinámico para descripciones vacías o guiones
+    if (!mod || mod.trim() === "-" || mod.trim() === "") {
+      return "Has no rules or modifiers";
+    }
+    return mod;
+  }
+
   const text = getItemEffectText(props.item);
   if (!text || (typeof text === "string" && !text.trim())) return "—";
   return text;
 });
 
+/**
+ * `hasStats` ahora reconoce también `cost` (Booster Packs) además de
+ * los pares buy/sell que ya tenía. effect_type/activation siguen
+ * disparando la sección por simetría con el comportamiento previo.
+ */
 const hasStats = computed(
   () =>
     props.item &&
     (props.item.buy_price != null ||
       props.item.sell_price != null ||
+      props.item.cost != null ||
       props.item.effect_type ||
       props.item.activation),
 );
@@ -286,24 +352,88 @@ const unlockText = computed(() => {
   return props.item.unlock_condition || props.item.unlock_factor?.description || "";
 });
 
-function safe(value, fallback = "—") {
-  if (value == null) return fallback;
-  if (typeof value === "string" && !value.trim()) return fallback;
-  return value;
-}
+/**
+ * "Es re-lockeable" = el item tiene una condición de desbloqueo real,
+ * no es "Available from start". Items disponibles desde el inicio no
+ * tienen estado bloqueado al que volver.
+ */
+const isRelockable = computed(() => {
+  if (!props.item) return false;
+
+  // Intercepción: Los 5 primeros Challenge Decks no se pueden bloquear
+  if (itemType.value === "CHALLENGE_DECK") {
+    const defaultUnlocked = [
+      "THE OMELETTE",
+      "15 MINUTE CITY",
+      "RICH GET RICHER",
+      "ON A KNIFE'S EDGE",
+      "X-RAY VISION",
+    ];
+    if (defaultUnlocked.includes(String(props.item.name || "").toUpperCase())) {
+      return false;
+    }
+  }
+
+  const condition = String(
+    props.item.unlock_condition || props.item.unlock_factor?.description || "",
+  )
+    .trim()
+    .toLowerCase();
+  if (!condition) return false;
+  if (
+    condition.includes("available from start") ||
+    condition.includes("available from the start") ||
+    condition.includes("disponible desde el inicio")
+  ) {
+    return false;
+  }
+  const code = String(props.item.unlock_factor?.code || "").toLowerCase();
+  if (code === "available_from_start" || code === "start") return false;
+  return true;
+});
 
 function formatPrice(v) {
   if (!Number.isFinite(Number(v))) return "—";
   return `$${Number(v)}`;
 }
 
-async function onManualUnlock() {
+/**
+ * Toggle unificado: emite `manual-unlock` con dos argumentos
+ * (item, unlocked) para que la vista padre llame al servicio
+ * adecuado. El `busy` local evita doble click; un setTimeout corto al
+ * final relaja el estado por si el padre no actualiza la prop locked
+ * de forma síncrona (e.g. error de red).
+ */
+async function onToggleUnlock(unlocked) {
   if (busy.value || !props.item) return;
   busy.value = true;
   try {
-    emit("manual-unlock", props.item);
+    emit("manual-unlock", props.item, unlocked);
   } finally {
     setTimeout(() => (busy.value = false), 800);
+  }
+}
+
+async function onSetStake(stakeOrder) {
+  if (!props.item || updatingStake.value) return;
+  updatingStake.value = true;
+
+  try {
+    const result = await setStickerApplication(props.item.id, stakeOrder);
+    if (result && result.highest_stake_order !== undefined) {
+      emit("stake-updated", {
+        id: props.item.id,
+        highest_stake_order: result.highest_stake_order,
+      });
+    }
+  } catch (e) {
+    console.error("[ItemDetailPanel] set-stake failed:", e);
+    alert(
+      "The sticker could not be applied: " +
+        (e.response?.data?.message || e.message || "Server error"),
+    );
+  } finally {
+    updatingStake.value = false;
   }
 }
 </script>
@@ -315,9 +445,7 @@ async function onManualUnlock() {
 /* Wrapper dinámico para pixel-stroke que lee la variable --stroke-color */
 .stroke-wrapper {
   display: flex;
-
   @include pixel-stroke(var(--stroke-color));
-
   transition: filter 0.15s;
 
   & > * {
@@ -329,14 +457,26 @@ async function onManualUnlock() {
     margin-top: 4px;
     margin-bottom: 12px;
   }
+  &.manual-relock-wrapper {
+    --stroke-color: #ef4444;
+    margin-top: 4px;
+    margin-bottom: 12px;
+  }
 
   &.stat-wrapper--buy {
     --stroke-color: rgba(192, 144, 32, 0.9);
     flex: 1;
   }
-
   &.stat-wrapper--sell {
     --stroke-color: rgba(64, 128, 32, 0.9);
+    flex: 1;
+  }
+  /*
+   * Variante "full" para cuando solo hay UN stat-wrapper en la fila
+   * (booster packs con COSTE). Sin flex: 1 colaboraría con otro
+   * hermano, pero como hijo único debería ocupar el 100%.
+   */
+  &.stat-wrapper--full {
     flex: 1;
   }
 
@@ -345,13 +485,11 @@ async function onManualUnlock() {
     flex: 1;
     min-width: 72px;
   }
-
   &.compat-wrapper--perish {
     --stroke-color: rgba(224, 128, 32, 0.9);
     flex: 1;
     min-width: 72px;
   }
-
   &.compat-wrapper--eternal {
     --stroke-color: rgba(96, 128, 224, 0.9);
     flex: 1;
@@ -359,14 +497,11 @@ async function onManualUnlock() {
   }
 }
 
-/*
-  Los elementos interiores deben ir por encima
-  del pseudo-elemento del borde.
-*/
 .effect-box,
 .stat,
 .compat__tile,
-.manual-unlock {
+.manual-unlock,
+.manual-relock {
   position: relative;
   z-index: 1;
   @include pixel-clip-sm;
@@ -455,6 +590,31 @@ async function onManualUnlock() {
   }
 }
 
+.manual-relock {
+  width: 100%;
+  background: #401a1a;
+  color: #ef4444;
+  font-family: "m6x11plus", monospace;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition:
+    filter 0.15s,
+    transform 0.1s;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.25);
+  }
+  &:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
 .section {
   margin-bottom: 12px;
 
@@ -469,6 +629,7 @@ async function onManualUnlock() {
     font-size: 12px;
     color: $text-1;
     letter-spacing: 0.5px;
+    font-size: 16px;
   }
   &__icon {
     display: flex;
@@ -476,23 +637,37 @@ async function onManualUnlock() {
     align-items: center;
     font-size: 15px;
   }
-
   &__body {
     padding: 10px 12px;
   }
-
   &__body--center {
     display: flex;
     justify-content: center;
     padding: 8px 12px;
   }
-
   &__body--unlock {
     text-align: center;
     font-family: "m6x11plus", monospace;
     font-size: 14px;
     color: $text-2;
     line-height: 1.6;
+    font-size: 16px;
+  }
+  /*
+   * Variante para las 4 secciones de Challenge Decks (MODIFICADOR,
+   * INICIO, BANEADO, BARAJA BASE). Texto desnudo, fuente legible, sin
+   * mucho ornament — los textos son largos (renderizado de wikitexto)
+   * y queremos que se lean cómodamente.
+   */
+  &__body--challenge {
+    text-align: center;
+    padding: 12px 14px;
+    font-family: "m6x11plus", monospace;
+    font-size: 13px;
+    color: $text-1;
+    line-height: 1.55;
+    background: rgba(0, 0, 0, 0.18);
+    white-space: pre-wrap;
   }
 }
 
@@ -505,9 +680,9 @@ async function onManualUnlock() {
   line-height: 1.55;
   font-weight: 700;
   background: linear-gradient(var(--tint-color), var(--tint-color)), $panel-darkest;
+  white-space: pre-wrap;
 }
 
-/* MEJORA A — preview compacto del voucher upgraded. */
 .upgrade-box {
   display: flex;
   justify-content: center;
@@ -533,7 +708,6 @@ async function onManualUnlock() {
       color: $panel-light;
     }
   }
-
   &__name {
     font-family: "m6x11plus", monospace;
     font-size: 14px;
@@ -562,7 +736,6 @@ async function onManualUnlock() {
   &__label {
     font-size: 12px;
   }
-
   &__value {
     font-size: 22px;
     font-weight: 700;
@@ -574,7 +747,6 @@ async function onManualUnlock() {
       font-weight: normal;
     }
   }
-
   &--buy {
     background:
       linear-gradient(rgba(192, 144, 32, 0.094), rgba(192, 144, 32, 0.094)), $panel-darkest;
@@ -583,7 +755,6 @@ async function onManualUnlock() {
       color: #f0b030;
     }
   }
-
   &--sell {
     background: linear-gradient(rgba(64, 128, 32, 0.094), rgba(64, 128, 32, 0.094)), $panel-darkest;
     color: #40a030;
@@ -591,7 +762,6 @@ async function onManualUnlock() {
       color: #60c050;
     }
   }
-
   &--info {
     background: $panel-dark;
     padding: 10px 12px;
@@ -614,7 +784,6 @@ async function onManualUnlock() {
     padding: 10px 6px;
     text-align: center;
   }
-
   &__tile--copy {
     background: linear-gradient(rgba(32, 192, 80, 0.09), rgba(32, 192, 80, 0.09)), $panel-darkest;
     .compat__label {
@@ -633,12 +802,10 @@ async function onManualUnlock() {
       color: #6080e0;
     }
   }
-
   &__symbol {
     font-size: 22px;
     line-height: 1;
   }
-
   &__label {
     font-family: "m6x11plus", monospace;
     font-size: 12px;
@@ -646,10 +813,9 @@ async function onManualUnlock() {
   }
 }
 
-/* Estilo para el aviso debajo del precio */
 .stat__sublabel {
   font-size: 10px;
-  color: #708387; /* Un color grisáceo que contraste pero no destaque demasiado */
+  color: #708387;
   margin-top: -4px;
   padding-bottom: 4px;
   font-family: "m6x11plus", monospace;

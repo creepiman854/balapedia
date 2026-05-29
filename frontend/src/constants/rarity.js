@@ -10,28 +10,28 @@
 export const RARITY = {
   COMMON: {
     id: 'COMMON',
-    label: 'Común',
+    label: 'Common',
     color: '#4a9fd4',
     dark: '#0d2538',
     glow: 'rgba(74, 159, 212, 0.4)',
   },
   UNCOMMON: {
     id: 'UNCOMMON',
-    label: 'Inusual',
+    label: 'Uncommon',
     color: '#3abf5e',
     dark: '#0a2414',
     glow: 'rgba(58, 191, 94, 0.4)',
   },
   RARE: {
     id: 'RARE',
-    label: 'Raro',
+    label: 'Rare',
     color: '#e84040',
     dark: '#2a0808',
     glow: 'rgba(232, 64, 64, 0.4)',
   },
   LEGENDARY: {
     id: 'LEGENDARY',
-    label: 'Legendario',
+    label: 'Legendary',
     color: '#c060e0',
     dark: '#1e0830',
     glow: 'rgba(192, 96, 224, 0.5)',

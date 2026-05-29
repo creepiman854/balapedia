@@ -13,10 +13,10 @@
 -->
 <template>
   <div class="filterbar">
-    <span class="filterbar__title">FILTROS</span>
+    <span class="filterbar__title">FILTERS</span>
 
     <div v-if="show('search')" class="filterbar__search">
-      <span class="filterbar__icon">🔍</span>
+      <span class="filterbar__icon"> <iconify-icon icon="pixel:search" noobserver /></span>
       <input
         type="text"
         :placeholder="searchPlaceholder"
@@ -27,7 +27,7 @@
         v-if="modelValue.search"
         type="button"
         class="filterbar__clear"
-        aria-label="Limpiar búsqueda"
+        aria-label="Clear search"
         @click="update('search', '')"
       >
         ✕
@@ -40,11 +40,11 @@
       :value="modelValue.rarity"
       @change="update('rarity', $event.target.value)"
     >
-      <option value="all">Rareza: Todas</option>
-      <option value="common">Común</option>
-      <option value="uncommon">Inusual</option>
-      <option value="rare">Raro</option>
-      <option value="legendary">Legendario</option>
+      <option value="all">Rarity: All</option>
+      <option value="common">Common</option>
+      <option value="uncommon">Uncommon</option>
+      <option value="rare">Rare</option>
+      <option value="legendary">Legendary</option>
     </select>
 
     <select
@@ -53,24 +53,20 @@
       :value="modelValue.type"
       @change="update('type', $event.target.value)"
     >
-      <option
-        v-for="opt in typeOptions"
-        :key="opt.value"
-        :value="opt.value"
-      >
+      <option v-for="opt in typeOptions" :key="opt.value" :value="opt.value">
         {{ opt.label }}
       </option>
     </select>
 
     <select
-      v-if="show('status')"
+      v-if="show('size') && sizeOptions.length"
       class="filterbar__select"
-      :value="modelValue.status"
-      @change="update('status', $event.target.value)"
+      :value="modelValue.size"
+      @change="update('size', $event.target.value)"
     >
-      <option value="all">Estado: Todos</option>
-      <option value="unlocked">Desbloqueados</option>
-      <option value="locked">Bloqueados</option>
+      <option v-for="opt in sizeOptions" :key="opt.value" :value="opt.value">
+        {{ opt.label }}
+      </option>
     </select>
 
     <select
@@ -79,9 +75,9 @@
       :value="modelValue.sort"
       @change="update('sort', $event.target.value)"
     >
-      <option value="id">Orden: #</option>
-      <option value="name">Orden: A-Z</option>
-      <option v-if="show('rarity')" value="rarity">Orden: Rareza</option>
+      <option value="id">Sort: #</option>
+      <option value="name">A-Z</option>
+      <option v-if="show('rarity')" value="rarity">Rarity</option>
     </select>
   </div>
 </template>
@@ -99,7 +95,7 @@ const props = defineProps({
    */
   enabled: {
     type: Array,
-    default: () => ['search', 'rarity', 'status', 'sort'],
+    default: () => ["search", "rarity", "status", "sort"],
   },
   /**
    * Opciones del select 'type' (formato: [{ value, label }, ...]).
@@ -109,23 +105,27 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
-  searchPlaceholder: { type: String, default: 'Buscar...' },
-})
+  sizeOptions: {
+    type: Array,
+    default: () => [],
+  },
+  searchPlaceholder: { type: String, default: "Search..." },
+});
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(["update:modelValue"]);
 
 function show(key) {
-  return props.enabled.includes(key)
+  return props.enabled.includes(key);
 }
 
 function update(field, value) {
-  emit('update:modelValue', { ...props.modelValue, [field]: value })
+  emit("update:modelValue", { ...props.modelValue, [field]: value });
 }
 </script>
 
 <style lang="scss" scoped>
-@use '@/assets/styles/variables' as *;
-@use '@/assets/styles/mixins' as *;
+@use "@/assets/styles/variables" as *;
+@use "@/assets/styles/mixins" as *;
 
 .filterbar {
   background: $panel-mid;
@@ -139,13 +139,13 @@ function update(field, value) {
    * NO usamos `flex: 1` aquí: si esto está dentro de un flex-column
    * (como ocurre en JokersView), `flex: 1` lo estiraría verticalmente
    * a toda la altura disponible. Cuando el FilterBar vive dentro de
-   * .toolbar (consumibles/colección), el propio .toolbar aplica
+   * .toolbar (consumables/colección), el propio .toolbar aplica
    * `:deep(.filterbar) { flex: 1 }` para que crezca a lo ancho.
    */
   @include pixel-clip;
 
   &__title {
-    font-family: 'm6x11plus', monospace;
+    font-family: "m6x11plus", monospace;
     font-size: 13px;
     color: $text-3;
     margin-right: 4px;
@@ -167,7 +167,7 @@ function update(field, value) {
       background: transparent;
       border: none;
       color: $text-1;
-      font-family: 'm6x11plus', monospace;
+      font-family: "m6x11plus", monospace;
       font-size: 18px;
       outline: none;
       width: 100%;
@@ -181,11 +181,13 @@ function update(field, value) {
     background: transparent;
     border: none;
     color: $text-3;
-    font-family: 'm6x11plus', monospace;
+    font-family: "m6x11plus", monospace;
     font-size: 14px;
     cursor: pointer;
     padding: 2px 6px;
-    transition: color 0.12s, transform 0.12s;
+    transition:
+      color 0.12s,
+      transform 0.12s;
 
     &:hover {
       color: $text-1;
@@ -199,6 +201,8 @@ function update(field, value) {
   &__icon {
     color: $panel-light;
     font-size: 16px;
+    display: flex;
+    align-items: center;
   }
 
   &__select {
@@ -207,7 +211,7 @@ function update(field, value) {
     background: $panel-dark;
     border: none;
     color: $text-1;
-    font-family: 'm6x11plus', monospace;
+    font-family: "m6x11plus", monospace;
     font-size: 18px;
     padding: 8px 28px 8px 12px;
     outline: none;

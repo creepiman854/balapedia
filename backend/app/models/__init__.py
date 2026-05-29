@@ -31,7 +31,6 @@ from app.models.progress import (
 from app.models.reference import (
     Blind,
     CardModifier,
-    PokerHand,
     Stake,
     Sticker,
     Tag,
@@ -57,7 +56,6 @@ __all__ = [
     "Consumable",
     "Deck",
     "Joker",
-    "PokerHand",
     "Stake",
     "Sticker",
     "Tag",

@@ -4,7 +4,7 @@
   Distinta al resto: los logros tienen un único campo de información
   (name + description + icon_url), así que NO existe ItemDetailPanel.
   El layout es una columna de "filas" (estilo lista) en lugar del grid
-  de cartas que usan jokers/consumibles/colección.
+  de cartas que usan jokers/consumables/colección.
 
   Comportamiento clave:
     · ProgressBar SOLO se muestra con sesión iniciada (sin auth todos
@@ -30,7 +30,7 @@
     · Pequeña animación scale-in al cargar la lista (escalonada).
 -->
 <template>
-  <div class="achievements-view">
+  <div class="achievements-view" style="position: relative">
     <!--
       Barra de progreso global. Solo con auth — el cálculo se hace sobre
       la lista COMPLETA (no `filtered`) para que el % refleje el progreso
@@ -41,16 +41,22 @@
       :value="totalUnlocked"
       :max="achievements.length"
       color="#ef4444"
-      label="LOGROS DESBLOQUEADOS"
+      label="UNLOCKED ACHIEVEMENTS"
     />
 
-    <FilterBar v-model="filters" :enabled="enabledFilters" search-placeholder="Buscar logro..." />
+    <FilterBar
+      v-model="filters"
+      :enabled="enabledFilters"
+      search-placeholder="Search achievement..."
+    />
 
     <div class="count">
-      <template v-if="loading">Cargando logros...</template>
+      <template v-if="loading">Loading achievements...</template>
       <template v-else-if="error">{{ error }}</template>
-      <template v-else>{{ filtered.length }} logros encontrados</template>
+      <template v-else>{{ filtered.length }} achievements found</template>
     </div>
+
+    <BalatroLoader v-if="showLoader" :is-loading="loading" @hidden="showLoader = false" />
 
     <div class="list-scroll">
       <ul v-if="!loading && !error" class="list">
@@ -84,13 +90,18 @@
             locked. Las cuentas Steam no lo ven nunca.
           -->
           <button
-            v-if="canShowManualUnlock(ach)"
+            v-if="canShowManualToggle(ach)"
             type="button"
             class="row__unlock"
-            :disabled="unlocking === ach.id"
-            @click.stop="onManualUnlock(ach)"
+            :class="{ 'row__unlock--remove': !isLocked(ach) }"
+            :disabled="unlocking !== null"
+            @click.stop="onManualToggle(ach)"
           >
-            {{ unlocking === ach.id ? "DESBLOQUEANDO..." : "MARCAR COMO DESBLOQUEADO" }}
+            <span>
+              <template v-if="unlocking === ach.id"> PROCESSING... </template>
+              <template v-else-if="isLocked(ach)"> MARK AS UNLOCKED </template>
+              <template v-else> MARK AS LOCKED </template>
+            </span>
           </button>
 
           <span class="row__dot" :class="{ 'row__dot--on': !isLocked(ach) }" />
@@ -98,14 +109,22 @@
       </ul>
 
       <div v-if="!loading && !error && filtered.length === 0" class="empty">
-        Sin logros con esos filtros.
+        No achievements found with those filters.
+      </div>
+    </div>
+    <!-- Overlay de bloqueo -->
+    <div v-if="isNavigationLocked" class="unlock-overlay">
+      <div class="unlock-overlay__box">
+        PROCESSING ACHIEVEMENT...
+        <br />
+        PLEASE WAIT
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useAuthStore } from "@/stores/auth";
 import { useBackgroundStore } from "@/stores/background";
@@ -113,6 +132,7 @@ import { fetchAllAchievements, unlockAchievement } from "@/services/achievements
 
 import ProgressBar from "@/components/common/ProgressBar.vue";
 import FilterBar from "@/components/common/FilterBar.vue";
+import BalatroLoader from "@/components/common/BalatroLoader.vue";
 
 const authStore = useAuthStore();
 const { isAuthenticated, user, lastSyncedAt } = storeToRefs(authStore);
@@ -121,23 +141,43 @@ const bgStore = useBackgroundStore();
 // ── Datos ────────────────────────────────────────────────────────────
 const achievements = ref([]);
 const loading = ref(false);
+const showLoader = ref(true);
 const error = ref("");
 
 const unlocking = ref(null);
+const isNavigationLocked = computed(() => unlocking.value !== null);
 
 async function loadAchievements() {
   loading.value = true;
+  showLoader.value = true;
   error.value = "";
   try {
     achievements.value = await fetchAllAchievements({
       authenticated: isAuthenticated.value,
     });
   } catch (e) {
-    console.error("[AchievementsView] no se pudieron cargar", e);
-    error.value = "No se pudieron cargar los logros. ¿Backend caído?";
+    console.error("[AchievementsView] could not be loaded", e);
+    error.value = "Could not load achievements. Server offline?";
   } finally {
     loading.value = false;
   }
+}
+
+// Seguridad ante recargas y cambios de vistas
+function handleBeforeUnload(e) {
+  if (!isNavigationLocked.value) return;
+
+  e.preventDefault();
+
+  // Chrome necesita returnValue
+  e.returnValue = "";
+}
+
+function handlePopState() {
+  if (!isNavigationLocked.value) return;
+
+  // Reinsertamos el estado para cancelar el back.
+  window.history.pushState(null, "", window.location.href);
 }
 
 onMounted(() => {
@@ -152,6 +192,29 @@ watch(isAuthenticated, loadAchievements);
 // reaparecen como locked). Es la clave del re-lock-on-unlink que el
 // usuario pidió: el watcher dispara aquí cuando authStore notifica.
 watch(lastSyncedAt, loadAchievements);
+
+watch(isNavigationLocked, (locked) => {
+  authStore.navigationLocked = locked;
+});
+
+watch(isNavigationLocked, (locked) => {
+  if (locked) {
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    // Metemos un estado dummy para interceptar "back"
+    window.history.pushState(null, "", window.location.href);
+
+    window.addEventListener("popstate", handlePopState);
+  } else {
+    window.removeEventListener("beforeunload", handleBeforeUnload);
+    window.removeEventListener("popstate", handlePopState);
+  }
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("beforeunload", handleBeforeUnload);
+  window.removeEventListener("popstate", handlePopState);
+});
 
 // ── Filtros ──────────────────────────────────────────────────────────
 const filters = ref({
@@ -206,24 +269,29 @@ const totalUnlocked = computed(() => achievements.value.filter((a) => !isLocked(
  * un botón "marcar como desbloqueado" sería contradictorio (y podría
  * crear conflicto con el próximo sync).
  */
-function canShowManualUnlock(ach) {
+function canShowManualToggle() {
   if (!isAuthenticated.value) return false;
   if (user.value?.steam_id) return false;
-  return isLocked(ach);
+  return true; // Se muestra siempre si cumple las condiciones anteriores
 }
 
-async function onManualUnlock(ach) {
-  if (!ach) return;
+async function onManualToggle(ach) {
+  if (!ach || unlocking.value !== null) return;
 
   unlocking.value = ach.id;
 
-  try {
-    await unlockAchievement(ach.id);
+  // Si está bloqueado, queremos desbloquear (true). Si no, bloquear (false).
+  const targetState = isLocked(ach);
 
+  try {
+    // Enviamos el estado deseado a la API
+    await unlockAchievement(ach.id, targetState);
+
+    // Mutación local sin re-fetch
     const target = achievements.value.find((a) => a.id === ach.id);
     if (target) {
-      target.unlocked_for_me = true;
-      target.unlocked_at = new Date().toISOString();
+      target.unlocked_for_me = targetState;
+      target.unlocked_at = targetState ? new Date().toISOString() : null;
     }
   } catch (e) {
     console.error(e);
@@ -233,7 +301,10 @@ async function onManualUnlock(ach) {
       return;
     }
 
-    alert("No se pudo marcar como desbloqueado. " + (e.message || ""));
+    alert(
+      "The achievement status could not be changed. " +
+        (e.response?.data?.message || e.message || ""),
+    );
   } finally {
     unlocking.value = null;
   }
@@ -419,7 +490,10 @@ async function onManualUnlock(ach) {
 .row__unlock {
   flex-shrink: 0;
   background: $panel-dark;
-  border: 1px solid $panel-medlight;
+
+  /* Eliminamos el borde estándar porque no respeta el clip-path */
+  /* border: 1px solid $panel-medlight; */
+
   color: $text-1;
   font-family: "m6x11plus", monospace;
   font-size: 12px;
@@ -433,15 +507,38 @@ async function onManualUnlock(ach) {
     background 0.15s,
     transform 0.1s,
     opacity 0.15s;
+
   @include pixel-clip-sm;
 
-  &:hover {
+  /* Añadimos el borde adaptado al shape del clip-path */
+  @include pixel-stroke-clipped($panel-medlight);
+
+  &:hover:not(:disabled) {
     background: $panel-medlight;
     opacity: 1; // El botón brilla al 100% (y gracias al :has, la fila también)
   }
 
-  &:active {
+  &:active:not(:disabled) {
     transform: scale(0.96);
+  }
+
+  // Estilo para cuando el botón sirve para volver a bloquear
+  &--remove {
+    color: #ef4444; // Rojo para indicar acción destructiva/retroceso
+
+    /* Cambiamos el color del borde apuntando al pseudo-elemento del mixin */
+    &::before {
+      background: rgba(239, 68, 68, 0.3);
+    }
+
+    &:hover:not(:disabled) {
+      background: rgba(239, 68, 68, 0.15);
+    }
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
   }
 }
 
@@ -484,5 +581,36 @@ async function onManualUnlock(ach) {
   font-size: 14px;
   text-align: center;
   padding: 24px 0;
+}
+
+.unlock-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
+
+  pointer-events: all;
+}
+
+.unlock-overlay__box {
+  padding: 18px 24px;
+
+  background: rgba(20, 24, 28, 0.96);
+
+  color: #ffffff;
+
+  font-family: "m6x11plus", monospace;
+  font-size: 18px;
+  line-height: 1.4;
+  text-align: center;
+  letter-spacing: 1px;
+
+  @include pixel-clip;
 }
 </style>

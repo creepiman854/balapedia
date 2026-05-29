@@ -6,7 +6,7 @@
   resolverlos (vía `getItemAccent` o equivalente).
 
   Para items con rareza el padre pasa el accent de rareza; para
-  consumibles, el accent del type. La presentación visual es la misma:
+  consumables, el accent del type. La presentación visual es la misma:
   fondo del color del accent, texto blanco con sombra, clip pixel.
 -->
 <template>

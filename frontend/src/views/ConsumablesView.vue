@@ -18,13 +18,13 @@
       mostrar el botón de desbloqueo manual.
 -->
 <template>
-  <div class="consumibles-view">
+  <div class="consumables-view">
     <div class="layout">
       <!-- ── Grid izquierda ── -->
-      <div class="grid-col">
+      <div class="grid-col" style="position: relative">
         <!--
           Toolbar: sub-tabs a la IZQUIERDA del FilterBar (mismo
-          patrón que CollectionView). En consumibles no añadimos
+          patrón que CollectionView). En consumables no añadimos
           ProgressBar — todos los items son "Available from start".
         -->
         <div class="toolbar">
@@ -47,19 +47,21 @@
           <FilterBar
             v-model="filters"
             :enabled="['search', 'sort']"
-            search-placeholder="Buscar carta..."
+            search-placeholder="Search card..."
           />
         </div>
 
         <div class="count">
-          <template v-if="loading">Cargando {{ currentSubLabel.toLowerCase() }}...</template>
+          <template v-if="loading">Loading {{ currentSubLabel.toLowerCase() }}...</template>
           <template v-else-if="error">{{ error }}</template>
-          <template v-else>{{ filtered.length }} cartas encontradas</template>
+          <template v-else>{{ filtered.length }} cards found</template>
         </div>
+
+        <BalatroLoader v-if="showLoader" :is-loading="loading" @hidden="showLoader = false" />
 
         <div class="grid-scroll">
           <div
-            v-if="!loading && !error"
+            v-if="!loading && !error && filtered.length > 0"
             class="grid"
             :style="{ gridTemplateColumns: `repeat(${FIXED_COLS}, 1fr)` }"
           >
@@ -77,6 +79,9 @@
               @hover="onHover"
               @leave="onLeave"
             />
+          </div>
+          <div v-if="!loading && !error && filtered.length === 0" class="empty">
+            No cards found with those filters.
           </div>
         </div>
       </div>
@@ -106,7 +111,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useBackgroundStore } from "@/stores/background";
 import { fetchConsumablesByType } from "@/services/consumables";
 
@@ -114,6 +119,7 @@ import FilterBar from "@/components/common/FilterBar.vue";
 import ItemCard from "@/components/items/ItemCard.vue";
 import ItemDetailPanel from "@/components/items/ItemDetailPanel.vue";
 import ItemTooltip from "@/components/items/ItemTooltip.vue";
+import BalatroLoader from "@/components/common/BalatroLoader.vue";
 
 const bgStore = useBackgroundStore();
 
@@ -126,8 +132,8 @@ const bgStore = useBackgroundStore();
  */
 const SUBTABS = [
   { id: "TAROT", label: "TAROT", color: "#D8B062" },
-  { id: "PLANET", label: "PLANETA", color: "#4790A1" },
-  { id: "SPECTRAL", label: "ESPECTRAL", color: "#5066A5" },
+  { id: "PLANET", label: "PLANET", color: "#4790A1" },
+  { id: "SPECTRAL", label: "SPECTRAL", color: "#5066A5" },
 ];
 
 const FIXED_COLS = 7;
@@ -150,10 +156,12 @@ function selectSub(id) {
 // ── Datos ─────────────────────────────────────────────────────────
 const items = ref([]);
 const loading = ref(false);
+const showLoader = ref(true);
 const error = ref("");
 
 async function loadItems() {
   loading.value = true;
+  showLoader.value = true;
   error.value = "";
   try {
     items.value = await fetchConsumablesByType(currentSub.value);
@@ -165,7 +173,7 @@ async function loadItems() {
     // Mostramos el mensaje real (status + detail) que arma el servicio.
     // Si el backend devuelve 400 "invalid: 'TAROT'" se ve tal cual y
     // podemos diagnosticar al instante.
-    error.value = e.message || "Error desconocido al cargar las cartas.";
+    error.value = e.message || "Unknown error while loading cards.";
   } finally {
     loading.value = false;
   }
@@ -238,7 +246,7 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
 @use "@/assets/styles/variables" as *;
 @use "@/assets/styles/mixins" as *;
 
-.consumibles-view {
+.consumables-view {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -385,9 +393,17 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
   }
 }
 
+.empty {
+  color: $text-3;
+  font-family: "m6x11plus", monospace;
+  font-size: 14px;
+  text-align: center;
+  padding: 24px 0;
+}
+
 /* ── Animaciones de Entrada ───────────────────────────────────────── */
 /*
- * Animación estilo "repartir carta" (Deal) para el catálogo de consumibles.
+ * Animación estilo "repartir carta" (Deal) para el catálogo de consumables.
  * Entran desde arriba con un multiplicador de escala y caen elásticamente.
  */
 .card-deal-anim {

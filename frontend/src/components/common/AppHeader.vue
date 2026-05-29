@@ -2,7 +2,7 @@
   Cabecera global de Balapedia.
 
   · Logo a la izquierda.
-  · Tabs centrales que navegan a /jokers, /consumibles, /collection,
+  · Tabs centrales que navegan a /jokers, /consumables, /collection,
     /achievements. Cada tab tiene su acento (rojo, naranja, etc.).
   · A la derecha: botón cuenta (manda a /login o muestra al usuario)
     + botón ajustes (futuro modal).
@@ -24,35 +24,39 @@
         <button
           :class="['nav-btn', tab.cls, { active: isActive }]"
           :style="navBtnStyle(tab, isActive)"
-          @click="navigate"
+          @click="!authStore.navigationLocked && navigate()"
         >
           {{ tab.label }}
         </button>
       </router-link>
     </nav>
 
-    <div class="header-btn-wrapper">
-      <button class="login-btn" title="Ajustes" @click="$emit('open-settings')">
+    <div class="settings-wrapper">
+      <button
+        class="login-btn"
+        title="Settings"
+        @click="!authStore.navigationLocked && $emit('open-settings')"
+      >
         <iconify-icon icon="pixel:cog" noobserver />
       </button>
     </div>
 
     <template v-if="isAuthenticated && user">
-      <div class="header-btn-wrapper logged-in-wrapper">
+      <div class="account-wrapper logged-in-wrapper">
         <button
           class="login-btn logged-in"
-          @click="authStore.openAuthModal()"
-          title="Gestionar mi cuenta"
+          @click="!authStore.navigationLocked && authStore.openAuthModal()"
+          title="Manage my account"
         >
-          {{ user.display_name || user.email || "USUARIO" }}
+          {{ user.display_name || user.email || "USER" }}
         </button>
       </div>
     </template>
 
     <template v-else>
-      <div class="header-btn-wrapper">
-        <button class="login-btn" @click="authStore.openAuthModal()">
-          <iconify-icon icon="pixel:user" noobserver /> CUENTA
+      <div class="account-wrapper">
+        <button class="login-btn" @click="!authStore.navigationLocked && authStore.openAuthModal()">
+          <iconify-icon icon="pixel:user" noobserver /> ACCOUNT
         </button>
       </div>
     </template>
@@ -61,20 +65,24 @@
 
 <script setup>
 import { storeToRefs } from "pinia";
-import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 
 defineEmits(["open-settings"]);
 
-const router = useRouter();
 const authStore = useAuthStore();
 const { isAuthenticated, user } = storeToRefs(authStore);
 
+function onNavigate(navigate) {
+  if (authStore.navigationLocked) return;
+
+  navigate();
+}
+
 const tabs = [
   { to: "/jokers", label: "JOKERS", cls: "nav-jokers", color: "#2563eb" },
-  { to: "/consumibles", label: "CONSUMIBLES", cls: "nav-consumibles", color: "#d97706" },
-  { to: "/achievements", label: "LOGROS", cls: "nav-achievements", color: "#dc2626" },
-  { to: "/collection", label: "COLECCIÓN", cls: "nav-collection", color: "#059669" },
+  { to: "/consumables", label: "CONSUMABLES", cls: "nav-consumables", color: "#d97706" },
+  { to: "/achievements", label: "ACHIEVEMENTS", cls: "nav-achievements", color: "#dc2626" },
+  { to: "/collection", label: "COLLECTION", cls: "nav-collection", color: "#059669" },
 ];
 
 function navBtnStyle(tab, isActive) {
@@ -84,11 +92,6 @@ function navBtnStyle(tab, isActive) {
     };
   }
   return { filter: "brightness(0.75) saturate(0.7)" };
-}
-
-async function handleLogout() {
-  await authStore.logout();
-  router.push("/");
 }
 </script>
 
@@ -177,8 +180,8 @@ async function handleLogout() {
 .nav-jokers {
   background: $tab-jokers;
 }
-.nav-consumibles {
-  background: $tab-consumibles;
+.nav-consumables {
+  background: $tab-consumables;
 }
 .nav-achievements {
   background: $tab-achievements;
@@ -187,7 +190,21 @@ async function handleLogout() {
   background: $tab-collection;
 }
 
-.header-btn-wrapper {
+/* ── CONTENEDOR DE AJUSTES ── */
+.settings-wrapper {
+  display: flex;
+  @include pixel-stroke($panel-mid);
+  transition: filter 0.15s;
+
+  /* Sobreescribimos las propiedades del botón SOLO cuando está dentro de settings */
+  .login-btn {
+    padding: 8px;
+    width: 36px;
+  }
+}
+
+/* ── CONTENEDOR DE CUENTA ── */
+.account-wrapper {
   display: flex;
   @include pixel-stroke($panel-mid);
   transition: filter 0.15s;
@@ -195,15 +212,20 @@ async function handleLogout() {
   &.logged-in-wrapper {
     @include pixel-stroke(#22c55e);
   }
+
+  /* Sobreescribimos las propiedades del botón SOLO cuando está dentro de cuenta */
+  .login-btn {
+    padding: 8px 16px;
+  }
 }
 
+/* ── ESTILOS BASE DEL BOTÓN (Compartidos) ── */
 .login-btn {
   font-family: "m6x11plus", monospace;
   font-size: 15px;
   color: $text-2;
   background: $panel-dark;
   border: none;
-  padding: 8px 12px;
   cursor: pointer;
   letter-spacing: 0.5px;
   transition: all 0.15s;
