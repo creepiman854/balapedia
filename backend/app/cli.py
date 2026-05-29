@@ -401,7 +401,7 @@ def seed_consumables(dry_run: bool, limit: int | None) -> int:
     categoría (sanity check defensivo contra plantillas mal categorizadas).
 
     Returns:
-        Número total de consumibles procesados (los tres tipos sumados).
+        Número total de consumables procesados (los tres tipos sumados).
     """
     total = 0
     for category, expected_type in _CONSUMABLE_CATEGORIES:
