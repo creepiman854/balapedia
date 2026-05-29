@@ -18,6 +18,8 @@ from typing import Optional
 from firebase_admin import auth as firebase_auth
 from flask import Blueprint, current_app, g, jsonify, request
 
+from sqlalchemy.exc import IntegrityError
+
 from app.extensions import db
 from app.models import User
 
@@ -99,7 +101,18 @@ def _get_or_create_user_from_firebase(decoded: dict) -> User:
             avatar_url=picture,
         )
         db.session.add(user)
-        db.session.commit()
+
+        try:
+            db.session.commit()
+            # FÍJATE AQUÍ: Hemos quitado el "return user"
+            # Si tiene éxito, simplemente sigue hacia abajo para mandar el email
+        except IntegrityError:
+            # Condición de carrera: otra petición paralela creó a este usuario
+            # en el milisegundo exacto en el que estábamos intentando hacerlo.
+            # Deshacemos nuestra transacción y obtenemos el usuario que ya se guardó.
+            db.session.rollback()
+            return User.query.filter_by(firebase_uid=firebase_uid).one()
+
         current_app.logger.info(
             "Created new user (firebase_uid=%s, email=%s)",
             firebase_uid,
@@ -189,7 +202,7 @@ def delete_account():
             return (
                 jsonify(
                     error="firebase_delete_failed",
-                    message="No se pudo eliminar la cuenta de autenticación.",
+                    message="The authentication account could not be deleted.",
                 ),
                 500,
             )
