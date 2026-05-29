@@ -34,13 +34,11 @@ export const useAuthStore = defineStore("auth", () => {
 
   const isAuthenticated = computed(() => !!firebaseUser.value);
 
+  // Lock global para impedir navegación/cambios de vista/modales
+  const navigationLocked = ref(false);
+
   // Tras un sync con Steam, las views (Jokers/Colección/Logros) se
-  // re-fetchean para mostrar los nuevos unlocks. Esto se coordina con
-  // un ref que las views observan via watch().
-  //
-  // Por qué un ref aquí y no un eventBus: ya tenemos el authStore como
-  // fuente de verdad de "estado del usuario actual". Un sync IS un evento
-  // de usuario, así que cabe natural. Cero dependencias nuevas.
+  // re-fetchean para mostrar los nuevos unlocks.
   const lastSyncedAt = ref(null);
 
   function notifySteamSync() {
@@ -48,23 +46,40 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   // ── Helpers UI ──
+
   function openAuthModal() {
+    // Impide abrir/cerrar el modal durante tareas críticas
+    if (navigationLocked.value) return;
+
     isAuthModalOpen.value = true;
   }
 
   function closeAuthModal() {
+    // Impide cerrar el modal durante tareas críticas
+    if (navigationLocked.value) return;
+
     isAuthModalOpen.value = false;
+  }
+
+  function lockNavigation() {
+    navigationLocked.value = true;
+  }
+
+  function unlockNavigation() {
+    navigationLocked.value = false;
   }
 
   /** Llamar una sola vez al arrancar la app (desde main.js). */
   function init() {
     onAuthStateChanged(firebaseAuth, async (fbUser) => {
       firebaseUser.value = fbUser;
+
       if (fbUser) {
         await fetchMe();
       } else {
         user.value = null;
       }
+
       loading.value = false;
     });
   }
@@ -86,6 +101,7 @@ export const useAuthStore = defineStore("auth", () => {
 
   async function loginWithEmail(email, password) {
     error.value = null;
+
     try {
       await signInWithEmailAndPassword(firebaseAuth, email, password);
     } catch (e) {
@@ -96,6 +112,7 @@ export const useAuthStore = defineStore("auth", () => {
 
   async function signupWithEmail(email, password) {
     error.value = null;
+
     try {
       await createUserWithEmailAndPassword(firebaseAuth, email, password);
     } catch (e) {
@@ -106,6 +123,7 @@ export const useAuthStore = defineStore("auth", () => {
 
   async function loginWithGoogle() {
     error.value = null;
+
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(firebaseAuth, provider);
@@ -126,7 +144,7 @@ export const useAuthStore = defineStore("auth", () => {
 
       user.value = null;
     } catch (e) {
-      error.value = e.response?.data?.error || "No se pudo eliminar la cuenta";
+      error.value = e.response?.data?.error || "The account could not be deleted.";
 
       throw e;
     }
@@ -134,28 +152,36 @@ export const useAuthStore = defineStore("auth", () => {
 
   async function logout() {
     error.value = null;
+
     await signOut(firebaseAuth);
   }
 
   async function startSteamLink() {
     error.value = null;
+
     try {
       const response = await api.get("/api/auth/steam/start");
+
       // Redirige el navegador a Steam
       window.location.href = response.data.redirect_url;
     } catch (e) {
-      error.value = "No se pudo iniciar la vinculación con Steam";
+      error.value = "The Steam linking process could not be initiated";
+
       throw e;
     }
   }
 
   async function unlinkSteam() {
     error.value = null;
+
     try {
       await api.post("/api/auth/steam/unlink");
-      await fetchMe(); // refresca el perfil para que steam_id desaparezca
+
+      // refresca el perfil para que steam_id desaparezca
+      await fetchMe();
     } catch (e) {
-      error.value = e.response?.data?.error || "Error desvinculando Steam";
+      error.value = e.response?.data?.error || "Error unlinking Steam";
+
       throw e;
     }
   }
@@ -163,18 +189,20 @@ export const useAuthStore = defineStore("auth", () => {
   /** Traduce códigos de error técnicos de Firebase a mensajes legibles. */
   function _translateFirebaseError(e) {
     const code = e.code || "";
+
     const map = {
-      "auth/invalid-email": "Email inválido",
-      "auth/user-disabled": "Cuenta deshabilitada",
-      "auth/user-not-found": "Usuario no encontrado",
-      "auth/wrong-password": "Contraseña incorrecta",
-      "auth/invalid-credential": "Credenciales inválidas",
-      "auth/email-already-in-use": "El email ya está registrado",
-      "auth/weak-password": "La contraseña es demasiado débil (mín. 6 caracteres)",
-      "auth/popup-closed-by-user": "Cancelaste el login con Google",
-      "auth/network-request-failed": "Error de red. Verifica tu conexión.",
+      "auth/invalid-email": "Invalid email address",
+      "auth/user-disabled": "Account disabled",
+      "auth/user-not-found": "User not found",
+      "auth/wrong-password": "Incorrect password",
+      "auth/invalid-credential": "Invalid credentials",
+      "auth/email-already-in-use": "The email is already registered",
+      "auth/weak-password": "The password is too weak (min. 6 characters)",
+      "auth/popup-closed-by-user": "You canceled your Google login",
+      "auth/network-request-failed": "Network error. Check your connection",
     };
-    return map[code] || e.message || "Error desconocido";
+
+    return map[code] || e.message || "Unknown error";
   }
 
   return {
@@ -183,18 +211,28 @@ export const useAuthStore = defineStore("auth", () => {
     loading,
     error,
     isAuthenticated,
+
     isAuthModalOpen,
     openAuthModal,
     closeAuthModal,
+
+    navigationLocked,
+    lockNavigation,
+    unlockNavigation,
+
     init,
     fetchMe,
+
     loginWithEmail,
     signupWithEmail,
     loginWithGoogle,
+
     logout,
     deleteAccount,
+
     startSteamLink,
     unlinkSteam,
+
     lastSyncedAt,
     notifySteamSync,
   };
