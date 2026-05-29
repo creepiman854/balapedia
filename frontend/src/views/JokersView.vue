@@ -22,30 +22,30 @@
   <div class="jokers-view">
     <div class="jokers-layout">
       <!-- ── Columna izquierda: grid ── -->
-      <div class="jokers-grid-col">
+      <div class="jokers-grid-col" style="position: relative">
         <ProgressBar
           v-if="isAuthenticated && jokers.length"
           :value="totalUnlocked"
           :max="jokers.length"
           color="#3b82f6"
-          label="COMODINES DESBLOQUEADOS"
+          label="UNLOCKED JOKERS"
         />
 
         <FilterBar v-model="filters" :enabled="enabledFilters" />
 
         <div class="count">
-          <template v-if="loading">Cargando comodines...</template>
+          <template v-if="loading">Loading jokers...</template>
           <template v-else-if="error">{{ error }}</template>
-          <template v-else>{{ filtered.length }} comodines encontrados</template>
+          <template v-else>{{ filtered.length }} jokers found</template>
         </div>
+
+        <BalatroLoader v-if="showLoader" :is-loading="loading" @hidden="showLoader = false" />
 
         <div class="grid-scroll">
           <div
-            v-if="!loading && !error"
+            v-if="!loading && !error && filtered.length > 0"
             class="grid"
-            :style="{
-              gridTemplateColumns: `repeat(${settings.gridColumns}, 1fr)`,
-            }"
+            :style="{ gridTemplateColumns: `repeat(${settings.gridColumns}, 1fr)` }"
           >
             <ItemCard
               v-for="(joker, idx) in filtered"
@@ -62,13 +62,16 @@
               @leave="onLeave"
             />
           </div>
+          <div v-if="!loading && !error && filtered.length === 0" class="empty">
+            No jokers found with those filters.
+          </div>
         </div>
       </div>
 
       <!-- ── Columna derecha: detalle ── -->
       <div class="detail-col">
         <div class="detail-col__head">
-          <span>{{ selectedJoker ? selectedJoker.name.toUpperCase() : "COMODÍN" }}</span>
+          <span>{{ selectedJoker ? selectedJoker.name.toUpperCase() : "JOKER" }}</span>
         </div>
         <div class="detail-col__body">
           <ItemDetailPanel
@@ -112,6 +115,7 @@ import FilterBar from "@/components/common/FilterBar.vue";
 import ItemCard from "@/components/items/ItemCard.vue";
 import ItemDetailPanel from "@/components/items/ItemDetailPanel.vue";
 import ItemTooltip from "@/components/items/ItemTooltip.vue";
+import BalatroLoader from "@/components/common/BalatroLoader.vue";
 
 const authStore = useAuthStore();
 const { isAuthenticated, lastSyncedAt } = storeToRefs(authStore);
@@ -122,10 +126,12 @@ const progStore = useProgressionStore();
 // ── Datos ─────────────────────────────────────────────────────────────
 const jokers = ref([]);
 const loading = ref(false);
+const showLoader = ref(true);
 const error = ref("");
 
 async function loadJokers() {
   loading.value = true;
+  showLoader.value = true;
   error.value = "";
   try {
     jokers.value = await fetchAllJokers({ authenticated: isAuthenticated.value });
@@ -133,8 +139,8 @@ async function loadJokers() {
       selectedJoker.value = jokers.value[0];
     }
   } catch (e) {
-    console.error("[JokersView] no se pudieron cargar los jokers", e);
-    error.value = "No se pudieron cargar los comodines. ¿Backend caído?";
+    console.error("[JokersView] jokers could not be loaded", e);
+    error.value = "Could not load jokers. Server offline?";
   } finally {
     loading.value = false;
   }
@@ -227,8 +233,8 @@ async function onManualUnlock(joker, unlocked = true) {
       authStore.openAuthModal();
       return;
     }
-    const verb = unlocked ? "marcar como desbloqueado" : "volver a bloquear";
-    alert(`No se pudo ${verb}. ` + (e.message || ""));
+    const verb = unlocked ? "mark as unlocked" : "lock again";
+    alert(`Could not ${verb}. ` + (e.message || ""));
   }
 }
 
@@ -451,6 +457,14 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
     flex: 1;
     overflow: hidden;
   }
+}
+
+.empty {
+  color: $text-3;
+  font-family: "m6x11plus", monospace;
+  font-size: 14px;
+  text-align: center;
+  padding: 24px 0;
 }
 
 /*
