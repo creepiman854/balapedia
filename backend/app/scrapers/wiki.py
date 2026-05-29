@@ -88,10 +88,60 @@ DESCRIPTION_OVERRIDES: dict[str, str] = {
     "Spectral Pack": "Choose 1 of up to 2 Spectral cards",
     # Decks
     "Anaglyph Deck": "After defeating each Boss Blind, gain a Double Tag",
+    "Black Deck": "+1 Joker slot\n-1 hand every round",
+    "Nebula Deck": "Start run with the Telescope voucher\n-1 consumable slot",
+    "Plasma Deck": "Balance Chips and Mult when calculating score for played hand\nX2 base Blind size",
     # Card Modifiers
     "Glass Card": "x2 Mult. 1 in 4 chance to destroy card",
     "Stone Card": "+50. Chips no rank or suit",
     "Lucky Card": "1 in 5 chance for +20 Mult. 1 in 15 chance to win $20",
+    # Tags
+    "Double Tag": "Gives a copy of the next selected Tag <small>Double Tag excluded</small>",
+    "Garbage Tag": "Gives $1 per unused discard this run",
+    "Handy Tag": "Gives $1 per played hand this run",
+    "Speed Tag": "Gives $5 per skipped Blind this run",
+}
+
+# Overrides manuales de Challenge Decks
+CHALLENGE_MODIFIER_OVERRIDES: dict[str, str] = {
+    "The Omelette": "All Blinds give no reward money\nExtra Hands no longer earn money\nEarn no Interest at end of round",
+    "Rich get Richer": "Chips cannot exceed the current $\nStart with $100",
+    "Mad World": "Extra Hands no longer earn money\nEarn no Interest at end of round",
+    "Luxury Tax": "Hold -1 cards in hand for every $5 you have\n10 hand size",
+    "Typecast": "When ante 4 boss is defeated:\n- all Jokers become eternal\n- set Joker slots to 0",
+    "Blast Off": "2 hands per round\n2 discards per round\n4 Joker Slots",
+    "Five-Card Draw": "6 discards per round\n5 hand size\n7 Joker slots",
+    "Golden Needle": "Discards each cost $1\n\n1 hands per round\n6 discards per round\nStart with $10",
+    "Cruelty": "Small Blinds give no reward money\nBig Blinds give no reward money\n\n3 Joker Slots",
+    "Jokerless": "Jokers no longer appear in the shop\n\n0 Joker Slots",
+}
+
+CHALLENGE_STARTER_OVERRIDES: dict[str, str] = {
+    "15 Minute City": "Eternal Ride the Bus\nEternal Shortcut",
+    "Rich get Richer": "Seed Money\nMoney Tree",
+    "On a Knife's Edge": "Eternal, Pinned Ceremonial Dagger\nThe Pinned Joker is always in the leftmost position",
+    "Mad World": "Eternal, Negative Pareidolia\nEternal Business Card",
+    "Medusa": "Eternal Marble Joker",
+    "Inflation": "Credit Card",
+    "Bram Poker": "Eternal Vampire\nThe Emperor,  The Empress\nMagic Trick,  Illusion",
+    "Fragile": "2x Eternal, Negative Oops! All 6s",
+    "Monolith": "Eternal Obelisk\nEternal Negative Marble Joker",
+    "Blast Off": "Eternal Constellation\nEternal Rocket\nPlanet Merchant\nPlanet Tycoon",
+    "Five-Card Draw": "Card Sharp\nJoker",
+    "Golden Needle": "Credit Card",
+}
+
+CHALLENGE_BANNED_OVERRIDES: dict[str, str] = {
+    "The Omelette": "Banned Vouchers:\nSeed Money\nMoney Tree\n\nBanned Jokers:\n To the Moon\n Rocket\n Golden Joker\n Satellite",
+    "Mad World": "Banned Blinds:\nThe Plant",
+    "Non-Perishable": "Banned Jokers:  \nGros Michel, Cavendish\nIce Cream, Turtle Bean\nRamen, Diet Cola\nSeltzer, Popcorn\nMr. Bones, Invisible Joker\nLuchador\n\nBanned Blinds:\nVerdant Leaf",
+    "Typecast": "Banned Blinds:\nVerdant Leaf",
+    "Inflation": "Banned Vouchers:\nClearance Sale\nLiquidation",
+    "Fragile": "All methods of adding non-glass cards or removing glass enhancements are banned:\n\n- Jokers:  \nMarble Joker, Vampire\nMidas Mask, Certificate\n\n- Tarot cards:\nThe Magician, The Empress\nThe Hierophant, The Chariot\nThe Devil, The Tower\nThe Lovers\n\n- Spectral cards:\nIncantation, Grim\nFamiliar\n\n- Vouchers:\nMagic Trick, Illusion\n\n- Booster Packs: \nStandard Pack\n\n- Tags:\nStandard Tag",
+    "Blast Off": "Banned Vouchers:  \nGrabber, Nacho Tong\n\nBanned Jokers:\nBurglar",
+    "Five-Card Draw": "Banned Jokers:\nJuggler, Troubadour\nTurtle Bean",
+    "Golden Needle": "Banned Jokers:\nBurglar\n\nBanned Vouchers:\nGrabber\nNacho Tong",
+    "Jokerless": "All methods of acquiring Jokers:\n\n- Tarot cards:\nJudgement\n\n- Spectral cards:\nWraith, The Soul\n\n- Tags:\nUncommon Tag,  Rare Tag\nNegative Tag, Foil Tag\nHolographic Tag, Polychrome Tag\nBuffoon Tag, Top-up Tag\n\n- Blinds:\nCrimson Heart, Verdant Leaf\nAmber Acorn\n\n- Vouchers:\nAntimatter\n\n- Booster Packs:\nall 4 Buffoon Packs",
 }
 
 # ──────────────────────────────────────────────────────────────────────
@@ -420,20 +470,31 @@ def parse_challenge_deck(wikitext: str) -> Optional[dict]:
     if not tpl:
         return None
     name = _field(tpl, "title")
+
+    modifier_text = CHALLENGE_MODIFIER_OVERRIDES.get(
+        name, render_wikitext(_field(tpl, "modifier"))
+    )
+
+    starter_text = CHALLENGE_STARTER_OVERRIDES.get(name)
+    if starter_text is None:
+        starter_text = (
+            render_wikitext(_field(tpl, "starter")) if _field(tpl, "starter") else None
+        )
+
+    banned_text = CHALLENGE_BANNED_OVERRIDES.get(name)
+    if banned_text is None:
+        banned_text = (
+            render_wikitext(_field(tpl, "banned")) if _field(tpl, "banned") else None
+        )
+
     return {
         "type": "challenge_deck",
         "item_number": extract_leading_int(_field(tpl, "number")),
         "name": name,
         "image_filename": None,
-        "modifier": apply_description_override(
-            name, render_wikitext(_field(tpl, "modifier"))
-        ),
-        "starter": (
-            render_wikitext(_field(tpl, "starter")) if _field(tpl, "starter") else None
-        ),
-        "banned": (
-            render_wikitext(_field(tpl, "banned")) if _field(tpl, "banned") else None
-        ),
+        "modifier": modifier_text,
+        "starter": starter_text,
+        "banned": banned_text,
         "deck_description": (
             render_wikitext(_field(tpl, "deck")) if _field(tpl, "deck") else None
         ),
@@ -569,7 +630,7 @@ def parse_blind(wikitext: str) -> Optional[dict]:
         "name": _field(tpl, "title"),
         "image_filename": _field(tpl, "image"),
         "blind_type": _field(tpl, "type", "Boss"),
-        "description": render_wikitext(_field(tpl, "description")),
+        "description": description,
         "ante": _field(tpl, "ante"),
         "score_multiplier": score,
         "reward_money": extract_leading_int(_field(tpl, "reward")),
@@ -591,7 +652,7 @@ def parse_tag(wikitext: str) -> Optional[dict]:
     return {
         "name": _field(tpl, "title"),
         "image_filename": _field(tpl, "image"),
-        "description": render_wikitext(_field(tpl, "description")),
+        "description": description,
         "ante": _field(tpl, "ante"),
         "unlock_condition": (
             render_wikitext(_field(tpl, "unlock")) if _field(tpl, "unlock") else None
