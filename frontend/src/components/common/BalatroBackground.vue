@@ -72,7 +72,7 @@ const FS_SOURCE = `
     float uv_len = length(uv);
 
     float speed = u_spinRotation * u_spinEase * 0.2;
-    speed = mix(speed, u_time * speed, u_isRotate);
+    speed = mix(speed, mod(u_time, 240.0) * speed, u_isRotate);
     speed += 302.2;
 
     float new_pixel_angle = atan(uv.y, uv.x) + speed
@@ -84,7 +84,7 @@ const FS_SOURCE = `
               uv_len * sin(new_pixel_angle) + mid.y) - mid;
 
     uv *= 30.0;
-    speed = mod(u_time, 100.0) * u_spinSpeed;
+    speed = mod(u_time, 240.0) * u_spinSpeed;
     vec2 uv2 = vec2(uv.x + uv.y);
 
     for (int i = 0; i < 5; i++) {
@@ -330,16 +330,26 @@ onMounted(() => {
   window.addEventListener("resize", resizeHandler);
   resizeHandler();
 
+  let shaderTime = 0;
+  let lastNow = performance.now();
+
   // Render loop. Aunque rAF pausa con la tab oculta en navegadores
   // modernos, en Firefox a veces sigue corriendo a baja frecuencia
   // (~5Hz) consumiendo CPU. Con `paused` lo cortamos de raíz.
-  const t0 = performance.now();
   const render = (now) => {
     if (paused) return;
+
     tickTransition(now);
-    // Evita acumulación infinita de tiempo
-    const shaderTime = ((now - t0) / 1000) % 60;
+
+    // Delta real entre frames
+    const dt = Math.min((now - lastNow) / 1000, 0.1);
+    lastNow = now;
+
+    // Tiempo continuo
+    shaderTime += dt;
+
     uploadUniforms(shaderTime);
+
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     animationFrameId = requestAnimationFrame(render);
   };
@@ -348,9 +358,16 @@ onMounted(() => {
   visibilityHandler = () => {
     if (document.hidden) {
       paused = true;
-      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
     } else if (paused) {
       paused = false;
+
+      // Resincroniza reloj al volver
+      lastNow = performance.now();
+
       animationFrameId = requestAnimationFrame(render);
     }
   };
