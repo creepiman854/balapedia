@@ -70,7 +70,7 @@ function wrapError(e, contextPath) {
     return err;
   }
   if (e.request) {
-    return new Error(`${contextPath} → sin respuesta del backend (¿flask corriendo?)`);
+    return new Error(`${contextPath} → no response from backend (is Flask running?)`);
   }
   return e;
 }
