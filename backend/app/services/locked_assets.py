@@ -46,6 +46,7 @@ LOCKED_IMAGE_URLS: dict[UnlockableType, str] = {
     UnlockableType.JOKER: "https://balatrowiki.org/images/Locked_Joker.png",
     UnlockableType.VOUCHER: "https://balatrowiki.org/images/Locked_Voucher.png",
     UnlockableType.DECK: "https://balatrowiki.org/images/Locked_Deck.png",
+    UnlockableType.CHALLENGE_DECK: "https://balatrowiki.org/images/Locked_Deck.png",
 }
 
 

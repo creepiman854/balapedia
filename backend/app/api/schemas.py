@@ -255,6 +255,10 @@ class ChallengeDeckSchema(Schema):
     unlock_condition = fields.Str(
         attribute="unlockable.unlock_condition", allow_none=True
     )
+    # Asset "locked" (card back oficial).
+    locked_image_url = fields.Function(
+        lambda obj: LOCKED_IMAGE_URLS[UnlockableType.CHALLENGE_DECK]
+    )
     wiki_url = fields.Str(attribute="unlockable.wiki_url", allow_none=True)
 
 
