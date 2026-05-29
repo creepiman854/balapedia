@@ -42,72 +42,78 @@
 
 <script setup>
 import { computed } from "vue";
+import { useDictionaryStore } from "@/stores/dictionary";
 
 const props = defineProps({
   text: { type: String, default: "" },
 });
 
-// ── Catálogo de poker hands ──────────────────────────────────────────
-// Listadas en orden de "más específicas primero" — necesario porque
-// "Straight Flush" debe matchear antes que "Straight" o "Flush"
-// individualmente. El regex se construye uniendo este array con `|`,
-// y el motor de regex se queda con el primer match más a la izquierda.
+const dictStore = useDictionaryStore();
+
 const POKER_HANDS = [
   "Royal Flush",
+  "Royal Flushes",
   "Straight Flush",
+  "Straight Flushes",
   "Five of a Kind",
+  "Fives of a Kind",
   "Flush House",
+  "Flush Houses",
   "Flush Five",
+  "Flush Fives",
   "Four of a Kind",
+  "Fours of a Kind",
   "Three of a Kind",
+  "Threes of a Kind",
   "Full House",
+  "Full Houses",
   "Two Pair",
+  "Two Pairs",
   "High Card",
+  "High Cards",
   "Pair",
+  "Pairs",
   "Flush",
+  "Flushes",
   "Straight",
+  "Straights",
 ];
 
-// Convertir el array a una alternativa de regex. Los espacios se
-// quedan tal cual; los caracteres especiales de poker hands no
-// necesitan escape.
-const POKER_HANDS_PATTERN = POKER_HANDS.join("|");
+// Ordenamos de más largo a más corto para que los plurales tengan prioridad
+const POKER_HANDS_PATTERN = [...POKER_HANDS].sort((a, b) => b.length - a.length).join("|");
 
-// ── Regex principal de tokenización ─────────────────────────────────
-// Un solo split con un regex que captura cualquiera de los patrones
-// reconocibles. Los grupos sin nombre se conservan en el output de
-// `.split()` cuando se usan paréntesis de captura — ese es el truco
-// que nos permite intercalar tokens "raros" con texto plano.
-//
-// Orden de alternativas: las más específicas primero para evitar
-// matches parciales.
-const TOKEN_RE = new RegExp(
-  [
-    // <small>...</small> con contenido — captura no-greedy.
-    "<small>[\\s\\S]*?<\\/small>",
-    // Poker hands (singular y plural).
-    `(?:${POKER_HANDS_PATTERN})s?`,
-    // xN Mult: lleva fondo rojo (más específico que +N Mult).
+// Regex dinámico reactivo: Se actualiza solo si el diccionario recibe palabras nuevas
+const dynamicTokenRe = computed(() => {
+  const patterns = ["<small>[\\s\\S]*?<\\/small>"];
+
+  // El diccionario va ANTES que las palabras genéricas.
+  // Así, "Planet Merchant" se detecta entero antes de que la regla "Planets?"
+  // divida la frase y se quede solo con la primera palabra.
+  if (dictStore.itemNamesPattern) {
+    patterns.push(`(?:${dictStore.itemNamesPattern})s?`);
+  }
+
+  // Bypass específico para la palabra "Joker" aislada en Five-Card Draw.
+  // Como lo guardamos en memoria pero no en el Regex global, esto lo activa.
+  if (props.text && props.text.includes("Card Sharp") && props.text.includes("Joker")) {
+    patterns.push("\\bJoker\\b");
+  }
+
+  // Resto de reglas genéricas de colores
+  patterns.push(
+    `(?:${POKER_HANDS_PATTERN})`,
     "x[\\d.]+\\s*Mult",
-    // +N Mult / -N Mult / +N-M Mult (range — MISPRINT case).
     "[+-]\\d+(?:-\\d+)?\\s*Mult",
-    // +N Chips / -N Chips.
     "[+-]\\d+\\s*Chips",
-    // +$N / -$N
     "(?:-\\$|\\$)\\d+",
-    // Card types (singular y plural).
     "Tarots?|Planets?|Spectrals?",
-    // Suits (singular y plural). Atención: van DESPUÉS de las card
-    // types para que la palabra "Spade" no se confunda con "Spectral"
-    // (no comparten prefijo, pero queda más claro visualmente).
     "Diamonds?|Hearts?|Spades?|Clubs?",
-  ]
-    .map((p) => `(${p})`)
-    .join("|"),
-  "g",
-);
+  );
 
-// ── Helpers ─────────────────────────────────────────────────────────
+  // La bandera 'ig' (Case-Insensitive) permite detectar "vampire" aunque el usuario escriba "Vampire"
+  return new RegExp("(" + patterns.map((p) => `(?:${p})`).join("|") + ")", "ig");
+});
+
 function escapeHtml(text) {
   return text
     .replace(/&/g, "&amp;")
@@ -117,63 +123,43 @@ function escapeHtml(text) {
     .replace(/'/g, "&#39;");
 }
 
-/**
- * Identifica el tipo de un token capturado y devuelve la
- * representación HTML correspondiente. Si el token no es reconocible,
- * devuelve `null` y el caller lo trata como texto plano.
- */
 function renderToken(token) {
   if (!token) return null;
 
-  // <small>: se renderiza en línea aparte con tipografía más pequeña.
-  // El contenido del <small> se escapa para evitar HTML injection.
-  const smallMatch = token.match(/^<small>([\s\S]*?)<\/small>$/);
-  if (smallMatch) {
-    return `<br><span class="ct-small">${escapeHtml(smallMatch[1])}</span>`;
-  }
+  const smallMatch = token.match(/^<small>([\s\S]*?)<\/small>$/i);
+  if (smallMatch) return `<br><span class="ct-small">${escapeHtml(smallMatch[1])}</span>`;
 
-  if (/^x[\d.]+\s*Mult$/.test(token)) {
-    return `<span class="ct-xmult">${escapeHtml(token)}</span>`;
-  }
-  if (/^[+-]\d+(?:-\d+)?\s*Mult$/.test(token)) {
+  if (/^x[\d.]+\s*Mult$/i.test(token)) return `<span class="ct-xmult">${escapeHtml(token)}</span>`;
+  if (/^[+-]\d+(?:-\d+)?\s*Mult$/i.test(token))
     return `<span class="ct-mult">${escapeHtml(token)}</span>`;
-  }
-  if (/^[+-]\d+\s*Chips$/.test(token)) {
-    return `<span class="ct-chips">${escapeHtml(token)}</span>`;
-  }
-  if (/^(?:-\$|\$)\d+$/.test(token)) {
-    return `<span class="ct-price">${escapeHtml(token)}</span>`;
-  }
+  if (/^[+-]\d+\s*Chips$/i.test(token)) return `<span class="ct-chips">${escapeHtml(token)}</span>`;
+  if (/^(?:-\$|\$)\d+$/i.test(token)) return `<span class="ct-price">${escapeHtml(token)}</span>`;
 
-  // Poker hands: check tras los specifics porque pueden aparecer al
-  // final de strings tipo "Royal Flushes" (plural).
-  const POKER_HAND_RE = new RegExp(`^(?:${POKER_HANDS_PATTERN})s?$`);
-  if (POKER_HAND_RE.test(token)) {
-    return `<span class="ct-poker">${escapeHtml(token)}</span>`;
-  }
+  const POKER_HAND_RE = new RegExp(`^(?:${POKER_HANDS_PATTERN})$`, "i");
+  if (POKER_HAND_RE.test(token)) return `<span class="ct-poker">${escapeHtml(token)}</span>`;
 
-  if (/^Tarots?$/.test(token)) return `<span class="ct-tarot">${token}</span>`;
-  if (/^Planets?$/.test(token)) return `<span class="ct-planet">${token}</span>`;
-  if (/^Spectrals?$/.test(token)) return `<span class="ct-spectral">${token}</span>`;
-  if (/^Diamonds?$/.test(token)) return `<span class="ct-diamond">${token}</span>`;
-  if (/^Hearts?$/.test(token)) return `<span class="ct-heart">${token}</span>`;
-  if (/^Spades?$/.test(token)) return `<span class="ct-spade">${token}</span>`;
-  if (/^Clubs?$/.test(token)) return `<span class="ct-club">${token}</span>`;
+  if (/^Tarots?$/i.test(token)) return `<span class="ct-tarot">${token}</span>`;
+  if (/^Planets?$/i.test(token)) return `<span class="ct-planet">${token}</span>`;
+  if (/^Spectrals?$/i.test(token)) return `<span class="ct-spectral">${token}</span>`;
+  if (/^Diamonds?$/i.test(token)) return `<span class="ct-diamond">${token}</span>`;
+  if (/^Hearts?$/i.test(token)) return `<span class="ct-heart">${token}</span>`;
+  if (/^Spades?$/i.test(token)) return `<span class="ct-spade">${token}</span>`;
+  if (/^Clubs?$/i.test(token)) return `<span class="ct-club">${token}</span>`;
+
+  // Magia del diccionario: si detecta una carta registrada, saca la imagen
+  const imgUrl = dictStore.getImage(token);
+  if (imgUrl) {
+    return `<span class="ct-item-name"><img src="${imgUrl}" class="ct-item-icon" />${escapeHtml(token)}</span>`;
+  }
 
   return null;
 }
 
-// ── Render principal ────────────────────────────────────────────────
 const renderedHtml = computed(() => {
   const raw = props.text || "";
   if (!raw) return "";
 
-  // String.split con un regex con grupos de captura devuelve un array
-  // alternando: [texto, match1, match2, ..., texto, match1, ...].
-  // Los `match2..N` son `undefined` cuando solo uno de los grupos
-  // capturó — los filtramos.
-  const parts = raw.split(TOKEN_RE);
-
+  const parts = raw.split(dynamicTokenRe.value);
   let html = "";
   for (const part of parts) {
     if (part === undefined || part === "") continue;
@@ -191,14 +177,10 @@ const renderedHtml = computed(() => {
 <style lang="scss" scoped>
 .colored-desc {
   display: inline;
+  font-size: 14px;
 }
 
-/*
- * Las clases coloreadas se aplican vía v-html, que no propaga el
- * scoped attribute. `:deep()` permite que los selectores penetren a
- * los descendientes sin scope. Sin :deep() los estilos NO se
- * aplicarían (el HTML inyectado no llevaría la marca scoped).
- */
+/* Clases coloreadas existentes */
 :deep(.ct-xmult) {
   background: #ff4c40;
   color: #fff;
@@ -206,70 +188,51 @@ const renderedHtml = computed(() => {
   border-radius: 2px;
   font-weight: 700;
 }
-
 :deep(.ct-mult) {
   color: #ff4c40;
   font-weight: 700;
 }
-
 :deep(.ct-chips) {
   color: #0093ff;
   font-weight: 700;
 }
-
 :deep(.ct-poker) {
   color: #ff8f00;
   font-weight: 700;
 }
-
 :deep(.ct-tarot) {
   color: #ca8cff;
   font-weight: 700;
 }
-
 :deep(.ct-planet) {
   color: #69e6ff;
   font-weight: 700;
 }
-
 :deep(.ct-spectral) {
   color: #76a6ff;
   font-weight: 700;
 }
-
 :deep(.ct-diamond) {
   color: #ffa300;
   font-weight: 700;
 }
-
 :deep(.ct-heart) {
   color: #f83b2f;
   font-weight: 700;
 }
-
 :deep(.ct-spade) {
   color: #8fb1b8;
   font-weight: 700;
 }
-
 :deep(.ct-club) {
   color: #009cfd;
   font-weight: 700;
 }
-
 :deep(.ct-price) {
   color: #f5b244;
   font-weight: 700;
 }
 
-/*
- * <small>: línea aparte con tipografía un poco más pequeña.
- * `display: inline-block` con margin-top + 100% width simula un
- * párrafo separado sin requerir un wrapper <p> aparte.
- *
- * Opacity ligeramente reducida para que se perciba "secundario"
- * respecto al texto principal sin esconderlo.
- */
 :deep(.ct-small) {
   display: inline-block;
   width: 100%;
@@ -277,5 +240,28 @@ const renderedHtml = computed(() => {
   font-size: 0.88em;
   opacity: 0.82;
   line-height: 1.4;
+}
+
+/* --- NUEVAS CLASES PARA ITEMS DEL DICCIONARIO --- */
+:deep(.ct-item-name) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: #fcfcfc; /* Un blanco más nítido para resaltar el ítem */
+  vertical-align: middle;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin: 2px 0;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+
+:deep(.ct-item-icon) {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
 }
 </style>
