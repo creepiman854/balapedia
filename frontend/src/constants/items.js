@@ -1,6 +1,6 @@
 /**
  * Helpers compartidos para todos los items del catálogo
- * (jokers, consumibles, decks, vouchers, booster packs, card modifiers).
+ * (jokers, consumables, decks, vouchers, booster packs, card modifiers).
  *
  *   getItemAccent(item)       → color/glow/dark/label por rareza o type.
  *   getItemBadgeLabel(item)   → etiqueta humana para el badge inferior.
@@ -13,7 +13,7 @@
  *                               unlock_condition.
  *
  * Toda la lógica de "qué se ve y qué no" en las vistas pasa por aquí
- * — así jokers, consumibles y colección comparten una única fuente
+ * — así jokers, consumables y colección comparten una única fuente
  * de verdad.
  */
 
