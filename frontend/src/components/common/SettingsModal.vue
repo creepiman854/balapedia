@@ -10,7 +10,7 @@
           <header class="modal-header">
             <h2 class="modal-title">
               <iconify-icon icon="pixel:cog-solid" noobserver />
-              AJUSTES
+              SETTINGS
             </h2>
           </header>
 
@@ -18,7 +18,7 @@
             <div class="control">
               <div class="control__head">
                 <iconify-icon icon="pixel:retro-pc-solid" noobserver />
-                <span class="control__label">Intensidad CRT</span>
+                <span class="control__label">CRT Intensity</span>
                 <span class="control__value">{{ Math.round(crtIntensity * 100) }}%</span>
               </div>
               <input
@@ -35,7 +35,7 @@
             <div class="control">
               <div class="control__head">
                 <iconify-icon icon="pixel:grid-solid" noobserver />
-                <span class="control__label">Columnas del grid</span>
+                <span class="control__label">Joker grid columns</span>
                 <span class="control__value">{{ gridColumns }}</span>
               </div>
               <input
@@ -60,7 +60,7 @@
               ON (modo spoiler) → se ve la imagen real, pero desaturada
                               y con brillo reducido (la carta se sigue
                               identificando como bloqueada).
-              No afecta a consumibles ni sobres (siempre visibles) ni al
+              No afecta a consumables ni sobres (siempre visibles) ni al
               panel de detalle.
             -->
             <div class="control control--toggle">
@@ -76,9 +76,9 @@
                   <iconify-icon icon="pixel:eye-solid" noobserver />
                 </span>
                 <span class="toggle-row__text">
-                  <span class="toggle-row__label">Mostrar bloqueados desvelados</span>
+                  <span class="toggle-row__label">Reveal locked items</span>
                   <span class="toggle-row__hint">
-                    Revela la imagen real de los items bloqueados (atenuada).
+                    Reveals the actual image of locked items.
                   </span>
                 </span>
                 <span class="toggle-switch" aria-hidden="true">
@@ -87,7 +87,7 @@
               </button>
             </div>
 
-            <p class="hint">Los cambios se aplican automáticamente.</p>
+            <p class="hint">Changes are applied automatically.</p>
           </div>
         </div>
       </div>
