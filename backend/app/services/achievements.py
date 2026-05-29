@@ -290,7 +290,7 @@ def _revert_sticker_application(
     unlockable_id: int,
     when: datetime,
 ) -> bool:
-    """Retira el Gold Sticker si se aplicó en el timestamp exacto de la cascada."""
+    """Retira el Gold Sticker o la marca de Completado si se aplicó en el timestamp exacto de la cascada."""
 
     usa = (
         db.session.query(UserStickerApplication)
@@ -300,13 +300,13 @@ def _revert_sticker_application(
 
     if usa and _is_same_event(usa.earned_at, when):
 
-        # Solo retiramos el progreso si fue la cascada quien lo puso a 8
-
-        if usa.manual_stake_order == 8:
+        # Retiramos el progreso si fue la cascada quien lo puso (Gold=8, Completado=1)
+        if usa.manual_stake_order in (1, 8):
             usa.manual_stake_order = 0
+        if usa.steam_stake_order in (1, 8):
+            usa.steam_stake_order = 0
 
         # Limpieza estándar Dual-Source
-
         if usa.manual_stake_order == 0 and usa.steam_stake_order == 0:
             db.session.delete(usa)
 
@@ -581,12 +581,7 @@ def _resolve_rule_breaker(
     source: UnlockSource,
     when: datetime,
 ) -> None:
-    """Rule Breaker: desbloquea TODOS los challenge decks.
-
-    A diferencia del cascade genérico, no requiere que los challenge decks
-    compartan unlock_factor con el achievement — simplemente todos los que
-    existan en la tabla.
-    """
+    """Rule Breaker: desbloquea TODOS los challenge decks y los marca como completados."""
 
     challenges = (
         db.session.query(Unlockable)
@@ -599,47 +594,24 @@ def _resolve_rule_breaker(
     for challenge in challenges:
         if _ensure_user_unlock(user_id, challenge.id, source, when):
             result.cascaded_unlockables.append(challenge)
-            cascaded_count += 1
+
+        # Aplicamos la marca de completado (stake_order = 1)
+        usa = _ensure_sticker_application(
+            user_id,
+            challenge,
+            1,
+            source,
+            when,
+        )
+
+        if usa is not None:
+            result.cascaded_sticker_applications.append(usa)
+
+        cascaded_count += 1
 
     result.notes.append(
         f"Rule Breaker → {cascaded_count}/{len(challenges)} challenge decks "
-        f"desbloqueados (resto ya estaban)."
-    )
-
-
-@_special_resolver("BAL_24")  # Legendary
-def _resolve_legendary(
-    user_id: int,
-    result: UnlockAchievementResult,
-    source: UnlockSource,
-    when: datetime,
-) -> None:
-    """Legendary: unlocks ALL legendary jokers.
-
-    The achievement "Discover a Legendary Joker" implies the user has
-    found at least one, but by Balatro convention having THIS achievement
-    means the user has access to all legendary jokers in the collection
-    (they're all discoverable once one appears). We unlock the full set
-    so the encyclopedia reflects the game's unlock tree.
-    """
-
-    legendary_jokers = (
-        db.session.query(Unlockable)
-        .join(Joker, Joker.id == Unlockable.id)
-        .filter(Joker.rarity == JokerRarity.LEGENDARY)
-        .all()
-    )
-
-    cascaded_count = 0
-
-    for joker in legendary_jokers:
-        if _ensure_user_unlock(user_id, joker.id, source, when):
-            result.cascaded_unlockables.append(joker)
-            cascaded_count += 1
-
-    result.notes.append(
-        f"Legendary → {cascaded_count}/{len(legendary_jokers)} legendary "
-        f"jokers unlocked (rest already were)."
+        f"desbloqueados y marcados como completados."
     )
 
 
@@ -694,7 +666,11 @@ def _resolve_completionist(
     and challenge decks (all subtypes of Unlockable).
     """
 
-    all_items = db.session.query(Unlockable).all()
+    all_items = (
+        db.session.query(Unlockable)
+        .filter(Unlockable.type != UnlockableType.CHALLENGE_DECK)
+        .all()
+    )
 
     cascaded_count = 0
 
@@ -822,23 +798,16 @@ def _reverse_rule_breaker(
         .all()
     )
 
-    return sum(1 for c in challenges if _revert_user_unlock(user_id, c.id, when))
+    count = 0
 
+    for c in challenges:
+        unlocked = _revert_user_unlock(user_id, c.id, when)
+        stickered = _revert_sticker_application(user_id, c.id, when)
 
-@_reverse_resolver("BAL_24")  # Legendary
-def _reverse_legendary(
-    user_id: int,
-    when: datetime,
-) -> int:
+        if unlocked or stickered:
+            count += 1
 
-    legendary_jokers = (
-        db.session.query(Unlockable)
-        .join(Joker, Joker.id == Unlockable.id)
-        .filter(Joker.rarity == JokerRarity.LEGENDARY)
-        .all()
-    )
-
-    return sum(1 for j in legendary_jokers if _revert_user_unlock(user_id, j.id, when))
+    return count
 
 
 @_reverse_resolver("BAL_28")  # Extreme Couponer
@@ -862,7 +831,11 @@ def _reverse_completionist(
     when: datetime,
 ) -> int:
 
-    all_items = db.session.query(Unlockable).all()
+    all_items = (
+        db.session.query(Unlockable)
+        .filter(Unlockable.type != UnlockableType.CHALLENGE_DECK)
+        .all()
+    )
 
     return sum(1 for item in all_items if _revert_user_unlock(user_id, item.id, when))
 
