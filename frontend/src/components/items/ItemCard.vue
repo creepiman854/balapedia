@@ -22,11 +22,18 @@
     :style="archStyle"
   >
     <template v-if="stack">
-      <div class="deck-shadow deck-shadow--back" :class="{ 'deck-shadow--locked': isLocked }" />
-      <div class="deck-shadow deck-shadow--mid" :class="{ 'deck-shadow--locked': isLocked }" />
+      <!-- Cambiamos isLocked por realLockStatus -->
+      <div
+        class="deck-shadow deck-shadow--back"
+        :class="{ 'deck-shadow--locked': isActuallyLocked }"
+      />
+      <div
+        class="deck-shadow deck-shadow--mid"
+        :class="{ 'deck-shadow--locked': isActuallyLocked }"
+      />
     </template>
     <div
-      v-tilt="{ max: 12, scale: 1.07, speed: 320 }"
+      v-tilt="{ max: 18, scale: 1.07, speed: 320 }"
       class="tilt-wrap"
       @click="emit('select', item)"
       @mouseenter="onEnter"
@@ -45,12 +52,26 @@
         </transition>
       </div>
       <!-- Sticker overlay -->
-      <transition :name="itemType === 'JOKER' ? 'sticker-apply' : 'stake-drop'" mode="out-in">
+      <transition
+        :name="
+          itemType === 'CHALLENGE_DECK'
+            ? 'check-pop'
+            : itemType === 'JOKER'
+              ? 'sticker-apply'
+              : 'stake-drop'
+        "
+        mode="out-in"
+      >
+        <iconify-icon
+          v-if="!isLocked && itemType === 'CHALLENGE_DECK' && item.highest_stake_order === 1"
+          icon="pixel:check-circle-solid"
+          class="challenge-check-overlay"
+          noobserver
+        />
         <img
-          v-if="!isLocked && stickerOverlay?.image_url"
+          v-else-if="!isLocked && stickerOverlay?.image_url && itemType !== 'CHALLENGE_DECK'"
           :key="stickerOverlay.image_url"
           :src="stickerOverlay.image_url"
-          :alt="stickerOverlay.name"
           class="sticker-overlay"
           :class="itemType === 'JOKER' ? 'sticker-overlay--joker' : 'sticker-overlay--deck'"
           draggable="false"
@@ -97,6 +118,18 @@ const archStyle = computed(() => {
 function onEnter(e) {
   emit("hover", { item: props.item, target: e.currentTarget });
 }
+
+const isActuallyLocked = computed(() => {
+  /*
+   * Estado REAL del unlock.
+   * NO depende del toggle de mostrar cartas bloqueadas.
+   */
+  if ("unlocked_for_me" in props.item) {
+    return !props.item.unlocked_for_me;
+  }
+
+  return props.isLocked;
+});
 
 const progStore = useProgressionStore();
 
@@ -172,9 +205,9 @@ const isGold = computed(() => props.item?.highest_stake_order === 8);
 
 /* Estado LOCKED → vuelve al look oscuro */
 .deck-shadow--locked {
-  background: linear-gradient(160deg, #1a2a2e 0%, #0d1517 100%);
-  border: 1px solid rgba(58, 80, 85, 0.7);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.55);
+  background: linear-gradient(160deg, #e5e5e5 0%, #b5b5b5 100%);
+  border: 1px solid rgba(120, 120, 120, 0.4);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .deck-shadow--back {
@@ -222,6 +255,18 @@ const isGold = computed(() => props.item?.highest_stake_order === 8);
   .tilt-wrap {
     filter: drop-shadow(0 0 6px #f0a020) drop-shadow(0 0 12px rgba(240, 160, 32, 0.3));
   }
+}
+
+/* Checkmark de Challenge Decks completados */
+.challenge-check-overlay {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  font-size: 50px;
+  color: #22c55e;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+  z-index: 2;
+  pointer-events: none;
 }
 
 /* --- STICKERS DE JOKERS --- */
@@ -314,6 +359,27 @@ const isGold = computed(() => props.item?.highest_stake_order === 8);
   }
   100% {
     top: 0;
+    opacity: 1;
+  }
+}
+
+/* --- ANIMACIÓN EXCLUSIVA PARA CHECK DE CHALLENGE DECKS --- */
+.check-pop-enter-active {
+  /* Usamos un cubic-bezier elástico para dar el efecto de rebote */
+  animation: pop-bounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.check-pop-leave-active {
+  /* Reusamos la animación de fade-out que ya tienes definida */
+  animation: fade-out 0.1s ease-in;
+}
+
+@keyframes pop-bounce {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
     opacity: 1;
   }
 }
