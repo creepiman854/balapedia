@@ -18,6 +18,7 @@ Traducción de excepciones del servicio a HTTP status codes:
   SteamApiError (catch-all)   -> 502
   UserNotFoundError           -> 404  (defensa; el user está autenticado)
 """
+
 from __future__ import annotations
 
 from flask import Blueprint, current_app, g, jsonify
@@ -37,7 +38,6 @@ from app.services.steam import (
     SteamProfilePrivateError,
     SteamRateLimitError,
 )
-
 
 steam_sync_bp = Blueprint("steam_sync", __name__, url_prefix="/api/me")
 
@@ -59,59 +59,78 @@ def post_steam_sync():
         result = sync_steam_achievements_for_user(user.id)
 
     except UserNotLinkedError:
-        return jsonify(
-            error="steam_not_linked",
-            message="Vincula tu cuenta de Steam antes de sincronizar.",
-            help_url="/api/auth/steam/start",
-        ), 400
+        return (
+            jsonify(
+                error="steam_not_linked",
+                message="Please link your Steam account before syncing.",
+                help_url="/api/auth/steam/start",
+            ),
+            400,
+        )
 
     except SteamProfilePrivateError:
-        return jsonify(
-            error="steam_profile_private",
-            message=(
-                "Tu perfil de Steam es privado o no muestra los achievements. "
-                "Cambia la privacidad de tu perfil y/o de los Game Details a "
-                "'Public' desde Steam y vuelve a intentarlo."
+        return (
+            jsonify(
+                error="steam_profile_private",
+                message=(
+                    "Your Steam profile is private or does not display achievements. "
+                    "Change your profile and/or Game Details privacy to "
+                    "'Public' on Steam and try again."
+                ),
             ),
-        ), 400
+            400,
+        )
 
     except SteamRateLimitError:
         response = jsonify(
             error="steam_rate_limited",
-            message="Steam está limitando peticiones; intenta de nuevo en un minuto.",
+            message="Steam is rate-limiting requests; please try again in a minute.",
         )
+
         response.status_code = 503
         response.headers["Retry-After"] = "60"
         return response
 
     except SteamApiTimeoutError:
-        return jsonify(
-            error="steam_timeout",
-            message="Steam tardó demasiado en responder. Vuelve a intentarlo.",
-        ), 504
+        return (
+            jsonify(
+                error="steam_timeout",
+                message="Steam took too long to respond. Please try again.",
+            ),
+            504,
+        )
 
     except SteamApiKeyInvalidError as e:
         # Bug de configuración del backend — NO exponer detalles al cliente.
         current_app.logger.error("Steam API key issue: %s", e)
-        return jsonify(
-            error="steam_misconfigured",
-            message="Error temporal del servicio. Inténtalo de nuevo más tarde.",
-        ), 503
+        return (
+            jsonify(
+                error="steam_misconfigured",
+                message="Temporary service error. Please try again later.",
+            ),
+            503,
+        )
 
     except SteamApiUnavailableError as e:
         current_app.logger.warning("Steam API unavailable: %s", e)
-        return jsonify(
-            error="steam_unavailable",
-            message="Steam no está respondiendo. Inténtalo de nuevo más tarde.",
-        ), 503
+        return (
+            jsonify(
+                error="steam_unavailable",
+                message="Steam is not responding. Please try again later.",
+            ),
+            503,
+        )
 
     except SteamApiError as e:
         # Catch-all para subclases no mapeadas explícitamente.
         current_app.logger.exception("Unexpected Steam API error")
-        return jsonify(
-            error="steam_unknown_error",
-            message=str(e),
-        ), 502
+        return (
+            jsonify(
+                error="steam_unknown_error",
+                message=str(e),
+            ),
+            502,
+        )
 
     except UserNotFoundError:
         # No debería ocurrir: el user está autenticado vía @require_auth.
