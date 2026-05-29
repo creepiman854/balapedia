@@ -1,5 +1,5 @@
 <!--
-  Render de la "carta" de un item del catálogo (joker, consumible, etc.).
+  Render de la "carta" de un item del catálogo (joker, consumable, etc.).
 
   Modos (resolución por orden de precedencia):
     1. Bloqueado + modo spoiler ON + tiene image_url → muestra la
@@ -10,36 +10,18 @@
     3. Bloqueado sin asset oficial (Consumable/Pack/Challenge) →
        fallback al dorso genérico "card-back" oscuro con "?".
     4. Desbloqueado + image_url → <img> con drop-shadow CSS aplicado
-       directamente sobre la imagen. Esto respeta el alpha del PNG
-       (jokers no rectangulares, consumibles con borde transparente, …)
-       — el shadow se "recorta" siguiendo la silueta de la carta y NO
-       genera un halo de rectángulo bounding box.
-    5. Desbloqueado sin image_url → carta blanca con letra inicial
-       generada deterministícamente del nombre. Sirve mientras el
-       backend no pueble image_url.
+       directamente sobre la imagen.
+    5. Desbloqueado, sin image_url propia pero CHALLENGE_DECK → usamos
+       el asset representativo compartido de Challenge Decks.
+    6. Desbloqueado sin image_url → carta blanca con letra inicial.
 
   Sin <svg> wrapper, sin marco de rareza — la carta vive suelta.
-
-  Trade-off: `filter: drop-shadow` crea una capa de compositing GPU por
-  card. Con ~150 jokers visibles, son ~150 capas extra. Firefox lo
-  asume mejor que en pases anteriores gracias a la combinación de
-  rAF-throttled tilt + will-change en el wrapper.
-
-  El modo spoiler vive en `settings.showSpoiledLocked` (Pinia). Default
-  OFF — el usuario tiene que ir a Ajustes a activarlo. Solo afecta a
-  Jokers/Vouchers/Decks (los demás tipos no tienen estado bloqueado
-  visible en el grid).
-
-  Implementación del filtro: el desaturado/atenuado del modo spoiler se
-  añade DENTRO de la misma string CSS `filter:` que el drop-shadow,
-  porque el style inline siempre gana sobre las reglas externas. Si lo
-  pusiéramos en una clase, el `:style="shadowStyle"` la anularía.
 -->
 <template>
   <!-- Modo 1: Bloqueado + spoiler ON + tiene imagen real → revelado atenuado -->
   <img
-    v-if="isLocked && showSpoiledLocked && item.image_url"
-    :src="item.image_url"
+    v-if="isSpoiledRender"
+    :src="item.image_url || CHALLENGE_DECK_FALLBACK_IMAGE"
     :alt="item.name"
     class="card-img card-img--spoiled"
     :style="shadowStyle"
@@ -51,7 +33,7 @@
   <img
     v-else-if="isLocked && item.locked_image_url"
     :src="item.locked_image_url"
-    :alt="`${item.name} bloqueado`"
+    :alt="`${item.name} locked`"
     class="card-img card-img--locked"
     :style="shadowStyle"
     draggable="false"
@@ -59,7 +41,7 @@
   />
 
   <!-- Modo 3: Bloqueado sin asset oficial → dorso genérico "?" -->
-  <div v-else-if="isLocked" class="card-back" :style="shadowStyle" aria-label="Item bloqueado">
+  <div v-else-if="isLocked" class="card-back" :style="shadowStyle" aria-label="Locked item">
     <span class="card-back__q">?</span>
   </div>
 
@@ -74,11 +56,28 @@
     loading="lazy"
   />
 
-  <!-- Modo 5: Fallback sin imagen → carta blanca con letra generada -->
+  <!-- Modo 5: Challenge Deck sin imagen propia → asset compartido -->
+  <img
+    v-else-if="isChallengeDeck"
+    :src="CHALLENGE_DECK_FALLBACK_IMAGE"
+    :alt="item.name"
+    class="card-img card-img--challenge"
+    :style="shadowStyle"
+    draggable="false"
+    loading="lazy"
+  />
+
+  <!-- Modo 6: Fallback sin imagen → carta blanca con letra generada -->
   <div v-else class="card-fallback" :style="fallbackStyle">
     <span class="card-fallback__sym" :style="{ color: `hsl(${hue}, 70%, 32%)` }">
       {{ sym }}
     </span>
+  </div>
+
+  <!-- NUEVO: Overlay identificativo para Challenge Decks -->
+  <!-- Solo se muestra si es un reto y (está desbloqueado O el usuario tiene el spoiler activo) -->
+  <div v-if="isChallengeDeck && (!isLocked || isSpoiledRender)" class="challenge-name-overlay">
+    <span class="challenge-name-text">{{ item.name }}</span>
   </div>
 </template>
 
@@ -87,22 +86,18 @@ import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { useSettingsStore } from "@/stores/settings";
 
+const CHALLENGE_DECK_FALLBACK_IMAGE = "https://balatrowiki.org/images/Challenge_Deck.png";
+
 const props = defineProps({
   item: { type: Object, required: true },
   isLocked: { type: Boolean, default: false },
   isSelected: { type: Boolean, default: false },
-  /**
-   * Accent visual del item (rareza para jokers, type para consumibles).
-   * Lo recibe del padre via `getItemAccent(item)`.
-   */
   accent: {
     type: Object,
     default: () => ({ color: "#708387", glow: "rgba(112,131,135,0.4)" }),
   },
 });
 
-// Toggle global del modo "spoiler" para items bloqueados.
-// Vive en el store de settings con persistencia en localStorage.
 const settings = useSettingsStore();
 const { showSpoiledLocked } = storeToRefs(settings);
 
@@ -116,50 +111,29 @@ function nameHue(name) {
 const hue = computed(() => nameHue(props.item.name));
 const sym = computed(() => (props.item.name || "?").trim()[0]?.toUpperCase() || "?");
 
-/**
- * Caso espacial activo cuando el item está bloqueado, el usuario tiene
- * activado el modo spoiler en Ajustes, y la carta tiene una imagen
- * real que mostrar atenuada. Encapsulado para no repetir la condición
- * en plantilla y filter.
- */
-const isSpoiledRender = computed(
-  () => props.isLocked && showSpoiledLocked.value && !!props.item?.image_url,
+const isChallengeDeck = computed(
+  () => String(props.item?.type || "").toUpperCase() === "CHALLENGE_DECK",
 );
 
-/**
- * Filtro CSS aplicado a la <img> / card-back / fallback.
- *
- * El shadow base (selected vs no-selected) siempre va. Si la carta se
- * renderiza en modo spoiler, ENCABEZAMOS la string con grayscale +
- * brightness + contrast — el orden importa: los filtros se componen
- * en secuencia, así que primero desaturamos/atenuamos los colores y
- * después aplicamos el drop-shadow sobre el resultado atenuado (el
- * shadow recoge el alpha real de la PNG, no se altera por el filtro
- * de color anterior).
- *
- * Decidimos construirlo aquí en lugar de en una clase CSS para que
- * el style inline (`:style="shadowStyle"`) gane sobre cualquier regla
- * externa — los style inline siempre tienen mayor specificity.
- */
+const isSpoiledRender = computed(
+  () =>
+    props.isLocked && showSpoiledLocked.value && (!!props.item?.image_url || isChallengeDeck.value),
+);
+
 const shadowFilter = computed(() => {
   const parts = [];
-
   if (isSpoiledRender.value) {
-    // Modo 1: Revelado atenuado (Modo Spoiler)
     parts.push("grayscale(0.85)", "brightness(0.55)", "contrast(0.95)");
   } else if (props.isLocked && props.item?.locked_image_url) {
-    // Modo 2: Asset oficial bloqueado (sin spoiler)
     parts.push("brightness(0.65)");
   }
 
-  // Las sombras se aplican siempre al final de la cadena
   if (props.isSelected) {
     parts.push(`drop-shadow(0 0 14px ${props.accent.color})`);
     parts.push("drop-shadow(0 6px 14px rgba(0,0,0,0.9))");
   } else {
     parts.push("drop-shadow(0 4px 8px rgba(0,0,0,0.55))");
   }
-
   return parts.join(" ");
 });
 
@@ -172,6 +146,9 @@ const fallbackStyle = computed(() => ({
 </script>
 
 <style lang="scss" scoped>
+@use "@/assets/styles/variables" as *;
+@use "@/assets/styles/mixins" as *;
+
 .card-img,
 .card-back,
 .card-fallback {
@@ -188,17 +165,10 @@ const fallbackStyle = computed(() => ({
   background: transparent;
 }
 
-/*
- * Variante "spoiler" (image_url real atenuada) y "locked" (asset
- * oficial de la wiki) heredan todo del .card-img base. La distinción
- * vive solo en el src y en el computed `shadowFilter` (que añade los
- * filtros de desaturado/brillo cuando aplica). Mantengo las clases
- * para que sea trivial localizarlas con DevTools y para hooks
- * futuros (e.g. animar `transition: filter 0.2s ease` al cambiar
- * el toggle de spoiler).
- */
+/* Hooks para variantes */
 .card-img--spoiled,
-.card-img--locked {
+.card-img--locked,
+.card-img--challenge {
   transition: filter 0.2s ease;
 }
 
@@ -229,5 +199,72 @@ const fallbackStyle = computed(() => ({
     font-size: clamp(28px, 5vw, 80px);
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
   }
+}
+
+/* --- OVERLAY DE CHALLENGE DECKS --- */
+.challenge-name-overlay {
+  position: absolute;
+  inset: 0;
+
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+
+  padding-bottom: 12px;
+
+  pointer-events: none;
+  z-index: 5;
+}
+
+.challenge-name-text {
+  position: relative;
+
+  max-width: 82%;
+
+  padding: 6px 12px;
+
+  font-family: "m6x11plus", monospace;
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: 0.4px;
+  text-align: center;
+  color: #f3f4f6;
+
+  /*
+   * Mucho más limpio y discreto.
+   * Parece una pequeña placa informativa
+   * integrada sobre la carta.
+   */
+  background: rgba(16, 18, 24, 0.82);
+
+  /*
+   * Borde pixelado.
+   */
+  @include pixel-clip;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  /*
+   * Profundidad sutil.
+   */
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+  /*
+   * Mucho menos agresivo visualmente.
+   */
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.9);
+
+  /*
+   * Evita que nombres largos rompan el layout.
+   */
+  overflow-wrap: break-word;
+
+  /*
+   * Ligero blur de fondo para separar del arte
+   * sin necesidad de colores fuertes.
+   */
+  backdrop-filter: blur(2px);
 }
 </style>
