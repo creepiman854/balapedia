@@ -361,7 +361,6 @@ def _unlock_achievement(
         achievement_was_already_unlocked=achievement_was_already_unlocked,
     )
 
-    # ¡LA MAGIA OCURRE AQUÍ!
     # Desactivamos el autoflush. SQLAlchemy acumulará todas las operaciones
     # de la cascada en la memoria RAM y las enviará a la base de datos TODAS DE GOLPE
     # cuando hagamos el db.session.commit(), tardando milisegundos en lugar de minutos.
