@@ -266,5 +266,12 @@ const fallbackStyle = computed(() => ({
    * sin necesidad de colores fuertes.
    */
   backdrop-filter: blur(2px);
+
+  @include mobile {
+    font-size: 11px; /* Letra más pequeña para que quepan nombres largos */
+    padding: 4px 6px; /* Menos relleno lateral */
+    max-width: 95%; /* Le damos un poco más de ancho permitido */
+    letter-spacing: 0.2px; /* Apretamos ligeramente las letras */
+  }
 }
 </style>

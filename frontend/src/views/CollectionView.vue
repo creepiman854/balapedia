@@ -73,9 +73,9 @@
 
         <BalatroLoader v-if="showLoader" :is-loading="loading" @hidden="showLoader = false" />
 
-        <div class="grid-scroll">
+        <div class="grid-scroll" ref="scrollEl">
           <!-- ============ MAZOS + CHALLENGE DECKS ============ -->
-          <div v-if="!loading && !error && currentSub === 'decks'" class="sectioned">
+          <div v-if="!loading && !error && currentSub === 'decks'" class="sectioned section--decks">
             <!-- Sección BARAJAS regulares -->
             <section
               v-if="!filters.type || filters.type === 'all' || filters.type === 'normal'"
@@ -88,7 +88,7 @@
               <div
                 v-if="filteredDecks.length"
                 class="grid mod-section__grid"
-                :style="{ gridTemplateColumns: `repeat(${DECK_COLS}, 1fr)` }"
+                :style="{ gridTemplateColumns: `repeat(${effectiveDeckCols}, 1fr)` }"
               >
                 <ItemCard
                   v-for="(item, idx) in filteredDecks"
@@ -98,8 +98,8 @@
                   :item="item"
                   :is-locked="isLocked(item)"
                   :is-selected="selectedItem?.id === item.id && selectedItem?._kind === 'deck'"
-                  :col-index="idx % DECK_COLS"
-                  :col-count="DECK_COLS"
+                  :col-index="idx % effectiveDeckCols"
+                  :col-count="effectiveDeckCols"
                   :stack="true"
                   @select="onSelect($event, 'deck')"
                   @hover="onHover"
@@ -121,7 +121,7 @@
               <div
                 v-if="filteredChallengeDecks.length"
                 class="grid mod-section__grid"
-                :style="{ gridTemplateColumns: `repeat(${DECK_COLS}, 1fr)` }"
+                :style="{ gridTemplateColumns: `repeat(${effectiveDeckCols}, 1fr)` }"
               >
                 <ItemCard
                   v-for="(item, idx) in filteredChallengeDecks"
@@ -133,8 +133,8 @@
                   :is-selected="
                     selectedItem?.id === item.id && selectedItem?._kind === 'challenge_deck'
                   "
-                  :col-index="idx % DECK_COLS"
-                  :col-count="DECK_COLS"
+                  :col-index="idx % effectiveDeckCols"
+                  :col-count="effectiveDeckCols"
                   @select="onSelect($event, 'challenge_deck')"
                   @hover="onHover"
                   @leave="onLeave"
@@ -158,7 +158,7 @@
                 <div
                   v-if="group.items.length"
                   class="grid pack-section__grid"
-                  :style="{ gridTemplateColumns: `repeat(${PACK_COLS}, 1fr)` }"
+                  :style="{ gridTemplateColumns: `repeat(${effectivePackCols}, 1fr)` }"
                 >
                   <ItemCard
                     v-for="(pack, idx) in group.items"
@@ -168,8 +168,8 @@
                     :item="enrichedPackName(pack)"
                     :is-locked="isLocked(pack)"
                     :is-selected="selectedItem?.id === pack.id && selectedItem?._kind === 'pack'"
-                    :col-index="idx % PACK_COLS"
-                    :col-count="PACK_COLS"
+                    :col-index="idx % effectivePackCols"
+                    :col-count="effectivePackCols"
                     @select="onSelect($event, 'pack')"
                     @hover="onHover"
                     @leave="onLeave"
@@ -181,11 +181,14 @@
           </div>
 
           <!-- ============ VALES (vouchers) ============ -->
-          <div v-else-if="!loading && !error && currentSub === 'vouchers'">
+          <div
+            v-else-if="!loading && !error && currentSub === 'vouchers'"
+            class="section--vouchers"
+          >
             <div
               v-if="filteredVouchers.length"
               class="grid"
-              :style="{ gridTemplateColumns: `repeat(${VOUCHER_COLS}, 1fr)` }"
+              :style="{ gridTemplateColumns: `repeat(${effectiveVoucherCols}, 1fr)` }"
             >
               <ItemCard
                 v-for="(item, idx) in filteredVouchers"
@@ -195,8 +198,8 @@
                 :item="item"
                 :is-locked="isLocked(item)"
                 :is-selected="selectedItem?.id === item.id && selectedItem?._kind === 'voucher'"
-                :col-index="idx % VOUCHER_COLS"
-                :col-count="VOUCHER_COLS"
+                :col-index="idx % effectiveVoucherCols"
+                :col-count="effectiveVoucherCols"
                 @select="onSelect($event, 'voucher')"
                 @hover="onHover"
                 @leave="onLeave"
@@ -206,7 +209,10 @@
           </div>
 
           <!-- ============ MEJORAS (card modifiers) ============ -->
-          <div v-else-if="!loading && !error && currentSub === 'card-modifiers'" class="sectioned">
+          <div
+            v-else-if="!loading && !error && currentSub === 'card-modifiers'"
+            class="sectioned section--modifiers"
+          >
             <section
               v-for="modGroup in filteredModifierGroups"
               :key="modGroup.key"
@@ -219,7 +225,7 @@
               <div
                 v-if="modGroup.items.length"
                 class="grid mod-section__grid"
-                :style="{ gridTemplateColumns: `repeat(${MOD_COLS}, 1fr)` }"
+                :style="{ gridTemplateColumns: `repeat(${effectiveModCols}, 1fr)` }"
               >
                 <ItemCard
                   v-for="(mod, idx) in modGroup.items"
@@ -233,8 +239,8 @@
                     selectedItem?._kind === 'modifier' &&
                     selectedItem?._modKey === modGroup.key
                   "
-                  :col-index="idx % MOD_COLS"
-                  :col-count="MOD_COLS"
+                  :col-index="idx % effectiveModCols"
+                  :col-count="effectiveModCols"
                   @select="onSelect($event, 'modifier', modGroup.key)"
                   @hover="onHover"
                   @leave="onLeave"
@@ -276,6 +282,8 @@
                     :key="`hero-${blind.id}`"
                     :item="blind"
                     variant="hero"
+                    :is-selected="selectedItem?.id === blind.id && selectedItem?._kind === 'blind'"
+                    @select="onSelect($event, 'blind')"
                     @hover="onHoverBlind"
                     @leave="onLeave"
                   />
@@ -293,14 +301,19 @@
                 </header>
                 <div
                   v-if="normalBossBlinds.length"
-                  class="grid mod-section__grid"
-                  :style="{ gridTemplateColumns: `repeat(${BLIND_COLS}, 1fr)`, gap: '12px' }"
+                  class="grid mod-section__grid blinds-grid"
+                  :style="{
+                    gridTemplateColumns: `repeat(${effectiveBlindCols}, 1fr)`,
+                    gap: '12px',
+                  }"
                 >
                   <BlindCard
                     v-for="blind in normalBossBlinds"
                     :key="`boss-${blind.id}`"
                     :item="blind"
                     variant="grid"
+                    :is-selected="selectedItem?.id === blind.id && selectedItem?._kind === 'blind'"
+                    @select="onSelect($event, 'blind')"
                     @hover="onHoverBlind"
                     @leave="onLeave"
                   />
@@ -318,14 +331,19 @@
                 </header>
                 <div
                   v-if="finisherBossBlinds.length"
-                  class="grid mod-section__grid"
-                  :style="{ gridTemplateColumns: `repeat(${BLIND_COLS}, 1fr)`, gap: '12px' }"
+                  class="grid mod-section__grid blinds-grid"
+                  :style="{
+                    gridTemplateColumns: `repeat(${effectiveBlindCols}, 1fr)`,
+                    gap: '12px',
+                  }"
                 >
                   <BlindCard
                     v-for="blind in finisherBossBlinds"
                     :key="`finisher-${blind.id}`"
                     :item="blind"
                     variant="grid"
+                    :is-selected="selectedItem?.id === blind.id && selectedItem?._kind === 'blind'"
+                    @select="onSelect($event, 'blind')"
                     @hover="onHoverBlind"
                     @leave="onLeave"
                   />
@@ -336,16 +354,18 @@
           </div>
 
           <!-- ============ TAGS ============ -->
-          <div v-else-if="!loading && !error && currentSub === 'tags'">
+          <div v-else-if="!loading && !error && currentSub === 'tags'" class="section--tags">
             <div
               v-if="filteredTags.length"
-              class="grid"
-              :style="{ gridTemplateColumns: `repeat(${TAG_COLS}, 1fr)`, gap: '12px' }"
+              class="grid tags-grid"
+              :style="{ gridTemplateColumns: `repeat(${effectiveTagCols}, 1fr)`, gap: '12px' }"
             >
               <TagCard
                 v-for="tag in filteredTags"
                 :key="tag.id"
                 :item="tag"
+                :is-selected="selectedItem?.id === tag.id && selectedItem?._kind === 'tag'"
+                @select="onSelect($event, 'tag')"
                 @hover="onHoverTag"
                 @leave="onLeave"
               />
@@ -355,12 +375,19 @@
         </div>
       </div>
 
-      <!-- ── Columna derecha (oculta en blinds/tags) ── -->
-      <div v-if="!isFullWidth" class="detail-col">
+      <!-- Backdrop del bottom sheet (solo se ve cuando está abierto en móvil/tablet) -->
+      <div v-if="detailSheetOpen" class="detail-backdrop" @click="closeDetailSheet" />
+
+      <!-- Columna derecha / Bottom sheet -->
+      <div class="detail-col" :class="{ 'detail-col--open': detailSheetOpen }">
         <div class="detail-col__head">
           <span>{{
             selectedItem ? selectedItem.name.toUpperCase() : currentSubLabel.toUpperCase()
           }}</span>
+
+          <button class="detail-col__close" @click="closeDetailSheet" aria-label="Close">
+            <iconify-icon icon="pixel:window-close-solid" noobserver />
+          </button>
         </div>
         <div class="detail-col__body">
           <ItemDetailPanel
@@ -405,6 +432,8 @@ import { fetchAllJokers } from "@/services/jokers";
 import { fetchAllConsumables } from "@/services/consumables";
 import { isItemLocked } from "@/constants/items";
 import { useProgressionStore } from "@/stores/progression";
+import { useHideHeaderOnScroll } from "@/composables/useHideHeaderOnScroll";
+import { useViewport } from "@/composables/useViewport";
 import { useDictionaryStore } from "@/stores/dictionary";
 import { setStickerApplication } from "@/services/progression";
 
@@ -422,6 +451,21 @@ const bgStore = useBackgroundStore();
 
 const progStore = useProgressionStore();
 
+// Ref al contenedor scrollable → composable que oculta AppHeader en móvil.
+const scrollEl = ref(null);
+useHideHeaderOnScroll(scrollEl);
+
+// Viewport reactivo → sincroniza el nº de columnas visuales con los
+// props col-index/col-count que se le pasan a ItemCard. Sin esto, el
+// arco por fila se rompe en móvil (la grid pinta 4 cols pero las cartas
+// rotan como si fueran 6/8/etc).
+const { isMobile, isTablet } = useViewport();
+function colsByViewport(desktop, tablet, mobile) {
+  if (isMobile.value) return mobile;
+  if (isTablet.value) return tablet;
+  return desktop;
+}
+
 const SUBTABS = [
   { id: "decks", label: "DECKS", color: "#e84040" },
   { id: "booster-packs", label: "PACKS", color: "#f59e0b" },
@@ -437,6 +481,17 @@ const VOUCHER_COLS = 6;
 const MOD_COLS = 8;
 const BLIND_COLS = 5;
 const TAG_COLS = 6;
+
+// Cols efectivas por subtab. Las constantes originales son el valor
+// "desktop"; en tablet/móvil bajamos para que las cartas no queden
+// microscópicas. Cualquier ajuste de aquí se refleja AUTOMATICAMENTE
+// en el inline-style del grid y en los props col-index/col-count.
+const effectiveDeckCols = computed(() => colsByViewport(DECK_COLS, 5, 4));
+const effectivePackCols = computed(() => colsByViewport(PACK_COLS, 3, 3));
+const effectiveVoucherCols = computed(() => colsByViewport(VOUCHER_COLS, 5, 4));
+const effectiveModCols = computed(() => colsByViewport(MOD_COLS, 6, 4));
+const effectiveBlindCols = computed(() => colsByViewport(BLIND_COLS, 4, 3));
+const effectiveTagCols = computed(() => colsByViewport(TAG_COLS, 5, 4));
 
 const PACK_TYPES = [
   { id: "ARCANA", label: "ARCANA", color: "#D8B062" },
@@ -479,6 +534,8 @@ const currentSub = ref("decks");
 const loading = ref(false);
 const showLoader = ref(true);
 const error = ref("");
+
+const detailSheetOpen = ref(false);
 
 const decks = ref([]);
 const vouchers = ref([]);
@@ -927,6 +984,16 @@ function onSelect(item, kind, modKey = null) {
     }
   }
   selectedItem.value = enriched;
+
+  // En desktop el panel ya está visible; abrir el sheet solo cambia
+  // estado interno que el CSS aplica solo en tablet/mobile.
+  detailSheetOpen.value = true;
+}
+
+function closeDetailSheet() {
+  detailSheetOpen.value = false;
+  // No desmarcamos selectedJoker — al cerrar y reabrir mantiene la carta
+  // selecciondaa visible en el panel.
 }
 
 /**
@@ -1131,9 +1198,11 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
   white-space: nowrap;
   @include pixel-clip;
 
-  &:hover {
-    transform: scale(1.05);
-    filter: brightness(1.15);
+  @include can-hover {
+    &:hover {
+      transform: scale(1.05);
+      filter: brightness(1.15);
+    }
   }
   &:active {
     transform: scale(0.95);
@@ -1168,9 +1237,16 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
   flex: 1;
   min-height: 0;
 }
-/* Full-width: el grid ocupa todo, sin detail-col */
+/* Full-width: el grid ocupa todo, sin detail-col en desktop.
+ * BLINDS y TAGS no usan ItemDetailPanel en desktop — su info sale por
+ * el ItemTooltip flotante. En tablet/mobile el ItemTooltip está
+ * oculto y el bottom-sheet vuelve a aparecer (override más abajo en
+ * @include tablet). */
 .layout--full .grid-col {
   flex: 1;
+}
+.layout--full .detail-col {
+  display: none;
 }
 
 .grid-col {
@@ -1451,6 +1527,214 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
     opacity: 1;
     translate: 0 0;
     scale: 1;
+  }
+}
+
+/* ── Botón cerrar del bottom sheet — invisible en desktop ─────── */
+.detail-col__head {
+  position: relative;
+}
+
+.detail-col__close {
+  display: none; // Default: desktop, NO se ve.
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: $text-2;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 0;
+
+  iconify-icon {
+    font-size: 22px;
+  }
+
+  @include can-hover {
+    &:hover {
+      color: $text-1;
+    }
+  }
+}
+
+/* ── Backdrop del bottom sheet ──────────────────────────────── */
+.detail-backdrop {
+  display: none; // Default: desktop, no aplica.
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 15, 18, 0.75);
+  z-index: 8500;
+  animation: backdropIn 0.18s ease;
+}
+
+@keyframes backdropIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * ADAPTACIÓN 1400px — Cuando la pantalla baja de 1400px, no hay
+ * espacio para los botones y los filtros en la misma fila.
+ * Apilamos el toolbar y hacemos scrollable la lista de subtabs.
+ * ────────────────────────────────────────────────────────────── */
+@media (max-width: 1450px) {
+  .toolbar {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .subtabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * TABLET — el layout pasa a columna única. El panel de detalle se
+ * convierte en un bottom sheet que sube cuando hay item seleccionado.
+ * El backdrop oscurece el grid mientras el sheet está abierto.
+ * ────────────────────────────────────────────────────────────── */
+@include tablet {
+  .layout {
+    flex-direction: column;
+  }
+
+  .grid-col {
+    width: 100%;
+    // FIX (scroll): permite que el .grid-scroll active overflow-y:auto.
+    min-height: 0;
+  }
+
+  .grid-scroll {
+    padding: 18px 14px 24px;
+  }
+
+  // Booster packs: stack los pares en lugar de mostrarlos lado a lado.
+  .packs-row {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .packs-row--solo > .pack-section {
+    width: 100%;
+  }
+
+  // BLINDS: ocultamos el sidebar lateral de "ANTE / BASE" — la tabla
+  // no aporta valor crítico en móvil/tablet y se solapaba con los
+  // blinds del grid principal. El blinds-wrapper pasa a una sola
+  // columna ocupada por blinds-layout y los blinds-grid escalan.
+  .blinds-wrapper {
+    grid-template-columns: 1fr;
+    grid-auto-rows: auto;
+    gap: 0;
+    overflow: visible;
+  }
+  .ante-sidebar {
+    display: none;
+  }
+  .blinds-layout {
+    overflow: visible;
+    padding-right: 0;
+  }
+  // Permitimos que el grid-scroll de blinds use overflow normal para que
+  // se sume al scroll del wrapper.
+  .layout--full:has(.blinds-wrapper) .grid-scroll {
+    overflow-y: auto;
+  }
+
+  // Panel detalle → fixed sheet desde abajo.
+  .detail-col {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: 100%;
+    max-height: 85vh;
+    z-index: 8600;
+    transform: translateY(100%);
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+    clip-path: none;
+
+    &--open {
+      transform: translateY(0);
+    }
+
+    &__close {
+      display: inline-flex;
+    }
+
+    // FIX (scroll del bottom-sheet): el ItemDetailPanel ahora se puede
+    // scrollear dentro del sheet en lugar de quedar recortado.
+    &__body {
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
+  // En tablet/mobile el bottom-sheet vuelve a estar disponible
+  // INCLUSO para blinds/tags — el ItemTooltip flotante está
+  // oculto en estos viewports, así que la info se sirve mediante
+  // el panel. El parent debe wirear @select en BlindCard/TagCard.
+  .layout--full .detail-col {
+    display: flex;
+  }
+
+  .detail-backdrop {
+    display: block;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * Nota: el cap de columnas por viewport YA se aplica desde JS via
+ * effectiveXCols (computed con useViewport). Por eso aquí no
+ * sobrescribimos grid-template-columns con !important — el inline
+ * style ya viene con el valor correcto y matchea el col-count que
+ * recibe cada ItemCard, manteniendo el arco por fila intacto.
+ * ────────────────────────────────────────────────────────────── */
+
+/* ──────────────────────────────────────────────────────────────
+ * MOBILE — pulimos paddings, tipografías y altura del bottom-sheet.
+ * Las columnas se manejan via JS (effectiveXCols), no aquí.
+ * ────────────────────────────────────────────────────────────── */
+@include mobile {
+  .grid-scroll {
+    padding: 14px 10px 20px;
+  }
+
+  // Hero blinds (Small + Big) — apretamos el minmax para que entren
+  // ambos a la vez en pantallas estrechas.
+  .blinds-hero__row {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+  }
+
+  .count {
+    font-size: 14px;
+  }
+
+  .subtab {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  // Sheet ocupa más alto en móvil porque hay menos espacio horizontal.
+  .detail-col {
+    max-height: 90vh;
   }
 }
 </style>
