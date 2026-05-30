@@ -654,34 +654,41 @@ def _resolve_completionist(
     source: UnlockSource,
     when: datetime,
 ) -> None:
-    """Completionist: unlocks ALL unlockable items in the collection.
-
-    "Discover 100% of your collection" means EVERY item in the
-    catalogue is discovered. Previous implementation only unlocked items
-    with unlock_factor; now we unlock ALL unlockables regardless — items
-    without a factor (typically 'Available from start' commons) also get
-    an explicit UserUnlock row so the overlay always reflects 100%.
-
-    This covers: jokers, decks, vouchers, consumables, booster packs,
-    and challenge decks (all subtypes of Unlockable).
-    """
-
     all_items = (
         db.session.query(Unlockable)
         .filter(Unlockable.type != UnlockableType.CHALLENGE_DECK)
         .all()
     )
 
-    cascaded_count = 0
+    # MAGIA N+1: Traemos todos los unlocks del usuario en 1 sola petición
+    existing_unlocks = {
+        u.unlockable_id: u
+        for u in db.session.query(UserUnlock).filter_by(user_id=user_id).all()
+    }
 
+    cascaded_count = 0
     for item in all_items:
-        if _ensure_user_unlock(user_id, item.id, source, when):
+        uu = existing_unlocks.get(item.id)
+        if uu is None:
+            new_uu = UserUnlock(
+                user_id=user_id,
+                unlockable_id=item.id,
+                unlocked=True,
+                unlocked_at=when,
+                source=source,
+            )
+            db.session.add(new_uu)
+            result.cascaded_unlockables.append(item)
+            cascaded_count += 1
+        elif not uu.unlocked:
+            uu.unlocked = True
+            uu.unlocked_at = when
+            uu.source = source
             result.cascaded_unlockables.append(item)
             cascaded_count += 1
 
     result.notes.append(
-        f"Completionist → {cascaded_count}/{len(all_items)} items "
-        f"unlocked (rest already were)."
+        f"Completionist → {cascaded_count}/{len(all_items)} items unlocked."
     )
 
 
@@ -692,38 +699,75 @@ def _resolve_completionist_plus(
     source: UnlockSource,
     when: datetime,
 ) -> None:
-
     decks = (
         db.session.query(Unlockable)
         .filter(Unlockable.type == UnlockableType.DECK)
         .all()
     )
 
+    # PRELOAD en RAM: 2 consultas en lugar de 300
+    existing_unlocks = {
+        u.unlockable_id: u
+        for u in db.session.query(UserUnlock).filter_by(user_id=user_id).all()
+    }
+    existing_stickers = {
+        s.unlockable_id: s
+        for s in db.session.query(UserStickerApplication)
+        .filter_by(user_id=user_id)
+        .all()
+    }
+
     cascaded_count = 0
-
     for deck in decks:
-
-        # FIX: Asegurar primero el desbloqueo real de la carta
-
-        if _ensure_user_unlock(user_id, deck.id, source, when):
+        # 1. Resolver Desbloqueo
+        uu = existing_unlocks.get(deck.id)
+        if uu is None:
+            new_uu = UserUnlock(
+                user_id=user_id,
+                unlockable_id=deck.id,
+                unlocked=True,
+                unlocked_at=when,
+                source=source,
+            )
+            db.session.add(new_uu)
+            result.cascaded_unlockables.append(deck)
+        elif not uu.unlocked:
+            uu.unlocked = True
+            uu.unlocked_at = when
+            uu.source = source
             result.cascaded_unlockables.append(deck)
 
-        usa = _ensure_sticker_application(
-            user_id,
-            deck,
-            8,
-            source,
-            when,
-        )
-
-        if usa is not None:
+        # 2. Resolver Sticker
+        usa = existing_stickers.get(deck.id)
+        changed = False
+        if usa is None:
+            usa = UserStickerApplication(
+                user_id=user_id, unlockable_id=deck.id, earned_at=when
+            )
+            if source == UnlockSource.MANUAL:
+                usa.manual_stake_order = 8
+            else:
+                usa.steam_stake_order = 8
+            db.session.add(usa)
             result.cascaded_sticker_applications.append(usa)
+            changed = True
+        else:
+            if source == UnlockSource.MANUAL and usa.manual_stake_order < 8:
+                usa.manual_stake_order = 8
+                changed = True
+            elif source == UnlockSource.STEAM_SYNC and usa.steam_stake_order < 8:
+                usa.steam_stake_order = 8
+                changed = True
 
-        cascaded_count += 1
+            if changed:
+                usa.earned_at = when
+                result.cascaded_sticker_applications.append(usa)
+
+        if changed:
+            cascaded_count += 1
 
     result.notes.append(
-        f"Completionist+ → Desbloqueo y Gold Sticker en "
-        f"{cascaded_count}/{len(decks)} decks."
+        f"Completionist+ → Desbloqueo y Gold Sticker en {cascaded_count}/{len(decks)} decks."
     )
 
 
@@ -734,38 +778,75 @@ def _resolve_completionist_plus_plus(
     source: UnlockSource,
     when: datetime,
 ) -> None:
-
     jokers = (
         db.session.query(Unlockable)
         .filter(Unlockable.type == UnlockableType.JOKER)
         .all()
     )
 
+    # PRELOAD en RAM: 2 consultas en lugar de 300
+    existing_unlocks = {
+        u.unlockable_id: u
+        for u in db.session.query(UserUnlock).filter_by(user_id=user_id).all()
+    }
+    existing_stickers = {
+        s.unlockable_id: s
+        for s in db.session.query(UserStickerApplication)
+        .filter_by(user_id=user_id)
+        .all()
+    }
+
     cascaded_count = 0
-
     for joker in jokers:
-
-        # FIX: Asegurar primero el desbloqueo real de la carta
-
-        if _ensure_user_unlock(user_id, joker.id, source, when):
+        # 1. Resolver Desbloqueo
+        uu = existing_unlocks.get(joker.id)
+        if uu is None:
+            new_uu = UserUnlock(
+                user_id=user_id,
+                unlockable_id=joker.id,
+                unlocked=True,
+                unlocked_at=when,
+                source=source,
+            )
+            db.session.add(new_uu)
+            result.cascaded_unlockables.append(joker)
+        elif not uu.unlocked:
+            uu.unlocked = True
+            uu.unlocked_at = when
+            uu.source = source
             result.cascaded_unlockables.append(joker)
 
-        usa = _ensure_sticker_application(
-            user_id,
-            joker,
-            8,
-            source,
-            when,
-        )
-
-        if usa is not None:
+        # 2. Resolver Sticker
+        usa = existing_stickers.get(joker.id)
+        changed = False
+        if usa is None:
+            usa = UserStickerApplication(
+                user_id=user_id, unlockable_id=joker.id, earned_at=when
+            )
+            if source == UnlockSource.MANUAL:
+                usa.manual_stake_order = 8
+            else:
+                usa.steam_stake_order = 8
+            db.session.add(usa)
             result.cascaded_sticker_applications.append(usa)
+            changed = True
+        else:
+            if source == UnlockSource.MANUAL and usa.manual_stake_order < 8:
+                usa.manual_stake_order = 8
+                changed = True
+            elif source == UnlockSource.STEAM_SYNC and usa.steam_stake_order < 8:
+                usa.steam_stake_order = 8
+                changed = True
 
-        cascaded_count += 1
+            if changed:
+                usa.earned_at = when
+                result.cascaded_sticker_applications.append(usa)
+
+        if changed:
+            cascaded_count += 1
 
     result.notes.append(
-        f"Completionist++ → Desbloqueo y Gold Sticker en "
-        f"{cascaded_count}/{len(jokers)} jokers."
+        f"Completionist++ → Desbloqueo y Gold Sticker en {cascaded_count}/{len(jokers)} jokers."
     )
 
 
