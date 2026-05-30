@@ -30,6 +30,11 @@ const routes = [
     name: "achievements",
     component: () => import("@/views/AchievementsView.vue"),
   },
+  {
+    path: "/:pathMatch(.*)*",
+    name: "not-found",
+    component: () => import("@/views/NotFoundView.vue"),
+  },
 ];
 
 const router = createRouter({
