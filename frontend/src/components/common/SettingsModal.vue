@@ -41,15 +41,15 @@
               <input
                 class="slider"
                 type="range"
-                :min="COLUMNS_MIN"
-                :max="COLUMNS_MAX"
+                :min="minGridCols"
+                :max="maxGridCols"
                 step="1"
                 :value="gridColumns"
                 @input="setGridColumns($event.target.value)"
               />
               <div class="control__scale">
-                <span>{{ COLUMNS_MIN }}</span>
-                <span>{{ COLUMNS_MAX }}</span>
+                <span>{{ minGridCols }}</span>
+                <span>{{ maxGridCols }}</span>
               </div>
             </div>
 
@@ -77,9 +77,7 @@
                 </span>
                 <span class="toggle-row__text">
                   <span class="toggle-row__label">Reveal locked items</span>
-                  <span class="toggle-row__hint">
-                    Reveals the actual image of locked items.
-                  </span>
+                  <span class="toggle-row__hint"> Reveals the actual image of locked items. </span>
                 </span>
                 <span class="toggle-switch" aria-hidden="true">
                   <span class="toggle-switch__thumb" />
@@ -98,7 +96,7 @@
 <script setup>
 import { onMounted, onBeforeUnmount } from "vue";
 import { storeToRefs } from "pinia";
-import { useSettingsStore, COLUMNS_MIN, COLUMNS_MAX } from "@/stores/settings";
+import { useSettingsStore } from "@/stores/settings";
 
 const emit = defineEmits(["close"]);
 
@@ -107,7 +105,11 @@ const props = defineProps({
 });
 
 const settings = useSettingsStore();
-const { crtIntensity, gridColumns, showSpoiledLocked } = storeToRefs(settings);
+
+// Extraemos los topes del store junto al resto de valores
+const { crtIntensity, gridColumns, showSpoiledLocked, minGridCols, maxGridCols } =
+  storeToRefs(settings);
+
 const { setCrtIntensity, setGridColumns, setShowSpoiledLocked } = settings;
 
 function handleEsc(e) {
@@ -161,8 +163,10 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleEsc));
   cursor: pointer;
   transition: color 0.15s;
 
-  &:hover {
-    color: #e8443a;
+  @include can-hover {
+    &:hover {
+      color: #e8443a;
+    }
   }
 }
 
@@ -294,8 +298,10 @@ iconify-icon {
   color: inherit;
   transition: filter 0.15s;
 
-  &:hover {
-    filter: brightness(1.15);
+  @include can-hover {
+    &:hover {
+      filter: brightness(1.15);
+    }
   }
   &:active {
     transform: scale(0.99);
@@ -372,5 +378,200 @@ iconify-icon {
 .modal-fade-enter-from,
 .modal-fade-leave-to {
   opacity: 0;
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * TABLET — el modal crece ligeramente para aprovechar el ancho.
+ * ────────────────────────────────────────────────────────────── */
+@include tablet-only {
+  .settings-panel {
+    width: 460px;
+  }
+
+  .modal-title {
+    font-size: 24px;
+  }
+
+  .control__head {
+    font-size: 17px;
+  }
+
+  .control__label {
+    font-size: 17px;
+  }
+
+  .control__value {
+    font-size: 16px;
+    min-width: 72px;
+  }
+
+  .slider {
+    height: 8px;
+  }
+
+  .slider::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+  }
+
+  .slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+  }
+
+  .toggle-row__icon {
+    font-size: 22px;
+  }
+
+  .toggle-row__label {
+    font-size: 17px;
+  }
+
+  .toggle-row__hint {
+    font-size: 11px;
+  }
+
+  .toggle-switch {
+    width: 44px;
+    height: 22px;
+  }
+
+  .toggle-switch__thumb {
+    width: 18px;
+    height: 18px;
+  }
+
+  .toggle-row--on .toggle-switch__thumb {
+    left: 24px;
+  }
+
+  .hint {
+    font-size: 12px;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * MOBILE — full-screen sheet. Quitamos pixel-clip (no aplica en
+ * pantalla completa), eliminamos los márgenes y dejamos que el body
+ * haga scroll vertical interno si los controles superan el alto.
+ * ────────────────────────────────────────────────────────────── */
+@include mobile {
+  .modal-backdrop {
+    align-items: stretch;
+    justify-content: stretch;
+    backdrop-filter: none;
+    background: $panel-dark;
+  }
+
+  .settings-panel {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    clip-path: none;
+    box-shadow: none;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .close-btn {
+    top: 10px;
+    right: 12px;
+    font-size: 28px;
+  }
+
+  .modal-header {
+    padding: 22px 24px 18px;
+  }
+
+  .modal-title {
+    font-size: 22px;
+    gap: 12px;
+  }
+
+  .modal-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 24px;
+    gap: 22px;
+  }
+
+  .control {
+    gap: 10px;
+  }
+
+  .control__head {
+    font-size: 17px;
+    gap: 12px;
+  }
+
+  .control__head iconify-icon {
+    font-size: 22px;
+  }
+
+  .control__label {
+    font-size: 17px;
+  }
+
+  .control__value {
+    font-size: 16px;
+    min-width: 72px;
+  }
+
+  .control__scale {
+    font-size: 12px;
+  }
+
+  .slider {
+    height: 10px;
+  }
+
+  .slider::-webkit-slider-thumb {
+    width: 24px;
+    height: 24px;
+  }
+
+  .slider::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+  }
+
+  .toggle-row {
+    padding: 14px 4px;
+    gap: 14px;
+  }
+
+  .toggle-row__icon {
+    font-size: 24px;
+  }
+
+  .toggle-row__label {
+    font-size: 17px;
+  }
+
+  .toggle-row__hint {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .toggle-switch {
+    width: 52px;
+    height: 26px;
+  }
+
+  .toggle-switch__thumb {
+    width: 22px;
+    height: 22px;
+  }
+
+  .toggle-row--on .toggle-switch__thumb {
+    left: 28px;
+  }
+
+  .hint {
+    font-size: 13px;
+    margin-top: 8px;
+  }
 }
 </style>

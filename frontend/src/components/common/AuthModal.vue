@@ -12,7 +12,7 @@
             <iconify-icon icon="pixel:window-close-solid" noobserver />
           </button>
 
-          <div v-if="!isAuthenticated">
+          <div v-if="!isAuthenticated" class="modal-section">
             <header class="modal-header">
               <h2 class="modal-title">{{ isSignup ? "SIGN UP" : "LOG IN" }}</h2>
             </header>
@@ -73,7 +73,7 @@
             </div>
           </div>
 
-          <div v-else>
+          <div v-else class="modal-section">
             <header class="modal-header">
               <h2 class="modal-title">MY PROFILE</h2>
             </header>
@@ -206,7 +206,7 @@ const password = ref("");
 const isSignup = ref(false);
 const busy = ref(false);
 
-// Estado local para los mensajes de Steam (migrado desde ProfileView)
+// Estado local para los mensajes de Steam
 const steamLinkMessage = ref("");
 const steamLinkClass = ref("info");
 const syncMessage = ref("");
@@ -234,11 +234,9 @@ function updateTooltipPosition() {
   const rect = steamWrapperElement.value.getBoundingClientRect();
   const tooltip = tooltipElement.value;
 
-  // Calcular posición (derecha, centrado vertical) con offset de scroll
   const top = rect.top + window.scrollY + rect.height / 2;
   const left = rect.right + window.scrollX + 14;
 
-  // Aplicar estilos directamente
   tooltip.style.top = `${top}px`;
   tooltip.style.left = `${left}px`;
   tooltip.style.transform = `translateY(-50%)`;
@@ -246,12 +244,10 @@ function updateTooltipPosition() {
 
 watch(showTooltip, (isOpen) => {
   if (isOpen) {
-    // nextTick es crucial para que el elemento esté en el DOM antes de medir
     nextTick(updateTooltipPosition);
     window.addEventListener("resize", updateTooltipPosition);
     window.addEventListener("scroll", updateTooltipPosition);
   } else {
-    // Limpieza
     window.removeEventListener("resize", updateTooltipPosition);
     window.removeEventListener("scroll", updateTooltipPosition);
   }
@@ -259,29 +255,23 @@ watch(showTooltip, (isOpen) => {
 
 onBeforeUnmount(() => {
   window.removeEventListener("beforeunload", preventUnload);
-
   window.removeEventListener("resize", updateTooltipPosition);
   window.removeEventListener("scroll", updateTooltipPosition);
-
   window.removeEventListener("keydown", handleEsc);
 });
 
 function resetNotices() {
   steamLinkMessage.value = "";
   steamLinkClass.value = "info";
-
   syncMessage.value = "";
   syncClass.value = "info";
 }
 
 // ── Helpers de UI ──
 function close() {
-  // Durante tareas críticas NO puede cerrarse
   if (isCriticalTask.value) return;
-
   authStore.closeAuthModal();
   authStore.error = null;
-
   resetNotices();
 }
 
@@ -305,9 +295,7 @@ async function handleGoogleLogin() {
 
 async function handleLogout() {
   resetNotices();
-
   await authStore.logout();
-
   close();
 }
 
@@ -327,7 +315,6 @@ async function handleDeleteAccount() {
 
   try {
     await authStore.deleteAccount();
-
     close();
   } finally {
     busy.value = false;
@@ -339,11 +326,8 @@ async function handleDeleteAccount() {
 async function handleLinkSteam() {
   busy.value = true;
   try {
-    // Guardamos la ruta actual antes de abandonar la SPA
     sessionStorage.setItem("steam_return_path", route.path);
-
     await authStore.startSteamLink();
-    // No cerramos busy ni el modal porque window.location.href redirige la página completa
   } catch (e) {
     busy.value = false;
   }
@@ -353,25 +337,17 @@ async function handleUnlinkSteam() {
   if (!confirm("Are you sure you want to unlink your Steam account?")) return;
 
   busy.value = true;
-
-  // Evita mostrar errores de sync provocados por el propio unlink.
   suppressNextSyncError.value = true;
-
   steamLinkMessage.value = "";
   syncMessage.value = "";
 
   try {
     await authStore.unlinkSteam();
-
     steamLinkMessage.value = "Steam account unlinked.";
     steamLinkClass.value = "success";
-
     authStore.notifySteamSync();
   } finally {
     busy.value = false;
-
-    // Se libera en el siguiente tick de microtarea para cubrir
-    // cualquier refetch/reactividad inmediata posterior al unlink.
     queueMicrotask(() => {
       suppressNextSyncError.value = false;
     });
@@ -403,7 +379,6 @@ async function handleSyncSteam({ suppressUnauthorized = false } = {}) {
       `${s.total_items_cascaded} ${itemLabel}.`;
 
     syncClass.value = "success";
-
     authStore.notifySteamSync();
   } catch (e) {
     if (suppressNextSyncError.value) {
@@ -412,7 +387,6 @@ async function handleSyncSteam({ suppressUnauthorized = false } = {}) {
 
     const desc = describeSyncError(e);
 
-    // Ignora el 401 espurio del auto-sync post-vinculación.
     if (suppressUnauthorized && desc.code === "unauthorized") {
       return;
     }
@@ -427,29 +401,23 @@ async function handleSyncSteam({ suppressUnauthorized = false } = {}) {
 
 function handleEsc(event) {
   if (event.key !== "Escape") return;
-
   if (isCriticalTask.value) return;
-
   close();
 }
 
+// FIX: el archivo original tenía DOS onMounted(checkSteamRedirect)
+// — uno como bloque y otro como `onMounted(checkSteamRedirect)`. El
+// segundo era residuo de un refactor y disparaba el redirect dos veces.
+// Lo dejamos en uno solo aquí.
 onMounted(() => {
   checkSteamRedirect();
-
   window.addEventListener("keydown", handleEsc);
 });
 
-/**
- * Listener de redirección de Steam.
- * Si el usuario vuelve del flujo de OAuth, la URL traerá un parámetro `steam_link`.
- * Lo interceptamos para mostrar el resultado directamente en el modal de cuenta y
- * limpiamos la URL sin recargar la página.
- */
 async function checkSteamRedirect() {
   const status = route.query.steam_link;
   if (!status) return;
 
-  // Forzamos la apertura del modal para mostrar el resultado
   authStore.openAuthModal();
 
   const STATUS_MAP = {
@@ -471,34 +439,24 @@ async function checkSteamRedirect() {
   steamLinkMessage.value = entry.msg;
   steamLinkClass.value = entry.cls;
 
-  // Si la vinculación fue exitosa, forzamos un re-fetch de /api/me para ver el steam_id
   if (status === "success") {
     await authStore.fetchMe();
-    // Auto-trigger del sync una vez. Si falla, no rompemos el flow de
-    // vinculación — el usuario tendrá el botón manual disponible.
     await new Promise((resolve) => setTimeout(resolve, 250));
-
-    handleSyncSteam({
-      suppressUnauthorized: true,
-    }); // intencional: sin await, corre en background
+    handleSyncSteam({ suppressUnauthorized: true });
   }
 
-  // Restauramos la ruta previa
   const returnPath = sessionStorage.getItem("steam_return_path");
 
   if (returnPath) {
-    // Limpiamos la memoria y volvemos a la ruta original (sin los query params de Steam)
     sessionStorage.removeItem("steam_return_path");
     router.replace({ path: returnPath });
   } else {
-    // Fallback: si por algún motivo no hay ruta guardada, solo limpiamos la URL
     const currentQuery = { ...route.query };
     delete currentQuery.steam_link;
     router.replace({ query: currentQuery });
   }
 }
 
-onMounted(checkSteamRedirect);
 watch(() => route.query.steam_link, checkSteamRedirect);
 watch(
   () => user.value?.id,
@@ -516,18 +474,15 @@ watch(isAuthenticated, (authenticated) => {
 watch(isCriticalTask, (active) => {
   if (active) {
     lockNavigation();
-
     window.addEventListener("beforeunload", preventUnload);
   } else {
     unlockNavigation();
-
     window.removeEventListener("beforeunload", preventUnload);
   }
 });
 
 function preventUnload(event) {
   if (!isCriticalTask.value) return;
-
   event.preventDefault();
   event.returnValue = "";
 }
@@ -580,9 +535,14 @@ function preventUnload(event) {
   font-size: 20px;
   cursor: pointer;
   transition: color 0.15s;
+  // z-index explícito: el close-btn vive al MISMO nivel que las secciones
+  // de form/profile, por lo que sin z-index quedaba por debajo en mobile.
+  z-index: 2;
 
-  &:hover {
-    color: #e8443a;
+  @include can-hover {
+    &:hover {
+      color: #e8443a;
+    }
   }
 }
 
@@ -626,12 +586,6 @@ function preventUnload(event) {
   @include pixel-stroke(#66c0f4);
 }
 
-// El wrapper SOLO maneja layout (column + gap). No aplica pixel-stroke,
-// porque eso causaba doble borde cuando el `.notice` interno tenía su
-// propia clase semántica (.success/.error/.info) con su propio color.
-//
-// La regla: una sola fuente de verdad por color de notice. La fuente
-// es el `.notice.X`, no el wrapper.
 .notice-wrapper {
   display: flex;
   flex-direction: column;
@@ -663,9 +617,11 @@ function preventUnload(event) {
   width: 100%;
   @include pixel-clip-sm;
 
-  &:hover:not(:disabled) {
-    transform: scale(1.02);
-    filter: brightness(1.15);
+  @include can-hover {
+    &:hover:not(:disabled) {
+      transform: scale(1.02);
+      filter: brightness(1.15);
+    }
   }
 
   &:active:not(:disabled) {
@@ -728,6 +684,8 @@ function preventUnload(event) {
   }
   .value {
     color: $text-1;
+    word-break: break-all;
+    text-align: right;
   }
   .steam-linked {
     color: #22c55e;
@@ -789,41 +747,26 @@ function preventUnload(event) {
   background: #7f1d1d;
   color: #fecaca;
 
-  &:hover:not(:disabled) {
-    filter: brightness(1.15);
+  @include can-hover {
+    &:hover:not(:disabled) {
+      filter: brightness(1.15);
+    }
   }
 }
 
-/*
-|--------------------------------------------------------------------------
-| Notice wrapper
-|--------------------------------------------------------------------------
-| El borde pixelado vive en el wrapper exterior.
-| El contenido interior aplica únicamente el clip pixelado.
-| Esto evita artefactos visuales en las esquinas y mantiene
-| consistencia con el resto del sistema UI del proyecto.
-*/
 .notice-frame {
   width: 100%;
 
   &.success {
     @include pixel-stroke(#22c55e);
   }
-
   &.error {
     @include pixel-stroke(#dc2626);
   }
-
   &.info {
     @include pixel-stroke(#3b82f6);
   }
 }
-
-/*
-|--------------------------------------------------------------------------
-| Notice content
-|--------------------------------------------------------------------------
-*/
 
 .notice {
   width: 100%;
@@ -839,18 +782,16 @@ function preventUnload(event) {
     background: linear-gradient(rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.15)), $panel-darkest;
     color: #22c55e;
   }
-
   .notice-frame.error & {
     background: linear-gradient(rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.15)), $panel-darkest;
     color: #ef4444;
   }
-
   .notice-frame.info & {
     background: linear-gradient(rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.15)), $panel-darkest;
     color: #60a5fa;
   }
 }
-/* Transición del modal */
+
 .modal-fade-enter-active,
 .modal-fade-leave-active {
   transition: opacity 0.2s ease;
@@ -860,9 +801,6 @@ function preventUnload(event) {
   opacity: 0;
 }
 
-// Mismo color azul Steam que el link, ligeramente más claro para
-// distinguir "vincular" (acción definitiva) de "sincronizar" (acción
-// repetible).
 .sync-wrapper {
   @include pixel-stroke(#66c0f4);
 }
@@ -877,10 +815,10 @@ function preventUnload(event) {
 }
 
 .steam-tooltip {
-  position: absolute; // Anclado a body, z-index funciona
+  position: absolute;
   width: 260px;
   padding: 10px 12px;
-  background: #1b2838; /* Mismo color de fondo que el botón de Steam */
+  background: #1b2838;
   color: #9ecde6;
   font-family: "m6x11plus", monospace;
   font-size: 14px;
@@ -888,8 +826,136 @@ function preventUnload(event) {
   text-align: left;
   white-space: normal;
   letter-spacing: 0.2px;
-  z-index: 10000; // Por encima de todo, incluso el modal
+  z-index: 10000;
   pointer-events: none;
   @include pixel-clip-sm;
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * TABLET — el modal aumenta un poco para aprovechar el ancho.
+ * El tooltip flotante de "LINK STEAM" se oculta porque no hay
+ * hover en dispositivos táctiles.
+ * ────────────────────────────────────────────────────────────── */
+@include tablet-only {
+  .modal-panel {
+    max-width: 520px;
+  }
+}
+
+@include tablet {
+  // Cubre tablet + mobile: ocultar el tooltip flotante en touch.
+  .steam-tooltip {
+    display: none;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * MOBILE/TABLET — full-screen sheet con SCROLL DEL PROPIO BACKDROP.
+ *
+ * Cambios respecto al pase anterior (que rompía la interacción):
+ *
+ *   · Antes el modal-panel era flex column con `> div { flex:1 }` y el
+ *     modal-body absorbía el scroll. En iOS Safari esto producía una
+ *     mezcla de stacking + overflow + filter (pixel-stroke usa
+ *     drop-shadow filter, que crea su propio compositor) que dejaba
+ *     los inputs y botones sin recibir eventos de tap. Resultado:
+ *     "nada funciona en móvil".
+ *
+ *   · La solución es más sencilla: hacemos que el backdrop sea el
+ *     contenedor scrollable y dejamos al modal-panel altura natural
+ *     (min-height: 100% para llenar la pantalla aunque el contenido
+ *     sea corto). Sin flex column anidado, sin overflow:auto sobre
+ *     elementos con filter. Pointer events fluyen normales.
+ *
+ *   · El close-btn además sube a z-index: 2 para que no se quede por
+ *     debajo de la sección visible.
+ * ────────────────────────────────────────────────────────────── */
+@include tablet {
+  .modal-backdrop {
+    // backdrop pasa a ser el scroll container.
+    align-items: stretch;
+    justify-content: stretch;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    backdrop-filter: none;
+    background: $panel-dark;
+    padding: 0;
+  }
+
+  .modal-panel {
+    width: 100%;
+    max-width: 100%;
+    min-height: 100%;
+    height: auto;
+    box-shadow: none;
+    clip-path: none;
+    padding-bottom: 24px;
+    // Nada de flex column tricks — el panel es flujo normal de bloque.
+    display: block;
+  }
+
+  .modal-section {
+    // Sin flex magic; solo bloque normal.
+    display: block;
+  }
+
+  .modal-header {
+    padding: 22px 24px 18px;
+  }
+
+  .modal-title {
+    font-size: 22px;
+  }
+
+  .modal-body {
+    padding: 22px 24px 28px;
+    gap: 14px;
+  }
+
+  .close-btn {
+    top: 14px;
+    right: 16px;
+    font-size: 22px;
+  }
+}
+
+@include mobile {
+  .modal-backdrop {
+    background: $panel-dark;
+  }
+
+  .modal-header {
+    padding: 18px 18px 14px;
+  }
+
+  .modal-title {
+    font-size: 20px;
+  }
+
+  .modal-body {
+    padding: 18px 18px 24px;
+  }
+
+  .balatro-input,
+  .balatro-btn {
+    font-size: 15px;
+    padding: 14px 12px; // tap targets cómodos
+  }
+
+  .info-row {
+    font-size: 14px;
+    gap: 10px;
+  }
+
+  .link-btn {
+    font-size: 13px;
+    padding-top: 8px;
+  }
+
+  .error-msg {
+    font-size: 14px;
+    padding: 0 18px 12px;
+  }
 }
 </style>
