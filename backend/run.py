@@ -15,6 +15,9 @@ with app.app_context():
     def close(dbapi_connection, connection_record):
         print("DB CONNECTION CLOSED")
 
+@app.route("/")
+def health_check():
+    return {"status": "ok", "message": "Balapedia API is running"}, 200
 
 if __name__ == "__main__":
     app.run(
