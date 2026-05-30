@@ -112,14 +112,6 @@
         No achievements found with those filters.
       </div>
     </div>
-    <!-- Overlay de bloqueo -->
-    <div v-if="isNavigationLocked" class="unlock-overlay">
-      <div class="unlock-overlay__box">
-        PROCESSING ACHIEVEMENT...
-        <br />
-        PLEASE WAIT
-      </div>
-    </div>
   </div>
 </template>
 
@@ -592,37 +584,6 @@ async function onManualToggle(ach) {
   font-size: 14px;
   text-align: center;
   padding: 24px 0;
-}
-
-.unlock-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 200;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(3px);
-
-  pointer-events: all;
-}
-
-.unlock-overlay__box {
-  padding: 18px 24px;
-
-  background: rgba(20, 24, 28, 0.96);
-
-  color: #ffffff;
-
-  font-family: "m6x11plus", monospace;
-  font-size: 18px;
-  line-height: 1.4;
-  text-align: center;
-  letter-spacing: 1px;
-
-  @include pixel-clip;
 }
 
 /* ──────────────────────────────────────────────────────────────
