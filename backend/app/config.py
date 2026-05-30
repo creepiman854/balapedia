@@ -12,7 +12,7 @@ class Config:
         "pool_pre_ping": True,  # Reconecta si se cae.
         "pool_recycle": 299,  # Recicla la conexión cada 5 minutos.
         "pool_size": 5,  # Reduce el número de conexiones simultáneas.
-        "max_overflow": 0,  # No desbordar la memoria.
+        "max_overflow": 10,  # No desbordar la memoria.
     }
     STEAM_API_KEY = os.getenv("STEAM_API_KEY")
     STEAM_APP_ID = 2379780  # Balatro en Steam
