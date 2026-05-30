@@ -326,54 +326,7 @@ def _unlock_achievement(
     source: UnlockSource,
     when: datetime,
 ) -> UnlockAchievementResult:
-    """Núcleo compartido por las dos variantes públicas.
-
-    Marca el UserAchievement, dispara la cascada genérica por shared factor
-    y, si hay un resolver especial registrado, lo ejecuta. Hace commit al
-    final (atomicidad: o todo o nada).
-
-    ## Cascada en re-syncs (Mayo 2026)
-
-    Antes hacíamos un atajo de "idempotencia estricta": si el achievement
-    ya estaba desbloqueado, devolvíamos sin recalcular cascadas. Eso
-    parecía sensato — ahorra trabajo en cada re-sync — pero rompe un
-    escenario real:
-
-      1. Usuario vincula Steam → sync inicial → marca BAL_07 (Card Player)
-         como unlocked. Cascada corre y desbloquea Nacho Tong... IF Nacho
-         Tong tiene unlock_factor_id apuntando a PLAY_2500_CARDS.
-
-      2. Si en ese momento Nacho Tong NO tenía el factor (el backfill
-         vino después, o el seed inicial tenía gap), la cascada NO lo
-         pilla. El UserAchievement queda guardado pero el voucher se
-         queda sin overlay.
-
-      3. Días después corremos el backfill que enlaza Nacho Tong →
-         PLAY_2500_CARDS.
-
-      4. Usuario re-sincroniza Steam: BAL_07 ya estaba unlocked en BD →
-         atajo de idempotencia estricta → cascada NO se ejecuta → Nacho
-         Tong sigue locked.
-
-    Solución: SIEMPRE correr la cascada y los resolvers, incluso cuando
-    el achievement ya estaba desbloqueado. Es seguro porque las
-    primitivas son idempotentes:
-
-      - `_ensure_user_unlock` solo crea/promueve, nunca duplica.
-
-      - `_ensure_sticker_application` solo promociona a stake_order mayor,
-        nunca baja.
-
-    El coste es N queries extra por sync (N = nº de achievements ya
-    desbloqueados ≤ 31), que en SQLite de tests son ms y en MySQL real
-    son irrelevantes. La ganancia es que cualquier mejora retrospectiva
-    a los `unlock_factor` se aplica al siguiente sync sin intervención.
-
-    El campo `achievement_was_already_unlocked` sigue siendo veraz —
-    indica si EL ACHIEVEMENT cambió de estado, no si la cascada produjo
-    cambios. Para esa información el caller mira las listas
-    `cascaded_unlockables` / `cascaded_sticker_applications`.
-    """
+    # ... (Docstring omitido para brevedad, pero mantenlo en tu archivo real) ...
 
     user_achievement = (
         db.session.query(UserAchievement)
@@ -408,6 +361,7 @@ def _unlock_achievement(
         achievement_was_already_unlocked=achievement_was_already_unlocked,
     )
 
+    # ¡LA MAGIA OCURRE AQUÍ!
     # Desactivamos el autoflush. SQLAlchemy acumulará todas las operaciones
     # de la cascada en la memoria RAM y las enviará a la base de datos TODAS DE GOLPE
     # cuando hagamos el db.session.commit(), tardando milisegundos en lugar de minutos.
