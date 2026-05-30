@@ -393,51 +393,46 @@ def _unlock_achievement(
             unlocked_at=when,
             source=source,
         )
-
         db.session.add(user_achievement)
-
     elif not user_achievement.unlocked:
         user_achievement.unlocked = True
         user_achievement.unlocked_at = when
         user_achievement.source = source
 
-    # Si ya estaba unlocked NO sobreescribimos unlocked_at ni source —
-    # preservamos el audit trail original (la primera vez que se
-    # desbloqueó es la verdad histórica).
+    # Forzamos que el UserAchievement principal se guarde ahora mismo
+    # para evitar conflictos de claves más adelante.
+    db.session.flush()
 
     result = UnlockAchievementResult(
         achievement=achievement,
         achievement_was_already_unlocked=achievement_was_already_unlocked,
     )
 
-    # 1) Cascada genérica por shared unlock_factor — corre SIEMPRE,
-    #    incluso si el achievement ya estaba unlocked, para pillar
-    #    backfills retrospectivos de unlock_factor_id en Unlockables.
+    # Desactivamos el autoflush. SQLAlchemy acumulará todas las operaciones
+    # de la cascada en la memoria RAM y las enviará a la base de datos TODAS DE GOLPE
+    # cuando hagamos el db.session.commit(), tardando milisegundos en lugar de minutos.
+    with db.session.no_autoflush:
+        # 1) Cascada genérica
+        if achievement.unlock_factor_id is not None:
+            for item in _cascade_shared_factor(
+                user_id=user_id,
+                unlock_factor_id=achievement.unlock_factor_id,
+                source=source,
+                when=when,
+            ):
+                result.cascaded_unlockables.append(item)
 
-    if achievement.unlock_factor_id is not None:
-        for item in _cascade_shared_factor(
-            user_id=user_id,
-            unlock_factor_id=achievement.unlock_factor_id,
-            source=source,
-            when=when,
-        ):
-            result.cascaded_unlockables.append(item)
+        # 2) Resolver especial
+        resolver = _special_resolvers.get(achievement.steam_api_name)
+        if resolver is not None:
+            resolver(
+                user_id=user_id,
+                result=result,
+                source=source,
+                when=when,
+            )
 
-    # 2) Resolver especial (si existe) — también corre SIEMPRE por la
-    #    misma razón. Las primitivas son idempotentes, así que re-correr
-    #    Completionist o Rule Breaker sobre un usuario que ya los tiene
-    #    cascadeados es no-op.
-
-    resolver = _special_resolvers.get(achievement.steam_api_name)
-
-    if resolver is not None:
-        resolver(
-            user_id=user_id,
-            result=result,
-            source=source,
-            when=when,
-        )
-
+    # Ahora sí, guardamos los 150+ registros de un solo golpe
     db.session.commit()
 
     return result
