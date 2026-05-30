@@ -1,10 +1,14 @@
 from flask import Flask, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 from .config import DevConfig
 from app.extensions import db, migrate, cors, limiter, mail
 
 
 def create_app(config_class=DevConfig):
     app = Flask(__name__)
+
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
     app.config.from_object(config_class)
 
     # Extensiones
