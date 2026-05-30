@@ -17,9 +17,16 @@
   del item bajo "Por descubrir" en texto pequeño y atenuado. Permite
   identificar el item desde el tooltip y, lo más importante, permite al
   buscador encontrarlo por nombre aunque su imagen sea el dorso locked.
+
+  Responsive:
+    En móvil/tablet el tooltip flotante NO se renderiza visualmente —
+    en táctil no hay hover real, así que la información del item se
+    sirve via ItemDetailPanel (bottom-sheet) tras un tap. La regla CSS
+    a continuación oculta la raíz cuando el dispositivo no soporta
+    hover fino.
 -->
 <template>
-  <div :style="posStyle">
+  <div class="item-tooltip-root" :style="posStyle">
     <!-- Rama "locked" (solo para kind=unlockable) -->
     <div v-if="kind === 'unlockable' && isLocked" :style="lockedBoxStyle">
       <div :style="lockedHeaderStyle">
@@ -349,3 +356,40 @@ const unlockHintStyle = {
   lineHeight: 1.3,
 };
 </script>
+
+<style lang="scss" scoped>
+@use "@/assets/styles/mixins" as *;
+
+/*
+ * El tooltip flotante NO se muestra en tablet/mobile:
+ *   · En móvil/tablet la información del item se obtiene tocando la
+ *     carta, lo que abre el ItemDetailPanel como bottom-sheet.
+ *   · En táctil además no existe hover real, así que el tooltip
+ *     quedaría stuck o aparecería tras un tap-and-hold y entorpecería
+ *     la navegación.
+ *
+ * Aplicamos !important porque la raíz lleva un inline style con
+ * `position: fixed` — necesitamos garantizar que esta regla gane.
+ */
+.item-tooltip-root {
+  // Visible por defecto en desktop.
+}
+
+@include tablet {
+  .item-tooltip-root {
+    display: none !important;
+  }
+}
+
+/*
+ * Cinturón y tirantes: también ocultamos en dispositivos puramente
+ * táctiles aunque el viewport sea ancho (ej. portátil 2-in-1 con
+ * touchscreen + ratón a veces reporta ambos). Si el ratón vuelve a
+ * estar disponible, el media query @include can-hover compensaría.
+ */
+@media (hover: none), (pointer: coarse) {
+  .item-tooltip-root {
+    display: none !important;
+  }
+}
+</style>
