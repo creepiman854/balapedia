@@ -10,6 +10,12 @@
   Por defecto se muestran search + rarity + status + sort. La opción
   'type' SOLO se renderiza si la vista la incluye en enabled Y pasa
   typeOptions; si no, el select no aparece y el filtro se ignora.
+
+  Responsive:
+    · En tablet y móvil mantenemos UNA SOLA FILA con search + selects
+      alineados. El search es flexible (flex: 1, min-width: 0) y los
+      selects se compactan al máximo (padding y fuente reducidos).
+    · El título "FILTERS" desaparece en móvil para liberar ancho.
 -->
 <template>
   <div class="filterbar">
@@ -45,6 +51,17 @@
       <option value="uncommon">Uncommon</option>
       <option value="rare">Rare</option>
       <option value="legendary">Legendary</option>
+    </select>
+
+    <select
+      v-if="show('status')"
+      class="filterbar__select"
+      :value="modelValue.status"
+      @change="update('status', $event.target.value)"
+    >
+      <option value="all">Status: All</option>
+      <option value="unlocked">Unlocked</option>
+      <option value="locked">Locked</option>
     </select>
 
     <select
@@ -189,9 +206,11 @@ function update(field, value) {
       color 0.12s,
       transform 0.12s;
 
-    &:hover {
-      color: $text-1;
-      transform: scale(1.15);
+    @include can-hover {
+      &:hover {
+        color: $text-1;
+        transform: scale(1.15);
+      }
     }
     &:active {
       transform: scale(0.92);
@@ -219,6 +238,84 @@ function update(field, value) {
     min-width: 110px;
     background-image: none;
     @include pixel-clip-sm;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * TABLET — todo en una sola fila. La search input se hace flexible
+ * y los selects pierden el min-width fijo para caber juntos.
+ * Sin wrap a segunda línea: la barra deja de ocupar tanto alto.
+ * ────────────────────────────────────────────────────────────── */
+@include tablet {
+  .filterbar {
+    padding: 6px 10px;
+    gap: 6px;
+    flex-wrap: nowrap;
+    overflow-x: hidden;
+
+    &__title {
+      font-size: 12px;
+      margin-right: 2px;
+      flex-shrink: 0;
+    }
+
+    &__search {
+      flex: 1 1 0;
+      min-width: 0;
+      padding: 6px 8px;
+
+      input {
+        font-size: 16px;
+      }
+    }
+
+    &__icon {
+      font-size: 15px;
+    }
+
+    &__select {
+      flex: 0 1 auto;
+      min-width: 0;
+      font-size: 14px;
+      padding: 6px 22px 6px 8px;
+    }
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * MOBILE — máxima compactación, pero seguimos en una sola fila.
+ * El título "FILTERS" desaparece porque no aporta nada que la
+ * lupa del search no diga ya. Los selects no muestran su prefijo
+ * (Rarity: / Type:) porque se truncan — esto se controla en cada
+ * vista usando labels más cortos si hace falta.
+ * ────────────────────────────────────────────────────────────── */
+@include mobile {
+  .filterbar {
+    padding: 6px 8px;
+    gap: 5px;
+
+    &__title {
+      display: none;
+    }
+
+    &__search {
+      padding: 6px 8px;
+      gap: 4px;
+
+      input {
+        font-size: 15px;
+      }
+    }
+
+    &__icon {
+      font-size: 14px;
+    }
+
+    &__select {
+      font-size: 13px;
+      padding: 6px 18px 6px 8px;
+      min-width: 64px;
+    }
   }
 }
 </style>
