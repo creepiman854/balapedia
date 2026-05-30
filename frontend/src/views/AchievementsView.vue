@@ -58,7 +58,7 @@
 
     <BalatroLoader v-if="showLoader" :is-loading="loading" @hidden="showLoader = false" />
 
-    <div class="list-scroll">
+    <div class="list-scroll" ref="scrollEl">
       <ul v-if="!loading && !error" class="list">
         <li
           v-for="(ach, idx) in filtered"
@@ -133,10 +133,15 @@ import { fetchAllAchievements, unlockAchievement } from "@/services/achievements
 import ProgressBar from "@/components/common/ProgressBar.vue";
 import FilterBar from "@/components/common/FilterBar.vue";
 import BalatroLoader from "@/components/common/BalatroLoader.vue";
+import { useHideHeaderOnScroll } from "@/composables/useHideHeaderOnScroll";
 
 const authStore = useAuthStore();
 const { isAuthenticated, user, lastSyncedAt } = storeToRefs(authStore);
 const bgStore = useBackgroundStore();
+
+// Ref al contenedor scrollable → composable que oculta AppHeader en móvil.
+const scrollEl = ref(null);
+useHideHeaderOnScroll(scrollEl);
 
 // ── Datos ────────────────────────────────────────────────────────────
 const achievements = ref([]);
@@ -398,9 +403,11 @@ async function onManualToggle(ach) {
   @include pixel-clip;
   animation: rowIn 0.32s ease backwards;
 
-  &:hover {
-    background: $panel-medlight;
-    transform: translateY(-1px);
+  @include can-hover {
+    &:hover {
+      background: $panel-medlight;
+      transform: translateY(-1px);
+    }
   }
 
   &--locked {
@@ -411,16 +418,20 @@ async function onManualToggle(ach) {
     }
 
     // Hover sobre el contenedor general (logro bloqueado)
-    &:hover {
-      --target-opacity: 0.75;
-      background: $panel-mid;
-      transform: none;
+    @include can-hover {
+      &:hover {
+        --target-opacity: 0.75;
+        background: $panel-mid;
+        transform: none;
+      }
     }
 
     // Si estamos haciendo hover sobre el botón DENTRO de esta fila,
     // sube la opacidad de TODA LA FILA al 100%.
-    &:has(.row__unlock:hover) {
-      --target-opacity: 1;
+    @include can-hover {
+      &:has(.row__unlock:hover) {
+        --target-opacity: 1;
+      }
     }
   }
 }
@@ -491,8 +502,8 @@ async function onManualToggle(ach) {
   flex-shrink: 0;
   background: $panel-dark;
 
-  /* Eliminamos el borde estándar porque no respeta el clip-path */
-  /* border: 1px solid $panel-medlight; */
+  /* Eliminamos el borde estándar por completo */
+  border: none;
 
   color: $text-1;
   font-family: "m6x11plus", monospace;
@@ -501,7 +512,6 @@ async function onManualToggle(ach) {
   padding: 10px 14px;
   cursor: pointer;
 
-  // Añadimos opacidad inicial y transición al botón en sí
   opacity: 0.7;
   transition:
     background 0.15s,
@@ -510,29 +520,30 @@ async function onManualToggle(ach) {
 
   @include pixel-clip-sm;
 
-  /* Añadimos el borde adaptado al shape del clip-path */
-  @include pixel-stroke-clipped($panel-medlight);
+  /* Usamos el mixin estable basado en drop-shadow */
+  @include pixel-stroke($panel-medlight);
 
-  &:hover:not(:disabled) {
-    background: $panel-medlight;
-    opacity: 1; // El botón brilla al 100% (y gracias al :has, la fila también)
+  @include can-hover {
+    &:hover:not(:disabled) {
+      background: $panel-medlight;
+      opacity: 1;
+    }
   }
 
   &:active:not(:disabled) {
     transform: scale(0.96);
   }
 
-  // Estilo para cuando el botón sirve para volver a bloquear
   &--remove {
-    color: #ef4444; // Rojo para indicar acción destructiva/retroceso
+    color: #ef4444;
 
-    /* Cambiamos el color del borde apuntando al pseudo-elemento del mixin */
-    &::before {
-      background: rgba(239, 68, 68, 0.3);
-    }
+    /* Aplicamos el borde rojo adaptado usando el mismo mixin */
+    @include pixel-stroke(rgba(239, 68, 68, 0.4));
 
-    &:hover:not(:disabled) {
-      background: rgba(239, 68, 68, 0.15);
+    @include can-hover {
+      &:hover:not(:disabled) {
+        background: rgba(239, 68, 68, 0.15);
+      }
     }
   }
 
@@ -612,5 +623,113 @@ async function onManualToggle(ach) {
   letter-spacing: 1px;
 
   @include pixel-clip;
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * TABLET — ajustes de tamaños y paddings. Mantenemos el mismo
+ * layout horizontal porque la lista cabe bien en tabletas; solo
+ * apretamos los espacios para aprovechar el ancho disponible.
+ * ────────────────────────────────────────────────────────────── */
+@include tablet {
+  .list-scroll {
+    padding: 12px;
+  }
+
+  .row {
+    gap: 14px;
+    padding: 12px 14px;
+  }
+
+  .row__icon {
+    width: 56px;
+    height: 56px;
+  }
+
+  .row__name {
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+
+  .row__desc {
+    font-size: 15px;
+    line-height: 1.35;
+  }
+
+  .row__unlock {
+    font-size: 11px;
+    padding: 8px 10px;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * MOBILE — la fila pasa a flex-wrap. Icono y body en la primera
+ * línea (con el dot al extremo); el botón "MARK AS …" cae a una
+ * segunda fila a ancho completo, donde tiene tamaño táctil cómodo.
+ * ────────────────────────────────────────────────────────────── */
+@include mobile {
+  .list-scroll {
+    padding: 10px;
+  }
+
+  .list {
+    gap: 8px;
+  }
+
+  .row {
+    gap: 10px;
+    padding: 10px 12px;
+    flex-wrap: wrap;
+  }
+
+  .row__icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .row__body {
+    // Ocupa lo restante en la primera línea (icon | body | dot).
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .row__name {
+    font-size: 13px;
+    margin-bottom: 3px;
+    letter-spacing: 0.2px;
+    white-space: normal; // Permitir 2 líneas en móvil.
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .row__desc {
+    font-size: 13px;
+    line-height: 1.3;
+    color: $text-2;
+  }
+
+  .row__dot {
+    // Mantenemos el dot a la derecha en la primera línea.
+    order: 3;
+    align-self: center;
+  }
+
+  // El botón pasa a la segunda línea, ocupando todo el ancho — es el
+  // patrón móvil estándar para acciones primarias por fila.
+  .row__unlock {
+    order: 99;
+    flex: 1 1 100%;
+    padding: 10px;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  // Overlay de bloqueo más compacto.
+  .unlock-overlay__box {
+    padding: 14px 18px;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+  }
 }
 </style>

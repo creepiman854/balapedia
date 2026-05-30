@@ -6,7 +6,9 @@
   + hover effect verde sutil.
 
   El hover muestra la descripción a través del ItemTooltip global
-  (kind="tag"); el parent dispara el flotante via @hover.
+  (kind="tag"); el parent dispara el flotante via @hover. En móvil/
+  tablet el tooltip está oculto y la información se sirve mediante el
+  bottom-sheet del ItemDetailPanel (el parent debe escuchar @select).
 -->
 <template>
   <div
@@ -67,10 +69,12 @@ function onEnter(e) {
     filter 0.18s ease;
   @include pixel-clip;
 
-  &:hover {
-    transform: translateY(-3px);
-    filter: brightness(1.1);
-    box-shadow: 0 0 16px rgba(34, 197, 94, 0.4);
+  @include can-hover {
+    &:hover {
+      transform: translateY(-3px);
+      filter: brightness(1.1);
+      box-shadow: 0 0 16px rgba(34, 197, 94, 0.4);
+    }
   }
   &--selected {
     background: rgba(34, 197, 94, 0.12);
@@ -94,8 +98,10 @@ function onEnter(e) {
   transition: transform 0.18s ease;
 }
 
-.tag-card:hover .tag-card__art {
-  transform: scale(1.07);
+@include can-hover {
+  .tag-card:hover .tag-card__art {
+    transform: scale(1.07);
+  }
 }
 
 .tag-card__art-fallback {
@@ -122,5 +128,46 @@ function onEnter(e) {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * TABLET — escalonamos un punto las medidas para que más tags
+ * entren por fila manteniendo la legibilidad.
+ * ────────────────────────────────────────────────────────────── */
+@include tablet {
+  .tag-card {
+    padding: 8px 6px 10px;
+    gap: 4px;
+  }
+  .tag-card__art-wrap {
+    width: 58px;
+  }
+  .tag-card__name {
+    font-size: 14px;
+  }
+  .tag-card__art-fallback {
+    font-size: 20px;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * MOBILE — apretamos al máximo manteniendo aspect-ratio cuadrado
+ * del arte. El truncado del nombre evita layouts inconsistentes.
+ * ────────────────────────────────────────────────────────────── */
+@include mobile {
+  .tag-card {
+    padding: 6px 4px 8px;
+    gap: 3px;
+  }
+  .tag-card__art-wrap {
+    width: 46px;
+  }
+  .tag-card__name {
+    font-size: 12px;
+    letter-spacing: 0.2px;
+  }
+  .tag-card__art-fallback {
+    font-size: 16px;
+  }
 }
 </style>

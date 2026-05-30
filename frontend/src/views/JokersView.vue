@@ -41,11 +41,14 @@
 
         <BalatroLoader v-if="showLoader" :is-loading="loading" @hidden="showLoader = false" />
 
-        <div class="grid-scroll">
+        <div class="grid-scroll" ref="scrollEl">
           <div
             v-if="!loading && !error && filtered.length > 0"
             class="grid"
-            :style="{ gridTemplateColumns: `repeat(${settings.gridColumns}, 1fr)` }"
+            :style="{
+              gridTemplateColumns: `repeat(${settings.gridColumns}, 1fr)`,
+              '--grid-cols': settings.gridColumns,
+            }"
           >
             <ItemCard
               v-for="(joker, idx) in filtered"
@@ -68,10 +71,17 @@
         </div>
       </div>
 
-      <!-- ── Columna derecha: detalle ── -->
-      <div class="detail-col">
+      <!-- Backdrop del bottom sheet (solo se ve cuando está abierto en móvil/tablet) -->
+      <div v-if="detailSheetOpen" class="detail-backdrop" @click="closeDetailSheet" />
+
+      <!-- Columna derecha / Bottom sheet -->
+      <div class="detail-col" :class="{ 'detail-col--open': detailSheetOpen }">
         <div class="detail-col__head">
           <span>{{ selectedJoker ? selectedJoker.name.toUpperCase() : "JOKER" }}</span>
+          <!-- Botón cerrar solo visible en móvil/tablet -->
+          <button class="detail-col__close" @click="closeDetailSheet" aria-label="Close">
+            <iconify-icon icon="pixel:window-close-solid" noobserver />
+          </button>
         </div>
         <div class="detail-col__body">
           <ItemDetailPanel
@@ -105,6 +115,7 @@ import { useBackgroundStore } from "@/stores/background";
 import { fetchAllJokers, unlockJoker, relockJoker } from "@/services/jokers";
 import { RARITY_ORDER } from "@/constants/rarity";
 import { useProgressionStore } from "@/stores/progression";
+import { useHideHeaderOnScroll } from "@/composables/useHideHeaderOnScroll";
 
 import ProgressBar from "@/components/common/ProgressBar.vue";
 import FilterBar from "@/components/common/FilterBar.vue";
@@ -123,11 +134,18 @@ const settings = useSettingsStore();
 const bgStore = useBackgroundStore();
 const progStore = useProgressionStore();
 
+// Ref al contenedor scrollable — alimenta el composable que esconde
+// el AppHeader en móvil al hacer scroll hacia abajo.
+const scrollEl = ref(null);
+useHideHeaderOnScroll(scrollEl);
+
 // ── Datos ─────────────────────────────────────────────────────────────
 const jokers = ref([]);
 const loading = ref(false);
 const showLoader = ref(true);
 const error = ref("");
+
+const detailSheetOpen = ref(false);
 
 async function loadJokers() {
   loading.value = true;
@@ -323,6 +341,15 @@ let hoverTimer = null;
 
 function onSelect(joker) {
   selectedJoker.value = joker;
+  // En desktop el panel ya está visible; abrir el sheet solo cambia
+  // estado interno que el CSS aplica solo en tablet/mobile.
+  detailSheetOpen.value = true;
+}
+
+function closeDetailSheet() {
+  detailSheetOpen.value = false;
+  // No desmarcamos selectedJoker — al cerrar y reabrir mantiene la carta
+  // selecciondaa visible en el panel.
 }
 
 function onHover({ item, target }) {
@@ -488,6 +515,139 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
     opacity: 1;
     translate: 0 0;
     scale: 1;
+  }
+}
+
+/* ── Botón cerrar del bottom sheet — invisible en desktop ─────── */
+.detail-col__head {
+  position: relative;
+}
+
+.detail-col__close {
+  display: none; // Default: desktop, NO se ve.
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: $text-2;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 0;
+
+  iconify-icon {
+    font-size: 22px;
+  }
+
+  @include can-hover {
+    &:hover {
+      color: $text-1;
+    }
+  }
+}
+
+/* ── Backdrop del bottom sheet ──────────────────────────────── */
+.detail-backdrop {
+  display: none; // Default: desktop, no aplica.
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 15, 18, 0.75);
+  z-index: 8500;
+  animation: backdropIn 0.18s ease;
+}
+
+@keyframes backdropIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * TABLET — el layout pasa a columna única. El panel de detalle se
+ * convierte en un bottom sheet que sube cuando hay item seleccionado.
+ * El backdrop oscurece el grid mientras el sheet está abierto.
+ * ────────────────────────────────────────────────────────────── */
+@include tablet {
+  .jokers-layout {
+    flex-direction: column;
+  }
+
+  // Columna grid pasa a ocupar el ancho completo.
+  // FIX (scroll): añadimos min-height:0. Sin esto, el flex-item con
+  // flex-direction:column NO permite que el .grid-scroll interno
+  // active su overflow-y:auto — el contenedor crece con el contenido
+  // y el scroll nunca aparece.
+  .jokers-grid-col {
+    width: 100%;
+    min-height: 0;
+  }
+
+  // Padding interno del grid-scroll ligeramente reducido para
+  // aprovechar el ancho de la pantalla.
+  .grid-scroll {
+    padding: 18px 14px 24px;
+  }
+
+  // Panel detalle ahora es fixed sheet que entra desde abajo.
+  .detail-col {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: 100%;
+    max-height: 85vh;
+    z-index: 8600;
+    transform: translateY(100%);
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+    // Eliminamos pixel-clip en mobile para no comernos esquina
+    // superior visible — el sheet sube desde abajo, no necesita
+    // forma pixelada en la parte de arriba.
+    clip-path: none;
+
+    &--open {
+      transform: translateY(0);
+    }
+
+    &__close {
+      display: inline-flex; // Aparece el botón cerrar.
+    }
+
+    &__body {
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
+  .detail-backdrop {
+    display: block; // Aparece el backdrop.
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * MOBILE — solo retocamos paddings y tamaños. El número de columnas
+ * del grid se respeta tal cual lo pone el slider de Settings
+ * (var --grid-cols) — NO capamos: el usuario decide cuántas columnas
+ * quiere ver, igual que en desktop. Si pone 12 columnas en un móvil
+ * verá cartas pequeñas, pero la opción está habilitada.
+ * ────────────────────────────────────────────────────────────── */
+@include mobile {
+  .grid-scroll {
+    padding: 14px 10px 20px;
+  }
+
+  .count {
+    font-size: 14px;
+  }
+
+  // Sheet ocupa más alto en móvil porque hay menos espacio horizontal.
+  .detail-col {
+    max-height: 90vh;
   }
 }
 </style>

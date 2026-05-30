@@ -260,13 +260,29 @@ const isGold = computed(() => props.item?.highest_stake_order === 8);
 /* Checkmark de Challenge Decks completados */
 .challenge-check-overlay {
   position: absolute;
-  bottom: 10px;
-  right: 10px;
-  font-size: 50px;
+  top: 8px;
+  right: 8px;
+  bottom: auto;
+  left: auto;
+
+  font-size: 42px;
   color: #22c55e;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
-  z-index: 2;
+  z-index: 10;
   pointer-events: none;
+
+  /* ADAPTACIÓN PARA MÓVIL Y TABLET */
+  @include tablet {
+    top: 6px;
+    right: 6px;
+    font-size: 32px;
+  }
+
+  @include mobile {
+    top: 4px;
+    right: 4px;
+    font-size: 24px;
+  }
 }
 
 /* --- STICKERS DE JOKERS --- */

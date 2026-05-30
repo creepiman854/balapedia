@@ -59,11 +59,11 @@
 
         <BalatroLoader v-if="showLoader" :is-loading="loading" @hidden="showLoader = false" />
 
-        <div class="grid-scroll">
+        <div class="grid-scroll" ref="scrollEl">
           <div
             v-if="!loading && !error && filtered.length > 0"
             class="grid"
-            :style="{ gridTemplateColumns: `repeat(${FIXED_COLS}, 1fr)` }"
+            :style="{ gridTemplateColumns: `repeat(${activeCols}, 1fr)` }"
           >
             <ItemCard
               v-for="(item, idx) in filtered"
@@ -73,8 +73,8 @@
               :item="item"
               :is-locked="false"
               :is-selected="selectedItem?.id === item.id"
-              :col-index="idx % FIXED_COLS"
-              :col-count="FIXED_COLS"
+              :col-index="idx % activeCols"
+              :col-count="activeCols"
               @select="onSelect"
               @hover="onHover"
               @leave="onLeave"
@@ -86,12 +86,18 @@
         </div>
       </div>
 
+      <!-- Backdrop del bottom sheet (solo se ve cuando está abierto en móvil/tablet) -->
+      <div v-if="detailSheetOpen" class="detail-backdrop" @click="closeDetailSheet" />
+
       <!-- ── Detalle derecha ── -->
-      <div class="detail-col">
+      <div class="detail-col" :class="{ 'detail-col--open': detailSheetOpen }">
         <div class="detail-col__head">
           <span>{{
             selectedItem ? selectedItem.name.toUpperCase() : currentSubLabel.toUpperCase()
           }}</span>
+          <button class="detail-col__close" @click="closeDetailSheet" aria-label="Close">
+            <iconify-icon icon="pixel:window-close-solid" noobserver />
+          </button>
         </div>
         <div class="detail-col__body">
           <ItemDetailPanel :item="selectedItem" :is-locked="false" :can-unlock="false" />
@@ -114,6 +120,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useBackgroundStore } from "@/stores/background";
 import { fetchConsumablesByType } from "@/services/consumables";
+import { useHideHeaderOnScroll } from "@/composables/useHideHeaderOnScroll";
 
 import FilterBar from "@/components/common/FilterBar.vue";
 import ItemCard from "@/components/items/ItemCard.vue";
@@ -122,6 +129,10 @@ import ItemTooltip from "@/components/items/ItemTooltip.vue";
 import BalatroLoader from "@/components/common/BalatroLoader.vue";
 
 const bgStore = useBackgroundStore();
+
+// Ref al contenedor scrollable → composable que oculta AppHeader en móvil.
+const scrollEl = ref(null);
+useHideHeaderOnScroll(scrollEl);
 
 /* ── Sub-tabs ───────────────────────────────────────────────────────
  * El `id` aquí coincide con:
@@ -139,7 +150,13 @@ const SUBTABS = [
 const FIXED_COLS = 7;
 const currentSub = ref("TAROT");
 
+// Variable reactiva que detectará si estamos en móvil o no
+const activeCols = ref(FIXED_COLS);
 const currentSubLabel = computed(() => SUBTABS.find((s) => s.id === currentSub.value)?.label || "");
+
+// Referencias para el listener
+let mql = null;
+let updateCols = null;
 
 function selectSub(id) {
   if (currentSub.value === id) return;
@@ -158,6 +175,8 @@ const items = ref([]);
 const loading = ref(false);
 const showLoader = ref(true);
 const error = ref("");
+
+const detailSheetOpen = ref(false);
 
 async function loadItems() {
   loading.value = true;
@@ -182,6 +201,15 @@ async function loadItems() {
 onMounted(() => {
   bgStore.setPreset(currentSub.value.toLowerCase());
   loadItems();
+
+  // Esto garantiza que solo afecte a móvil (< 600px)
+  mql = window.matchMedia("(max-width: 599px)");
+  updateCols = (e) => {
+    // Si es móvil (matches), usa 4 columnas. Si es Tablet/PC, usa FIXED_COLS (7).
+    activeCols.value = e.matches ? 4 : FIXED_COLS;
+  };
+  mql.addEventListener("change", updateCols);
+  updateCols(mql); // Comprobación inicial al cargar
 });
 
 // Si el usuario cambia de cuenta mientras está en esta vista, el
@@ -220,6 +248,15 @@ let hoverTimer = null;
 
 function onSelect(item) {
   selectedItem.value = item;
+  // En desktop el panel ya está visible; abrir el sheet solo cambia
+  // estado interno que el CSS aplica solo en tablet/mobile.
+  detailSheetOpen.value = true;
+}
+
+function closeDetailSheet() {
+  detailSheetOpen.value = false;
+  // No desmarcamos selectedJoker — al cerrar y reabrir mantiene la carta
+  // selecciondaa visible en el panel.
 }
 
 function onHover({ item, target }) {
@@ -239,7 +276,12 @@ function onLeave() {
   tooltip.value = null;
 }
 
-onBeforeUnmount(() => clearTimeout(hoverTimer));
+onBeforeUnmount(() => {
+  clearTimeout(hoverTimer);
+  if (mql && updateCols) {
+    mql.removeEventListener("change", updateCols);
+  }
+});
 </script>
 
 <style lang="scss" scoped>
@@ -300,9 +342,11 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
   white-space: nowrap;
   @include pixel-clip;
 
-  &:hover {
-    transform: scale(1.05);
-    filter: brightness(1.15);
+  @include can-hover {
+    &:hover {
+      transform: scale(1.05);
+      filter: brightness(1.15);
+    }
   }
   &:active {
     transform: scale(0.95);
@@ -402,10 +446,6 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
 }
 
 /* ── Animaciones de Entrada ───────────────────────────────────────── */
-/*
- * Animación estilo "repartir carta" (Deal) para el catálogo de consumables.
- * Entran desde arriba con un multiplicador de escala y caen elásticamente.
- */
 .card-deal-anim {
   animation: dealCard 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.15) backwards;
 }
@@ -420,6 +460,155 @@ onBeforeUnmount(() => clearTimeout(hoverTimer));
     opacity: 1;
     translate: 0 0;
     scale: 1;
+  }
+}
+
+/* ── Botón cerrar del bottom sheet — invisible en desktop ─────── */
+.detail-col__head {
+  position: relative;
+}
+
+.detail-col__close {
+  display: none; // Default: desktop, NO se ve.
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: $text-2;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 0;
+
+  iconify-icon {
+    font-size: 22px;
+  }
+
+  @include can-hover {
+    &:hover {
+      color: $text-1;
+    }
+  }
+}
+
+/* ── Backdrop del bottom sheet ──────────────────────────────── */
+.detail-backdrop {
+  display: none; // Default: desktop, no aplica.
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 15, 18, 0.75);
+  z-index: 8500;
+  animation: backdropIn 0.18s ease;
+}
+
+@keyframes backdropIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * TABLET — layout una columna + bottom sheet.
+ * ────────────────────────────────────────────────────────────── */
+@include tablet {
+  .layout {
+    flex-direction: column;
+  }
+
+  // FIX (scroll): añadimos min-height:0 al wrapper intermedio para que
+  // el .grid-scroll interno pueda activar su overflow-y:auto cuando
+  // el contenido excede la pantalla.
+  .grid-col {
+    width: 100%;
+    min-height: 0;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .subtabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .grid-scroll {
+    padding: 18px 14px 24px;
+  }
+
+  .detail-col {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: 100%;
+    max-height: 85vh;
+    z-index: 8600;
+    transform: translateY(100%);
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+    clip-path: none;
+
+    &--open {
+      transform: translateY(0);
+    }
+
+    &__close {
+      display: inline-flex;
+    }
+
+    &__body {
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
+  .detail-backdrop {
+    display: block;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * MOBILE — consumables tiene grid FIJO en desktop (7 cols). En
+ * móvil bajamos a 4 col porque a partir de ahí los iconos no se
+ * leen. No es configurable por el usuario, no aplica slider.
+ * ────────────────────────────────────────────────────────────── */
+@include mobile {
+  .grid-scroll {
+    padding: 14px 10px 20px;
+  }
+
+  // !important porque el grid-template-columns viene como inline
+  // style desde el template (repeat(7, 1fr)).
+  .grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+
+  .count {
+    font-size: 14px;
+  }
+
+  .subtab {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  .detail-col {
+    max-height: 90vh;
   }
 }
 </style>

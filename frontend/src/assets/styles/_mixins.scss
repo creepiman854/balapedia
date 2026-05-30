@@ -128,3 +128,56 @@
     drop-shadow(0 #{$size} 0 $color)
     drop-shadow(0 -#{$size} 0 $color);
 }
+
+// ── Breakpoints ───────────────────────────────────────────────
+// El diseño es desktop-first. Las media queries solo aplican
+// para anchos < 1024px y < 600px. Ningún cambio se aplica para
+// pantallas grandes salvo el comportamiento por defecto.
+//
+// Convenciones:
+//   mobile      → < 600px            (smartphones en portrait)
+//   tablet      → < 1024px           (tablets + smartphones landscape)
+//   tablet-only → 600px ≤ w < 1024px (solo tablets, no afecta móvil)
+//   mobile-portrait → < 600px con orientation: portrait
+//
+// Uso:
+//   .some-class {
+//     padding: 20px;
+//     @include tablet { padding: 14px; }
+//     @include mobile { padding: 10px; }
+//   }
+
+$bp-mobile:  599px;
+$bp-tablet: 1023px;
+
+@mixin mobile {
+  @media (max-width: #{$bp-mobile}) { @content; }
+}
+
+@mixin tablet {
+  @media (max-width: #{$bp-tablet}) { @content; }
+}
+
+@mixin tablet-only {
+  @media (min-width: #{$bp-mobile + 1}) and (max-width: #{$bp-tablet}) {
+    @content;
+  }
+}
+
+@mixin landscape {
+  @media (orientation: landscape) and (max-width: #{$bp-tablet}) {
+    @content;
+  }
+}
+
+@mixin portrait {
+  @media (orientation: portrait) and (max-width: #{$bp-tablet}) {
+    @content;
+  }
+}
+
+// Hover-capable: solo aplica reglas de :hover en dispositivos que
+// realmente lo soportan. Evita estados "stuck" en móvil tras un tap.
+@mixin can-hover {
+  @media (hover: hover) and (pointer: fine) { @content; }
+}

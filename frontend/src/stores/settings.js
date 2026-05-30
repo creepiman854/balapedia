@@ -28,12 +28,10 @@
  * al máximo" en el primer cambio.
  */
 import { defineStore } from "pinia";
-import { ref, watch } from "vue";
+import { ref, computed, watch } from "vue";
+import { useViewport } from "@/composables/useViewport";
 
 const STORAGE_KEY = "bala_settings";
-
-export const COLUMNS_MIN = 5;
-export const COLUMNS_MAX = 15;
 
 const DEFAULTS = {
   crtIntensity: 0.5,
@@ -56,14 +54,9 @@ function loadFromStorage() {
       crtIntensity: clamp(Number(parsed.crtIntensity ?? DEFAULTS.crtIntensity), 0, 1),
       musicEnabled: !!parsed.musicEnabled,
       musicVolume: clamp(Number(parsed.musicVolume ?? DEFAULTS.musicVolume), 0, 1),
-      gridColumns: clamp(
-        Math.round(parsed.gridColumns ?? DEFAULTS.gridColumns),
-        COLUMNS_MIN,
-        COLUMNS_MAX,
-      ),
-      // `showSpoiledLocked` puede no existir en localStorage si el usuario
-      // ya tenía la app abierta antes del release de Fase 2: nullish-
-      // coalescing al default. El cast a bool absorbe valores legacy.
+      // Ampliamos el clamp inicial a los límites absolutos posibles (3 y 15)
+      // La hidratación posterior del watch se encargará de ajustarlo al dispositivo real.
+      gridColumns: clamp(Math.round(parsed.gridColumns ?? DEFAULTS.gridColumns), 3, 15),
       showSpoiledLocked: !!(parsed.showSpoiledLocked ?? DEFAULTS.showSpoiledLocked),
     };
   } catch {
@@ -74,11 +67,32 @@ function loadFromStorage() {
 export const useSettingsStore = defineStore("settings", () => {
   const initial = loadFromStorage();
 
+  // Incorporamos el viewport al store
+  const { isMobile } = useViewport();
+
+  // Topes dinámicos
+  const minGridCols = computed(() => (isMobile.value ? 3 : 5));
+  const maxGridCols = computed(() => (isMobile.value ? 10 : 15));
+
   const crtIntensity = ref(initial.crtIntensity);
   const musicEnabled = ref(initial.musicEnabled);
   const musicVolume = ref(initial.musicVolume);
   const gridColumns = ref(initial.gridColumns);
   const showSpoiledLocked = ref(initial.showSpoiledLocked);
+
+  // Auto-ajuste de seguridad: si el usuario redimensiona la ventana,
+  // aseguramos que el valor actual no viole los nuevos topes.
+  watch(
+    [minGridCols, maxGridCols],
+    () => {
+      if (gridColumns.value > maxGridCols.value) {
+        gridColumns.value = maxGridCols.value;
+      } else if (gridColumns.value < minGridCols.value) {
+        gridColumns.value = minGridCols.value;
+      }
+    },
+    { immediate: true },
+  );
 
   watch([crtIntensity, musicEnabled, musicVolume, gridColumns, showSpoiledLocked], () => {
     try {
@@ -107,13 +121,20 @@ export const useSettingsStore = defineStore("settings", () => {
     musicVolume.value = clamp(Number(v) || 0, 0, 1);
   }
   function setGridColumns(v) {
-    gridColumns.value = clamp(Math.round(Number(v) || COLUMNS_MIN), COLUMNS_MIN, COLUMNS_MAX);
+    // Aquí el setter usa los límites reactivos para proteger los datos
+    gridColumns.value = clamp(
+      Math.round(Number(v) || minGridCols.value),
+      minGridCols.value,
+      maxGridCols.value,
+    );
   }
   function setShowSpoiledLocked(v) {
     showSpoiledLocked.value = !!v;
   }
 
   return {
+    minGridCols,
+    maxGridCols,
     crtIntensity,
     musicEnabled,
     musicVolume,
