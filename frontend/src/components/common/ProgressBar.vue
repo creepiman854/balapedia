@@ -49,7 +49,7 @@ const pct = computed(() => (props.max > 0 ? Math.round((props.value / props.max)
     display: flex;
     justify-content: space-between;
     font-family: 'm6x11plus', monospace;
-    font-size: 14px;
+    font-size: 18px;
     color: #ffffff;
     text-shadow: 0 3px 0 #00000070;
     margin-bottom: 6px;
