@@ -17,7 +17,9 @@
   Hover effect: pequeño zoom + glow del color del blind_type.
 
   El parent emite `select` y `hover` para el flotante ItemTooltip
-  global, mismo patrón que ItemCard.
+  global, mismo patrón que ItemCard. En móvil/tablet el tooltip está
+  oculto y la información se sirve mediante el bottom-sheet del
+  ItemDetailPanel (el parent debe escuchar @select).
 -->
 <template>
   <div
@@ -120,9 +122,11 @@ function onEnter(e) {
     filter 0.18s ease;
   @include pixel-clip;
 
-  &:hover {
-    transform: translateY(-3px);
-    filter: brightness(1.1);
+  @include can-hover {
+    &:hover {
+      transform: translateY(-3px);
+      filter: brightness(1.1);
+    }
   }
   &--selected {
     background: rgba(0, 0, 0, 0.4);
@@ -150,13 +154,17 @@ function onEnter(e) {
 
 /* ── Color por blind_type ───────────────────────────────────────── */
 .blind-card--small {
-  &:hover {
-    box-shadow: 0 0 18px rgba(207, 214, 216, 0.35);
+  @include can-hover {
+    &:hover {
+      box-shadow: 0 0 18px rgba(207, 214, 216, 0.35);
+    }
   }
 }
 .blind-card--big {
-  &:hover {
-    box-shadow: 0 0 18px rgba(245, 158, 11, 0.5);
+  @include can-hover {
+    &:hover {
+      box-shadow: 0 0 18px rgba(245, 158, 11, 0.5);
+    }
   }
   .blind-card__mult {
     background: rgba(245, 158, 11, 0.9);
@@ -164,8 +172,10 @@ function onEnter(e) {
   }
 }
 .blind-card--boss {
-  &:hover {
-    box-shadow: 0 0 18px rgba(232, 64, 64, 0.5);
+  @include can-hover {
+    &:hover {
+      box-shadow: 0 0 18px rgba(232, 64, 64, 0.5);
+    }
   }
   .blind-card__mult {
     background: rgba(232, 64, 64, 0.92);
@@ -191,8 +201,10 @@ function onEnter(e) {
   transition: transform 0.18s ease;
 }
 
-.blind-card:hover .blind-card__art {
-  transform: scale(1.06);
+@include can-hover {
+  .blind-card:hover .blind-card__art {
+    transform: scale(1.06);
+  }
 }
 
 /* Chip de multiplicador (esquina superior izquierda) */
@@ -251,5 +263,87 @@ function onEnter(e) {
 }
 .blind-card__reward-icon {
   font-weight: 700;
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * TABLET — reducimos arte, padding y tipografía un escalón para
+ * que entren más Boss Blinds por fila sin perder legibilidad.
+ * ────────────────────────────────────────────────────────────── */
+@include tablet {
+  .blind-card {
+    padding: 10px 8px 12px;
+    gap: 5px;
+  }
+  .blind-card--hero {
+    padding: 14px 12px;
+    gap: 8px;
+  }
+  .blind-card--hero .blind-card__art-wrap {
+    width: 84px;
+  }
+  .blind-card--hero .blind-card__name {
+    font-size: 17px;
+  }
+
+  .blind-card--grid .blind-card__art-wrap {
+    width: 62px;
+  }
+  .blind-card--grid .blind-card__name {
+    font-size: 14px;
+  }
+
+  .blind-card__mult {
+    font-size: 12px;
+    padding: 2px 5px;
+  }
+  .blind-card__finisher {
+    font-size: 14px;
+  }
+  .blind-card__reward {
+    font-size: 14px;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * MOBILE — apretamos un poco más. La estrella de Finisher y el
+ * chip de multiplicador siguen siendo visibles pero más sutiles.
+ * ────────────────────────────────────────────────────────────── */
+@include mobile {
+  .blind-card {
+    padding: 8px 6px 10px;
+    gap: 4px;
+  }
+  .blind-card--hero {
+    padding: 10px 8px;
+    gap: 6px;
+  }
+  .blind-card--hero .blind-card__art-wrap {
+    width: 66px;
+  }
+  .blind-card--hero .blind-card__name {
+    font-size: 14px;
+  }
+
+  .blind-card--grid .blind-card__art-wrap {
+    width: 50px;
+  }
+  .blind-card--grid .blind-card__name {
+    font-size: 12px;
+  }
+
+  .blind-card__mult {
+    font-size: 11px;
+    padding: 1px 4px;
+    top: -4px;
+    left: -4px;
+  }
+  .blind-card__finisher {
+    font-size: 12px;
+    top: -2px;
+    right: -1px;
+  }
+  .blind-card__reward {
+    font-size: 13px;
+  }
 }
 </style>
