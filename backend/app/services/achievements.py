@@ -589,25 +589,67 @@ def _resolve_rule_breaker(
         .all()
     )
 
+    # PRELOAD en RAM
+    existing_unlocks = {
+        u.unlockable_id: u
+        for u in db.session.query(UserUnlock).filter_by(user_id=user_id).all()
+    }
+    existing_stickers = {
+        s.unlockable_id: s
+        for s in db.session.query(UserStickerApplication)
+        .filter_by(user_id=user_id)
+        .all()
+    }
+
     cascaded_count = 0
 
     for challenge in challenges:
-        if _ensure_user_unlock(user_id, challenge.id, source, when):
+        # 1. Resolver Desbloqueo
+        uu = existing_unlocks.get(challenge.id)
+        if uu is None:
+            new_uu = UserUnlock(
+                user_id=user_id,
+                unlockable_id=challenge.id,
+                unlocked=True,
+                unlocked_at=when,
+                source=source,
+            )
+            db.session.add(new_uu)
+            result.cascaded_unlockables.append(challenge)
+        elif not uu.unlocked:
+            uu.unlocked = True
+            uu.unlocked_at = when
+            uu.source = source
             result.cascaded_unlockables.append(challenge)
 
-        # Aplicamos la marca de completado (stake_order = 1)
-        usa = _ensure_sticker_application(
-            user_id,
-            challenge,
-            1,
-            source,
-            when,
-        )
-
-        if usa is not None:
+        # 2. Resolver Sticker (Stake order 1 = Completado)
+        usa = existing_stickers.get(challenge.id)
+        changed = False
+        if usa is None:
+            usa = UserStickerApplication(
+                user_id=user_id, unlockable_id=challenge.id, earned_at=when
+            )
+            if source == UnlockSource.MANUAL:
+                usa.manual_stake_order = 1
+            else:
+                usa.steam_stake_order = 1
+            db.session.add(usa)
             result.cascaded_sticker_applications.append(usa)
+            changed = True
+        else:
+            if source == UnlockSource.MANUAL and usa.manual_stake_order < 1:
+                usa.manual_stake_order = 1
+                changed = True
+            elif source == UnlockSource.STEAM_SYNC and usa.steam_stake_order < 1:
+                usa.steam_stake_order = 1
+                changed = True
 
-        cascaded_count += 1
+            if changed:
+                usa.earned_at = when
+                result.cascaded_sticker_applications.append(usa)
+
+        if changed:
+            cascaded_count += 1
 
     result.notes.append(
         f"Rule Breaker → {cascaded_count}/{len(challenges)} challenge decks "
@@ -622,11 +664,7 @@ def _resolve_extreme_couponer(
     source: UnlockSource,
     when: datetime,
 ) -> None:
-    """Extreme Couponer: unlocks ALL vouchers.
-
-    "Discover every Voucher" — having this achievement means the user
-    has found all vouchers. We unlock the full catalogue.
-    """
+    """Extreme Couponer: unlocks ALL vouchers."""
 
     vouchers = (
         db.session.query(Unlockable)
@@ -634,10 +672,31 @@ def _resolve_extreme_couponer(
         .all()
     )
 
+    # PRELOAD en RAM
+    existing_unlocks = {
+        u.unlockable_id: u
+        for u in db.session.query(UserUnlock).filter_by(user_id=user_id).all()
+    }
+
     cascaded_count = 0
 
     for voucher in vouchers:
-        if _ensure_user_unlock(user_id, voucher.id, source, when):
+        uu = existing_unlocks.get(voucher.id)
+        if uu is None:
+            new_uu = UserUnlock(
+                user_id=user_id,
+                unlockable_id=voucher.id,
+                unlocked=True,
+                unlocked_at=when,
+                source=source,
+            )
+            db.session.add(new_uu)
+            result.cascaded_unlockables.append(voucher)
+            cascaded_count += 1
+        elif not uu.unlocked:
+            uu.unlocked = True
+            uu.unlocked_at = when
+            uu.source = source
             result.cascaded_unlockables.append(voucher)
             cascaded_count += 1
 
@@ -858,122 +917,186 @@ _reverse_special_resolvers = {}
 
 
 def _reverse_resolver(steam_api_name: str):
-
     def wrapper(fn):
         _reverse_special_resolvers[steam_api_name] = fn
-
         return fn
 
     return wrapper
 
 
 @_reverse_resolver("BAL_23")  # Rule Breaker
-def _reverse_rule_breaker(
-    user_id: int,
-    when: datetime,
-) -> int:
-
+def _reverse_rule_breaker(user_id: int, when: datetime) -> int:
     challenges = (
         db.session.query(Unlockable)
         .filter(Unlockable.type == UnlockableType.CHALLENGE_DECK)
         .all()
     )
+    c_ids = [c.id for c in challenges]
 
-    count = 0
+    # Pre-cargamos solo los registros afectados de la base de datos
+    user_unlocks = (
+        db.session.query(UserUnlock)
+        .filter(UserUnlock.user_id == user_id, UserUnlock.unlockable_id.in_(c_ids))
+        .all()
+    )
+    user_stickers = (
+        db.session.query(UserStickerApplication)
+        .filter(
+            UserStickerApplication.user_id == user_id,
+            UserStickerApplication.unlockable_id.in_(c_ids),
+        )
+        .all()
+    )
 
-    for c in challenges:
-        unlocked = _revert_user_unlock(user_id, c.id, when)
-        stickered = _revert_sticker_application(user_id, c.id, when)
+    processed_ids = set()
 
-        if unlocked or stickered:
-            count += 1
+    for uu in user_unlocks:
+        if uu.unlocked and _is_same_event(uu.unlocked_at, when):
+            db.session.delete(uu)
+            processed_ids.add(uu.unlockable_id)
 
-    return count
+    for usa in user_stickers:
+        if _is_same_event(usa.earned_at, when):
+            if usa.manual_stake_order in (1, 8):
+                usa.manual_stake_order = 0
+            if usa.steam_stake_order in (1, 8):
+                usa.steam_stake_order = 0
+            if usa.manual_stake_order == 0 and usa.steam_stake_order == 0:
+                db.session.delete(usa)
+            processed_ids.add(usa.unlockable_id)
+
+    return len(processed_ids)
 
 
 @_reverse_resolver("BAL_28")  # Extreme Couponer
-def _reverse_extreme_couponer(
-    user_id: int,
-    when: datetime,
-) -> int:
-
+def _reverse_extreme_couponer(user_id: int, when: datetime) -> int:
     vouchers = (
         db.session.query(Unlockable)
         .filter(Unlockable.type == UnlockableType.VOUCHER)
         .all()
     )
+    v_ids = [v.id for v in vouchers]
 
-    return sum(1 for v in vouchers if _revert_user_unlock(user_id, v.id, when))
+    user_unlocks = (
+        db.session.query(UserUnlock)
+        .filter(UserUnlock.user_id == user_id, UserUnlock.unlockable_id.in_(v_ids))
+        .all()
+    )
+
+    count = 0
+    for uu in user_unlocks:
+        if uu.unlocked and _is_same_event(uu.unlocked_at, when):
+            db.session.delete(uu)
+            count += 1
+
+    return count
 
 
 @_reverse_resolver("BAL_29")  # Completionist
-def _reverse_completionist(
-    user_id: int,
-    when: datetime,
-) -> int:
-
+def _reverse_completionist(user_id: int, when: datetime) -> int:
     all_items = (
         db.session.query(Unlockable)
         .filter(Unlockable.type != UnlockableType.CHALLENGE_DECK)
         .all()
     )
+    item_ids = [item.id for item in all_items]
 
-    return sum(1 for item in all_items if _revert_user_unlock(user_id, item.id, when))
+    user_unlocks = (
+        db.session.query(UserUnlock)
+        .filter(UserUnlock.user_id == user_id, UserUnlock.unlockable_id.in_(item_ids))
+        .all()
+    )
+
+    count = 0
+    for uu in user_unlocks:
+        if uu.unlocked and _is_same_event(uu.unlocked_at, when):
+            db.session.delete(uu)
+            count += 1
+
+    return count
 
 
 @_reverse_resolver("BAL_30")  # Completionist+
-def _reverse_completionist_plus(
-    user_id: int,
-    when: datetime,
-) -> int:
-
+def _reverse_completionist_plus(user_id: int, when: datetime) -> int:
     decks = (
         db.session.query(Unlockable)
         .filter(Unlockable.type == UnlockableType.DECK)
         .all()
     )
+    d_ids = [d.id for d in decks]
 
-    count = 0
-
-    for deck in decks:
-        unlocked = _revert_user_unlock(user_id, deck.id, when)
-
-        stickered = _revert_sticker_application(
-            user_id,
-            deck.id,
-            when,
+    user_unlocks = (
+        db.session.query(UserUnlock)
+        .filter(UserUnlock.user_id == user_id, UserUnlock.unlockable_id.in_(d_ids))
+        .all()
+    )
+    user_stickers = (
+        db.session.query(UserStickerApplication)
+        .filter(
+            UserStickerApplication.user_id == user_id,
+            UserStickerApplication.unlockable_id.in_(d_ids),
         )
+        .all()
+    )
 
-        if unlocked or stickered:
-            count += 1
+    processed_ids = set()
 
-    return count
+    for uu in user_unlocks:
+        if uu.unlocked and _is_same_event(uu.unlocked_at, when):
+            db.session.delete(uu)
+            processed_ids.add(uu.unlockable_id)
+
+    for usa in user_stickers:
+        if _is_same_event(usa.earned_at, when):
+            if usa.manual_stake_order in (1, 8):
+                usa.manual_stake_order = 0
+            if usa.steam_stake_order in (1, 8):
+                usa.steam_stake_order = 0
+            if usa.manual_stake_order == 0 and usa.steam_stake_order == 0:
+                db.session.delete(usa)
+            processed_ids.add(usa.unlockable_id)
+
+    return len(processed_ids)
 
 
 @_reverse_resolver("BAL_31")  # Completionist++
-def _reverse_completionist_plus_plus(
-    user_id: int,
-    when: datetime,
-) -> int:
-
+def _reverse_completionist_plus_plus(user_id: int, when: datetime) -> int:
     jokers = (
         db.session.query(Unlockable)
         .filter(Unlockable.type == UnlockableType.JOKER)
         .all()
     )
+    j_ids = [j.id for j in jokers]
 
-    count = 0
-
-    for joker in jokers:
-        unlocked = _revert_user_unlock(user_id, joker.id, when)
-
-        stickered = _revert_sticker_application(
-            user_id,
-            joker.id,
-            when,
+    user_unlocks = (
+        db.session.query(UserUnlock)
+        .filter(UserUnlock.user_id == user_id, UserUnlock.unlockable_id.in_(j_ids))
+        .all()
+    )
+    user_stickers = (
+        db.session.query(UserStickerApplication)
+        .filter(
+            UserStickerApplication.user_id == user_id,
+            UserStickerApplication.unlockable_id.in_(j_ids),
         )
+        .all()
+    )
 
-        if unlocked or stickered:
-            count += 1
+    processed_ids = set()
 
-    return count
+    for uu in user_unlocks:
+        if uu.unlocked and _is_same_event(uu.unlocked_at, when):
+            db.session.delete(uu)
+            processed_ids.add(uu.unlockable_id)
+
+    for usa in user_stickers:
+        if _is_same_event(usa.earned_at, when):
+            if usa.manual_stake_order in (1, 8):
+                usa.manual_stake_order = 0
+            if usa.steam_stake_order in (1, 8):
+                usa.steam_stake_order = 0
+            if usa.manual_stake_order == 0 and usa.steam_stake_order == 0:
+                db.session.delete(usa)
+            processed_ids.add(usa.unlockable_id)
+
+    return len(processed_ids)
