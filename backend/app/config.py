@@ -9,10 +9,10 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
-        "pool_size": 2,
-        "max_overflow": 0,
-        "pool_recycle": 280,  # recicla conexiones cada ~5 min para evitar timeouts
-        "pool_pre_ping": True,  # detecta conexiones muertas antes de usarlas
+        "pool_pre_ping": True,  # Reconecta si se cae.
+        "pool_recycle": 299,  # Recicla la conexión cada 5 minutos.
+        "pool_size": 5,  # Reduce el número de conexiones simultáneas.
+        "max_overflow": 0,  # No desbordar la memoria.
     }
     STEAM_API_KEY = os.getenv("STEAM_API_KEY")
     STEAM_APP_ID = 2379780  # Balatro en Steam
