@@ -6,18 +6,16 @@
  * automáticamente, refrescando el caché si está próximo a expirar), de
  * modo que nunca enviamos tokens caducados.
  */
-import axios from 'axios'
-import { firebaseAuth } from './firebase'
+import axios from "axios";
+import { firebaseAuth } from "./firebase";
 
-export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
-})
+export const api = axios.create();
 
 api.interceptors.request.use(async (config) => {
-  const user = firebaseAuth.currentUser
+  const user = firebaseAuth.currentUser;
   if (user) {
-    const token = await user.getIdToken()
-    config.headers.Authorization = `Bearer ${token}`
+    const token = await user.getIdToken();
+    config.headers.Authorization = `Bearer ${token}`;
   }
-  return config
-})
+  return config;
+});
