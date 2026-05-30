@@ -9,7 +9,9 @@
 import axios from "axios";
 import { firebaseAuth } from "./firebase";
 
-export const api = axios.create();
+export const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8080",
+});
 
 api.interceptors.request.use(async (config) => {
   const user = firebaseAuth.currentUser;
