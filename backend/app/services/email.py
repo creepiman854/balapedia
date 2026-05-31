@@ -43,18 +43,7 @@ def send_email(
     html_body: str,
     text_body: Optional[str] = None,
 ) -> bool:
-    """Envía un email vía Flask-Mail.
-
-    Args:
-        to: dirección email del destinatario.
-        subject: asunto.
-        html_body: cuerpo HTML.
-        text_body: cuerpo plano (fallback para clientes que no soportan
-            HTML, mejor deliverability anti-spam). Si None, se omite.
-
-    Returns:
-        True si se envió correctamente; False si hubo excepción (logged).
-    """
+    """Envía un email vía Flask-Mail."""
     try:
         msg = Message(
             subject=subject,
@@ -75,77 +64,59 @@ def send_email(
 
 
 # =============================================================================
-# Plantillas — funciones puras que devuelven (subject, html, text)
+# Plantillas — Alertas para el Administrador
 # =============================================================================
 
 
 def render_welcome_email(
+    user_email: str,
     display_name: Optional[str] = None,
 ) -> tuple[str, str, str]:
-    """Construye el welcome email. Devuelve (subject, html, text)."""
-    greeting = f"Hola {display_name}," if display_name else "¡Hola!"
-    subject = "¡Bienvenido a Balapedia!"
+    """Construye la alerta de nuevo registro para el admin."""
+    name = display_name or "Sin nombre"
+    subject = f"[ADMIN] Nuevo registro en Balapedia: {name}"
 
     html = f"""\
 <html>
   <body style="font-family: sans-serif; max-width: 600px; margin: auto;">
-    <h1>¡Bienvenido a Balapedia!</h1>
-    <p>{greeting}</p>
-    <p>Gracias por crear tu cuenta en Balapedia, la wiki interactiva de
-    Balatro.</p>
-    <p>Desde tu perfil podrás:</p>
+    <h1 style="color: #2563eb;">Nuevo usuario registrado</h1>
+    <p>Se ha registrado una nueva cuenta en Balapedia.</p>
     <ul>
-      <li>Vincular tu cuenta de Steam para sincronizar tu progreso
-      automáticamente.</li>
-      <li>Explorar el catálogo completo de Jokers, Decks, Achievements y
-      más.</li>
-      <li>Ver tu colección de Gold Stickers y tu avance hacia
-      Completionist++.</li>
+      <li><strong>Nombre/Steam:</strong> {name}</li>
+      <li><strong>Email:</strong> {user_email}</li>
     </ul>
-    <p>Ya puedes empezar.</p>
     <p style="color: #888; font-size: 0.85em;">
-      Este es un email automático. No respondas a este mensaje.
+      Alerta automática del sistema Balapedia.
     </p>
   </body>
 </html>
 """
 
     text = f"""\
-{greeting}
+NUEVO USUARIO REGISTRADO
 
-Gracias por crear tu cuenta en Balapedia.
-
-Desde tu perfil podrás vincular tu cuenta de Steam para sincronizar tu
-progreso, explorar el catálogo de Jokers/Decks/Achievements, y ver tu
-colección de Gold Stickers.
-
-¡Ya puedes empezar!
+Se ha registrado una nueva cuenta en Balapedia.
+- Nombre/Steam: {name}
+- Email: {user_email}
 
 ---
-Este es un email automático. No respondas a este mensaje.
+Alerta automática del sistema Balapedia.
 """
     return subject, html, text
 
 
 def render_sync_confirmation_email(
+    user_email: str,
     display_name: Optional[str],
     newly_unlocked: list[dict],
     total_items_cascaded: int,
     total_sticker_applications: int,
 ) -> tuple[str, str, str]:
-    """Construye el email de confirmación post-sync.
-
-    Args:
-        display_name: nombre del usuario para personalización.
-        newly_unlocked: lista de dicts con info de cada achievement
-            desbloqueado. Se espera al menos la clave `name`.
-        total_items_cascaded: total de items desbloqueados via cascada.
-        total_sticker_applications: total de Gold Stickers aplicados.
-    """
-    greeting = f"Hola {display_name}," if display_name else "¡Hola!"
+    """Construye la alerta de sincronización con novedades para el admin."""
+    name = display_name or user_email
     n = len(newly_unlocked)
     plural = "s" if n != 1 else ""
-    subject = f"¡{n} achievement{plural} desbloqueado{plural} en Balapedia!"
+    subject = f"[ADMIN] Sincronización de {name}: {n} logro{plural} nuevo{plural}"
 
     achievements_html = "\n".join(
         f"      <li>{ach.get('name', '?')}</li>" for ach in newly_unlocked
@@ -157,48 +128,41 @@ def render_sync_confirmation_email(
     html = f"""\
 <html>
   <body style="font-family: sans-serif; max-width: 600px; margin: auto;">
-    <h1>Sincronización con Steam completada</h1>
-    <p>{greeting}</p>
-    <p>Tu progreso de Balatro se ha sincronizado correctamente. Esto es
-    lo nuevo:</p>
+    <h1 style="color: #059669;">Sincronización con novedades</h1>
+    <p>El usuario <strong>{name}</strong> ({user_email}) acaba de sincronizar su progreso con éxito.</p>
 
     <h2>{n} achievement{plural} desbloqueado{plural}</h2>
     <ul>
 {achievements_html}
     </ul>
 
-    <p>Adicionalmente:</p>
+    <p><strong>Efectos de la cascada:</strong></p>
     <ul>
-      <li><strong>{total_items_cascaded}</strong> items desbloqueados
-      automáticamente en cascada.</li>
-      <li><strong>{total_sticker_applications}</strong> Gold Stickers
-      aplicados.</li>
+      <li><strong>{total_items_cascaded}</strong> items base desbloqueados.</li>
+      <li><strong>{total_sticker_applications}</strong> Gold Stickers aplicados.</li>
     </ul>
 
-    <p>Visita tu perfil para ver el detalle completo.</p>
     <p style="color: #888; font-size: 0.85em;">
-      Este es un email automático. No respondas a este mensaje.
+      Alerta automática del sistema Balapedia.
     </p>
   </body>
 </html>
 """
 
     text = f"""\
-{greeting}
+SINCRONIZACIÓN CON NOVEDADES
 
-Tu progreso de Balatro se ha sincronizado correctamente.
+El usuario {name} ({user_email}) acaba de sincronizar su progreso.
 
 Achievements nuevos ({n}):
 {achievements_text}
 
-Adicionalmente:
-  - {total_items_cascaded} items desbloqueados en cascada.
+Efectos de la cascada:
+  - {total_items_cascaded} items desbloqueados.
   - {total_sticker_applications} Gold Stickers aplicados.
 
-Visita tu perfil para ver el detalle completo.
-
 ---
-Este es un email automático. No respondas a este mensaje.
+Alerta automática del sistema Balapedia.
 """
     return subject, html, text
 
@@ -208,15 +172,23 @@ Este es un email automático. No respondas a este mensaje.
 # =============================================================================
 
 
-def send_welcome_email(to: str, display_name: Optional[str] = None) -> bool:
-    """Envía el welcome email a un usuario recién creado.
+def _get_admin_email() -> str:
+    """Extrae el email del admin desde la configuración MAIL_DEFAULT_SENDER."""
+    sender = current_app.config.get("MAIL_DEFAULT_SENDER")
+    # Flask-Mail permite que el sender sea un string o una tupla ("Nombre", "email")
+    if isinstance(sender, tuple):
+        return sender[1]
+    return sender or "admin@localhost"
 
-    Failure no bloqueante: si Mail falla, logea y devuelve False sin
-    propagar. El caller (auth.py) ignora el retorno para no abortar
-    el signup.
+
+def send_welcome_email(to: str, display_name: Optional[str] = None) -> bool:
+    """Envía la alerta de nuevo usuario al administrador.
+    Nota: 'to' es el email del usuario registrado que nos llega desde el auth.
     """
-    subject, html, text = render_welcome_email(display_name)
-    return send_email(to, subject, html, text)
+    admin_email = _get_admin_email()
+
+    subject, html, text = render_welcome_email(user_email=to, display_name=display_name)
+    return send_email(admin_email, subject, html, text)
 
 
 def send_sync_confirmation_email(
@@ -226,14 +198,23 @@ def send_sync_confirmation_email(
     total_items_cascaded: int,
     total_sticker_applications: int,
 ) -> bool:
-    """Envía el email de confirmación tras un sync de Steam exitoso.
+    """Envía la alerta de sincronización al administrador SOLO si hay novedades."""
 
-    Failure no bloqueante (igual que send_welcome_email).
-    """
+    # GUARDIA DE FATIGA: Si no hay novedades, no enviamos correo y devolvemos True
+    if (
+        not newly_unlocked
+        and total_items_cascaded == 0
+        and total_sticker_applications == 0
+    ):
+        return True
+
+    admin_email = _get_admin_email()
+
     subject, html, text = render_sync_confirmation_email(
+        user_email=to,
         display_name=display_name,
         newly_unlocked=newly_unlocked,
         total_items_cascaded=total_items_cascaded,
         total_sticker_applications=total_sticker_applications,
     )
-    return send_email(to, subject, html, text)
+    return send_email(admin_email, subject, html, text)
