@@ -20,14 +20,18 @@
   <CrtEffects :intensity="settings.crtIntensity" />
 
   <div id="app-content">
-    <AppHeader @open-settings="showSettings = true" />
+    <AppHeader
+      @open-settings="showSettings = true"
+      @toggle-credits="showCredits = !showCredits"
+      @close-credits="showCredits = false"
+    />
 
     <main class="main-area">
       <router-view />
     </main>
+    <AppFooter :is-open="showCredits" @toggle="showCredits = !showCredits" />
 
     <SettingsModal :is-open="showSettings" @close="showSettings = false" />
-
     <AuthModal />
   </div>
 
@@ -35,24 +39,36 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, watch } from "vue";
+
 import { useSettingsStore } from "@/stores/settings";
 import { useAuthStore } from "@/stores/auth";
+import { useRoute } from "vue-router";
 import { storeToRefs } from "pinia";
+
 import BalatroBackground from "@/components/common/BalatroBackground.vue";
 import SparkleOverlay from "@/components/common/SparkleOverlay.vue";
 import CrtEffects from "@/components/common/CrtEffects.vue";
 import AppHeader from "@/components/common/AppHeader.vue";
+import AppFooter from "@/components/common/AppFooter.vue";
 import SettingsModal from "@/components/common/SettingsModal.vue";
 import AuthModal from "@/components/common/AuthModal.vue";
-
 import GlobalBlockingOverlay from "@/components/common/GlobalBlockingOverlay.vue";
 
 const settings = useSettingsStore();
 const authStore = useAuthStore();
 const showSettings = ref(false);
+const showCredits = ref(false);
 
 const { navigationLocked } = storeToRefs(authStore);
+const route = useRoute();
+
+watch(
+  () => route.path,
+  () => {
+    showCredits.value = false;
+  },
+);
 </script>
 
 <style lang="scss" scoped>

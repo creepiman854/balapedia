@@ -23,7 +23,7 @@
       :class="{ 'burger-btn--open': drawerOpen }"
       title="Menu"
       aria-label="Open menu"
-      @click="!authStore.navigationLocked && (drawerOpen = !drawerOpen)"
+      @click="toggleDrawer"
     >
       <iconify-icon icon="pixel:bars-solid" noobserver />
     </button>
@@ -51,22 +51,14 @@
     </nav>
 
     <div class="settings-wrapper">
-      <button
-        class="login-btn"
-        title="Settings"
-        @click="!authStore.navigationLocked && $emit('open-settings')"
-      >
+      <button class="login-btn" title="Settings" @click="handleSettings">
         <iconify-icon icon="pixel:cog" noobserver />
       </button>
     </div>
 
     <template v-if="isAuthenticated && user">
       <div class="account-wrapper logged-in-wrapper">
-        <button
-          class="login-btn logged-in"
-          @click="!authStore.navigationLocked && authStore.openAuthModal()"
-          title="Manage my account"
-        >
+        <button class="login-btn logged-in" @click="handleAuth" title="Manage my account">
           <iconify-icon icon="pixel:user-solid" noobserver />
           <span class="login-btn__label">
             {{ user.display_name || user.email || "USER" }}
@@ -77,7 +69,7 @@
 
     <template v-else>
       <div class="account-wrapper">
-        <button class="login-btn" @click="!authStore.navigationLocked && authStore.openAuthModal()">
+        <button class="login-btn" @click="handleAuth">
           <iconify-icon icon="pixel:user" noobserver />
           <span class="login-btn__label">ACCOUNT</span>
         </button>
@@ -122,6 +114,16 @@
                 </button>
               </router-link>
             </nav>
+            <button
+              class="drawer-nav-btn credits-btn"
+              @click="
+                $emit('toggle-credits');
+                drawerOpen = false;
+              "
+            >
+              <iconify-icon icon="pixel:info-circle" noobserver />
+              CREDITS
+            </button>
           </aside>
         </Transition>
       </div>
@@ -136,7 +138,7 @@ import { useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useHeaderStore } from "@/stores/header";
 
-defineEmits(["open-settings"]);
+const emit = defineEmits(["open-settings", "toggle-credits", "close-credits"]);
 
 const authStore = useAuthStore();
 const { isAuthenticated, user } = storeToRefs(authStore);
@@ -176,6 +178,24 @@ function navBtnStyle(tab, isActive) {
     };
   }
   return { filter: "brightness(0.75) saturate(0.7)" };
+}
+
+function handleSettings() {
+  if (authStore.navigationLocked) return;
+  emit("open-settings");
+  emit("close-credits");
+}
+
+function handleAuth() {
+  if (authStore.navigationLocked) return;
+  authStore.openAuthModal();
+  emit("close-credits");
+}
+
+function toggleDrawer() {
+  if (authStore.navigationLocked) return;
+  drawerOpen.value = !drawerOpen.value;
+  if (drawerOpen.value) emit("close-credits");
 }
 </script>
 
@@ -509,6 +529,30 @@ function navBtnStyle(tab, isActive) {
 .drawer-slide-enter-from,
 .drawer-slide-leave-to {
   transform: translateX(-100%);
+}
+
+.drawer-divider {
+  height: 2px;
+  background: $panel-mid;
+  margin: 8px 0;
+  width: 100%;
+}
+
+.credits-btn {
+  color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  iconify-icon {
+    font-size: 22px;
+  }
+
+  @include can-hover {
+    &:hover {
+      color: #fff;
+    }
+  }
 }
 
 /* ──────────────────────────────────────────────────────────────
